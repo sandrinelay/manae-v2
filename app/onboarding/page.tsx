@@ -86,33 +86,33 @@ export default function OnboardingStep1() {
     };
 
     return (
-        <div className="min-h-screen bg-[#FEFDFB] flex items-center justify-center p-6">
+        <div className="min-h-screen bg-mint flex items-center justify-center p-6">
             <div className="w-full max-w-md">
 
                 {/* Header */}
                 <header className="flex justify-between items-center mb-6">
-                    <h1 className="text-2xl font-bold text-[#BC8A7F] tracking-tight font-quicksand">
+                    <h1 className="text-2xl font-bold text-secondary tracking-tight font-quicksand">
                         manae
                     </h1>
-                    <span className="text-sm font-medium text-[#A89F91] bg-[#FFF8F0] px-3 py-1 rounded-full">
+                    <span className="text-sm font-medium text-text-muted bg-white px-3 py-1 rounded-full">
                         Étape 1 / 4
                     </span>
                 </header>
 
                 {/* Progress Bar */}
-                <div className="w-full h-1 bg-[#F9FAFB] rounded-full mb-8 overflow-hidden">
+                <div className="w-full h-1 bg-gray-light rounded-full mb-8 overflow-hidden">
                     <div
-                        className="h-full bg-gradient-to-r from-[#BC8A7F] via-[#A89F91] to-[#BC8A7F]"
+                        className="h-full bg-gradient-to-r from-primary via-secondary to-primary"
                         style={{ width: '25%' }}
                     />
                 </div>
 
                 {/* Content */}
                 <main>
-                    <h2 className="text-2xl font-bold text-[#443C38] mb-3">
+                    <h2 className="text-2xl font-bold text-text-dark mb-3">
                         Faisons connaissance 👋
                     </h2>
-                    <p className="text-base text-[#6B625E] mb-8 leading-relaxed">
+                    <p className="text-base text-text-medium mb-8 leading-relaxed">
                         Quelques infos pour personnaliser ton expérience.
                     </p>
 
@@ -151,7 +151,7 @@ export default function OnboardingStep1() {
                             className="opacity-70"
                         />
 
-                        <p className="text-xs text-[#A89F91] mb-6 mt-2">
+                        <p className="text-xs text-text-muted mb-6 mt-2">
                             💡 L'email ne peut pas être modifié
                         </p>
 

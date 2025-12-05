@@ -5,23 +5,37 @@
   --background: #ffffff;
   --foreground: #171717;
 
-  /* Brand colors */
-  --primary: #BC8A7F;
-  --primary-light: #A47568;
-  --secondary: #A89F91;
+  /* Brand colors - New Palette */
+  --primary: #14B8A6;
+  /* Active Teal - Freshness, Efficiency */
+  --primary-dark: #0D9488;
+  /* Darker teal for hover states */
+  --secondary: #334155;
+  /* Slate - Class, Stability */
+  --secondary-light: #475569;
+  /* Lighter slate for hover */
 
   /* Background colors */
-  --bg-cream: #FEFDFB;
-  --bg-peach: #FFF8F0;
+  --bg-mint: #F0FDFA;
+  /* Mint Ice - Lightness */
+  --bg-white: #FFFFFF;
+  /* Pure White - Clarity */
   --bg-gray: #F9FAFB;
+  /* Light gray for disabled states */
 
   /* Text colors */
-  --text-dark: #443C38;
-  --text-medium: #6B625E;
-  --text-muted: #A89F91;
+  --text-dark: #334155;
+  /* Deep Slate - Readability */
+  --text-medium: #64748B;
+  /* Medium slate */
+  --text-muted: #94A3B8;
+  /* Muted slate */
 
   /* Border colors */
-  --border-light: #E5E7EB;
+  --border-light: #E2E8F0;
+  /* Light slate border */
+  --border-primary: #14B8A6;
+  /* Teal border */
 }
 
 @theme inline {
@@ -33,12 +47,13 @@
 
   /* Brand */
   --color-primary: var(--primary);
-  --color-primary-light: var(--primary-light);
+  --color-primary-dark: var(--primary-dark);
   --color-secondary: var(--secondary);
+  --color-secondary-light: var(--secondary-light);
 
   /* Backgrounds */
-  --color-cream: var(--bg-cream);
-  --color-peach: var(--bg-peach);
+  --color-mint: var(--bg-mint);
+  --color-white: var(--bg-white);
   --color-gray-light: var(--bg-gray);
 
   /* Text */
@@ -48,6 +63,7 @@
 
   /* Borders */
   --color-border: var(--border-light);
+  --color-border-primary: var(--border-primary);
 
   /* === FONTS === */
   --font-sans: var(--font-geist-sans);

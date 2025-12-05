@@ -68,33 +68,33 @@ export default function OnboardingStep2() {
     };
 
     return (
-        <div className="min-h-screen bg-[#FFF8F0] flex items-center justify-center p-6">
+        <div className="min-h-screen bg-white flex items-center justify-center p-6">
             <div className="w-full max-w-md">
 
                 {/* Header */}
                 <header className="flex justify-between items-center mb-6">
-                    <h1 className="text-2xl font-semibold text-[#BC8A7F] tracking-tight" style={{ fontFamily: 'var(--font-quicksand)' }}>
+                    <h1 className="text-3xl font-semibold text-secondary tracking-tight" style={{ fontFamily: 'var(--font-quicksand)' }}>
                         manae
                     </h1>
-                    <span className="text-sm font-medium text-[#A89F91] bg-white px-3 py-1 rounded-full">
+                    <span className="text-sm font-medium text-text-muted bg-mint px-3 py-1 rounded-full">
                         Étape 2 / 4
                     </span>
                 </header>
 
                 {/* Progress Bar */}
-                <div className="w-full h-1 bg-white rounded-full mb-8 overflow-hidden">
+                <div className="w-full h-1 bg-mint rounded-full mb-8 overflow-hidden">
                     <div
-                        className="h-full bg-gradient-to-r from-[#BC8A7F] via-[#A89F91] to-[#BC8A7F]"
+                        className="h-full bg-gradient-to-r from-primary via-secondary to-primary"
                         style={{ width: '50%' }}
                     />
                 </div>
 
                 {/* Content */}
                 <main>
-                    <h2 className="text-2xl font-bold text-[#443C38] mb-3">
+                    <h2 className="text-2xl font-bold text-text-dark mb-3">
                         Tes moments d'énergie ⚡
                     </h2>
-                    <p className="text-base text-[#6B625E] mb-6 leading-relaxed">
+                    <p className="text-base text-text-medium mb-6 leading-relaxed">
                         Quand préfères-tu avancer sur tes tâches ?
                     </p>
 
@@ -116,7 +116,7 @@ export default function OnboardingStep2() {
 
                         {/* Message d'aide si rien sélectionné */}
                         {selectedMoments.length === 0 && (
-                            <p className="text-sm text-[#A89F91] text-center mb-6">
+                            <p className="text-sm text-text-muted text-center mb-6">
                                 💡 Sélectionne au moins un créneau
                             </p>
                         )}

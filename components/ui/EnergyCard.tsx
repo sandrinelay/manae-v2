@@ -26,8 +26,8 @@ export const EnergyCard: React.FC<EnergyCardProps> = ({
         flex flex-col items-center justify-center gap-2
         min-h-[140px]
         ${selected
-                    ? 'bg-[#BC8A7F] border-[#BC8A7F] text-white shadow-md'
-                    : 'bg-white border-[#E5E7EB] text-[#443C38] hover:border-[#BC8A7F] hover:shadow-sm hover:-translate-y-0.5'
+                    ? 'bg-primary border-primary text-white shadow-md'
+                    : 'bg-white border-border text-text-dark hover:border-primary hover:shadow-sm hover:-translate-y-0.5'
                 }
       `}
         >
@@ -39,15 +39,15 @@ export const EnergyCard: React.FC<EnergyCardProps> = ({
             )}
 
             {/* Icon moderne */}
-            <Icon className={`w-10 h-10 mb-1 ${selected ? 'text-white' : 'text-[#BC8A7F]'}`} />
+            <Icon className={`w-10 h-10 mb-1 ${selected ? 'text-white' : 'text-primary'}`} />
 
             {/* Label */}
-            <span className={`font-semibold text-base text-center ${selected ? 'text-white' : 'text-[#443C38]'}`}>
+            <span className={`font-semibold text-base text-center ${selected ? 'text-white' : 'text-text-dark'}`}>
                 {label}
             </span>
 
             {/* Horaire */}
-            <span className={`text-sm ${selected ? 'text-white/80' : 'text-[#6B625E]'}`}>
+            <span className={`text-sm ${selected ? 'text-white/80' : 'text-text-medium'}`}>
                 {timeRange}
             </span>
         </button>

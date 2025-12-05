@@ -23,13 +23,13 @@ export const Button: React.FC<ButtonProps> = ({
 
     const variantStyles = variant === 'primary'
         ? `
-      bg-[#BC8A7F] text-white border-[#BC8A7F]
-      hover:bg-[#A47568] hover:-translate-y-0.5 hover:shadow-md
-      disabled:hover:bg-[#BC8A7F] disabled:hover:translate-y-0 disabled:hover:shadow-none
+      bg-primary text-white border-primary
+      hover:bg-primary-dark hover:-translate-y-0.5 hover:shadow-md
+      disabled:hover:bg-primary disabled:hover:translate-y-0 disabled:hover:shadow-none
     `
         : `
-      bg-white text-[#443C38] border-[#E5E7EB]
-      hover:border-[#BC8A7F] hover:bg-[#FFF8F0]
+      bg-white text-text-dark border-border
+      hover:border-primary hover:bg-mint
     `;
 
     return (
