@@ -86,12 +86,12 @@ export default function OnboardingStep1() {
     };
 
     return (
-        <div className="min-h-screen bg-mint flex items-center justify-center p-6">
+        <div className="min-h-screen bg-mint flex items-start justify-center p-6 pt-12">
             <div className="w-full max-w-md">
 
                 {/* Header */}
                 <header className="flex justify-between items-center mb-6">
-                    <h1 className="text-2xl font-bold text-secondary tracking-tight font-quicksand">
+                    <h1 className="text-3xl font-semibold text-secondary tracking-tight" style={{ fontFamily: 'var(--font-quicksand)' }}>
                         manae
                     </h1>
                     <span className="text-sm font-medium text-text-muted bg-white px-3 py-1 rounded-full">

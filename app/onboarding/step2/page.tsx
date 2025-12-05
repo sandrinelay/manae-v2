@@ -68,7 +68,7 @@ export default function OnboardingStep2() {
     };
 
     return (
-        <div className="min-h-screen bg-white flex items-center justify-center p-6">
+        <div className="min-h-screen bg-mint flex items-start justify-center p-6 pt-12">
             <div className="w-full max-w-md">
 
                 {/* Header */}
