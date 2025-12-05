@@ -1,16 +1,73 @@
 @import "tailwindcss";
 
 :root {
+  /* Base colors */
   --background: #ffffff;
   --foreground: #171717;
+
+  /* Brand colors */
+  --primary: #BC8A7F;
+  --primary-light: #A47568;
+  --secondary: #A89F91;
+
+  /* Background colors */
+  --bg-cream: #FEFDFB;
+  --bg-peach: #FFF8F0;
+  --bg-gray: #F9FAFB;
+
+  /* Text colors */
+  --text-dark: #443C38;
+  --text-medium: #6B625E;
+  --text-muted: #A89F91;
+
+  /* Border colors */
+  --border-light: #E5E7EB;
 }
 
 @theme inline {
+  /* === COLORS === */
+
+  /* Base */
   --color-background: var(--background);
   --color-foreground: var(--foreground);
+
+  /* Brand */
+  --color-primary: var(--primary);
+  --color-primary-light: var(--primary-light);
+  --color-secondary: var(--secondary);
+
+  /* Backgrounds */
+  --color-cream: var(--bg-cream);
+  --color-peach: var(--bg-peach);
+  --color-gray-light: var(--bg-gray);
+
+  /* Text */
+  --color-text-dark: var(--text-dark);
+  --color-text-medium: var(--text-medium);
+  --color-text-muted: var(--text-muted);
+
+  /* Borders */
+  --color-border: var(--border-light);
+
+  /* === FONTS === */
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
   --font-quicksand: var(--font-quicksand);
+
+  /* === SPACING === */
+  /* Tailwind default spacing is good, but you can customize here if needed */
+
+  /* === BORDER RADIUS === */
+  --radius-sm: 0.5rem;
+  --radius-md: 0.75rem;
+  --radius-lg: 1rem;
+  --radius-xl: 1.5rem;
+  --radius-full: 9999px;
+
+  /* === SHADOWS === */
+  --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+  --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1);
+  --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1);
 }
 
 @media (prefers-color-scheme: dark) {
