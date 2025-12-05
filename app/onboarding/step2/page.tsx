@@ -1,0 +1,147 @@
+'use client';
+
+import React, { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
+import { Button } from '@/components/ui/Button';
+import { EnergyCard } from '@/components/ui/EnergyCard';
+import { SunriseIcon, CoffeeIcon, BriefcaseIcon, SunsetIcon, MoonIcon } from '@/components/ui/icons/TimeIcons';
+
+
+interface EnergyMoment {
+    id: string;
+    icon: React.FC<{ className?: string }>;
+    label: string;
+    timeRange: string;
+}
+
+const ENERGY_MOMENTS: EnergyMoment[] = [
+    { id: 'morning-energy', icon: SunriseIcon, label: 'Matin énergétique', timeRange: '6h-9h' },
+    { id: 'morning', icon: SunriseIcon, label: 'Matinée', timeRange: '9h-12h' },
+    { id: 'lunch', icon: CoffeeIcon, label: 'Pause midi', timeRange: '12h-14h' },
+    { id: 'afternoon', icon: BriefcaseIcon, label: 'Après-midi', timeRange: '14h-18h' },
+    { id: 'evening', icon: SunsetIcon, label: 'Fin de journée', timeRange: '18h-21h' },
+    { id: 'night', icon: MoonIcon, label: 'Nuit', timeRange: '21h-6h' },
+];
+
+export default function OnboardingStep2() {
+    const router = useRouter();
+    const [selectedMoments, setSelectedMoments] = useState<string[]>([]);
+
+    const toggleMoment = (id: string) => {
+        setSelectedMoments(prev =>
+            prev.includes(id)
+                ? prev.filter(m => m !== id)
+                : [...prev, id]
+        );
+    };
+
+    const handleBack = () => {
+        router.push('/onboarding');
+    };
+
+    const handleSubmit = (e: React.FormEvent) => {
+        e.preventDefault();
+        if (selectedMoments.length === 0) return;
+
+        try {
+            // Récupérer les données step 1
+            const existingData = localStorage.getItem('manae_onboarding');
+            const parsedData = existingData ? JSON.parse(existingData) : {};
+
+            // Ajouter les données step 2
+            const payload = {
+                ...parsedData,
+                step: 2,
+                energy_moments: selectedMoments,
+                completed_at: new Date().toISOString()
+            };
+
+            localStorage.setItem('manae_onboarding', JSON.stringify(payload));
+            console.log('✅ Données step 2 sauvegardées:', payload);
+
+            // TODO: Rediriger vers step 3
+            alert('Super ! Prochaine étape : Temps indisponibles ⏰');
+            // router.push('/onboarding/step3');
+        } catch (error) {
+            console.error('❌ Erreur sauvegarde:', error);
+        }
+    };
+
+    return (
+        <div className="min-h-screen bg-[#FFF8F0] flex items-center justify-center p-6">
+            <div className="w-full max-w-md">
+
+                {/* Header */}
+                <header className="flex justify-between items-center mb-6">
+                    <h1 className="text-2xl font-semibold text-[#BC8A7F] tracking-tight" style={{ fontFamily: 'var(--font-quicksand)' }}>
+                        manae
+                    </h1>
+                    <span className="text-sm font-medium text-[#A89F91] bg-white px-3 py-1 rounded-full">
+                        Étape 2 / 4
+                    </span>
+                </header>
+
+                {/* Progress Bar */}
+                <div className="w-full h-1 bg-white rounded-full mb-8 overflow-hidden">
+                    <div
+                        className="h-full bg-gradient-to-r from-[#BC8A7F] via-[#A89F91] to-[#BC8A7F]"
+                        style={{ width: '50%' }}
+                    />
+                </div>
+
+                {/* Content */}
+                <main>
+                    <h2 className="text-2xl font-bold text-[#443C38] mb-3">
+                        Tes moments d'énergie ⚡
+                    </h2>
+                    <p className="text-base text-[#6B625E] mb-6 leading-relaxed">
+                        Quand préfères-tu avancer sur tes tâches ?
+                    </p>
+
+                    <form onSubmit={handleSubmit}>
+                        {/* Grid de cards */}
+                        <div className="grid grid-cols-2 gap-3 mb-6">
+                            {ENERGY_MOMENTS.map(moment => (
+                                <EnergyCard
+                                    key={moment.id}
+                                    id={moment.id}
+                                    icon={moment.icon}
+                                    label={moment.label}
+                                    timeRange={moment.timeRange}
+                                    selected={selectedMoments.includes(moment.id)}
+                                    onClick={() => toggleMoment(moment.id)}
+                                />
+                            ))}
+                        </div>
+
+                        {/* Message d'aide si rien sélectionné */}
+                        {selectedMoments.length === 0 && (
+                            <p className="text-sm text-[#A89F91] text-center mb-6">
+                                💡 Sélectionne au moins un créneau
+                            </p>
+                        )}
+
+                        {/* Boutons navigation */}
+                        <div className="flex gap-3 pt-4">
+                            <Button
+                                type="button"
+                                variant="secondary"
+                                onClick={handleBack}
+                                className="flex-1"
+                            >
+                                ← Retour
+                            </Button>
+                            <Button
+                                type="submit"
+                                disabled={selectedMoments.length === 0}
+                                className="flex-1"
+                            >
+                                Continuer →
+                            </Button>
+                        </div>
+                    </form>
+                </main>
+            </div>
+        </div>
+    );
+}
