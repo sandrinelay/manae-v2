@@ -130,8 +130,7 @@ export default function OnboardingStep3() {
             localStorage.setItem('manae_onboarding', JSON.stringify(payload));
             console.log('✅ Données step 3 sauvegardées:', payload);
 
-            alert('Parfait ! Dernière étape : Google Calendar 📅');
-            // router.push('/onboarding/step4');
+            router.push('/onboarding/step4')
         } catch (error) {
             console.error('❌ Erreur sauvegarde:', error);
         }

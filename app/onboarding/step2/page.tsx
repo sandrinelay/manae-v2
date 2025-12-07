@@ -59,9 +59,7 @@ export default function OnboardingStep2() {
             localStorage.setItem('manae_onboarding', JSON.stringify(payload));
             console.log('✅ Données step 2 sauvegardées:', payload);
 
-            // TODO: Rediriger vers step 3
-            alert('Super ! Prochaine étape : Temps indisponibles ⏰');
-            // router.push('/onboarding/step3');
+            router.push('/onboarding/step3');
         } catch (error) {
             console.error('❌ Erreur sauvegarde:', error);
         }
