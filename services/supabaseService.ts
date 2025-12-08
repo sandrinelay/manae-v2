@@ -10,22 +10,7 @@ export interface Thought {
     created_at: string
 }
 
-export interface Item {
-    id: string
-    user_id: string
-    text: string
-    type: 'task' | 'note' | 'course'
-    status: 'pending' | 'planned' | 'completed' | 'archived'
-    category: 'work' | 'personal' | 'kids' | 'admin' | 'home' | null
-    tags: string[]
-    is_potential_project: boolean
-    is_pinned: boolean
-    mood: 'energetic' | 'calm' | 'overwhelmed' | 'tired' | null
-    planned_date: string | null
-    completed_date: string | null
-    created_at: string
-    analyzed_at: string | null
-}
+
 
 export interface UserProfile {
     id: string
@@ -114,81 +99,7 @@ export async function getThoughtsCount() {
     return count || 0
 }
 
-// ============ ITEMS (Legacy - pour compatibilité) ============
 
-export async function createItem(item: Partial<Item>) {
-    const supabase = getSupabase()
-    const { data: { user } } = await supabase.auth.getUser()
-
-    if (!user) {
-        throw new Error('User not authenticated')
-    }
-
-    const { data, error } = await supabase
-        .from('items')
-        .insert({
-            ...item,
-            user_id: user.id
-        })
-        .select()
-        .single()
-
-    if (error) throw error
-    return data
-}
-
-export async function getItems(status?: string) {
-    const supabase = getSupabase()
-    const { data: { user } } = await supabase.auth.getUser()
-
-    if (!user) {
-        throw new Error('User not authenticated')
-    }
-
-    let query = supabase
-        .from('items')
-        .select('*')
-        .eq('user_id', user.id)
-        .order('created_at', { ascending: false })
-
-    if (status) {
-        query = query.eq('status', status)
-    }
-
-    const { data, error } = await query
-
-    if (error) throw error
-    return data as Item[]
-}
-
-export async function getPendingCount() {
-    const supabase = getSupabase()
-    const { data: { user } } = await supabase.auth.getUser()
-
-    if (!user) return 0
-
-    const { count, error } = await supabase
-        .from('items')
-        .select('*', { count: 'exact', head: true })
-        .eq('user_id', user.id)
-        .eq('status', 'pending')
-
-    if (error) {
-        console.error('Error getting pending count:', error)
-        return 0
-    }
-    return count || 0
-}
-
-export async function updateItemStatus(id: string, status: string) {
-    const supabase = getSupabase()
-    const { error } = await supabase
-        .from('items')
-        .update({ status })
-        .eq('id', id)
-
-    if (error) throw error
-}
 
 // ============ USER PROFILE ============
 

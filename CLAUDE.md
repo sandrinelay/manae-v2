@@ -63,7 +63,7 @@ middleware.ts           # Supabase session refresh
 
 - `users` - User profiles with onboarding status
 - `thoughts` - Raw text captures with mood tags
-- `items` - Organized tasks/projects
+
 - `constraints` - Time availability rules
 
 ### Conventions
