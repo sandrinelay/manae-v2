@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/Button';
 import { EnergyCard } from '@/components/ui/EnergyCard';
 import { SunriseIcon, CoffeeIcon, BriefcaseIcon, SunsetIcon, MoonIcon } from '@/components/ui/icons/TimeIcons';
+import { updateUserProfile, getOrCreateUserProfile } from '@/services/supabaseService';
 
 
 interface EnergyMoment {
@@ -26,6 +27,25 @@ const ENERGY_MOMENTS: EnergyMoment[] = [
 export default function OnboardingStep2() {
     const router = useRouter();
     const [selectedMoments, setSelectedMoments] = useState<string[]>([]);
+    const [isSaving, setIsSaving] = useState(false);
+    const [isLoading, setIsLoading] = useState(true);
+
+    // Charger les energy_moments existants
+    useEffect(() => {
+        const loadProfile = async () => {
+            try {
+                const profile = await getOrCreateUserProfile();
+                if (profile.energy_moments) {
+                    setSelectedMoments(profile.energy_moments);
+                }
+            } catch (error) {
+                console.error('Error loading profile:', error);
+            } finally {
+                setIsLoading(false);
+            }
+        };
+        loadProfile();
+    }, []);
 
     const toggleMoment = (id: string) => {
         setSelectedMoments(prev =>
@@ -39,29 +59,36 @@ export default function OnboardingStep2() {
         router.push('/onboarding');
     };
 
-    const handleSubmit = (e: React.FormEvent) => {
+    const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (selectedMoments.length === 0) return;
+        if (selectedMoments.length === 0 || isSaving) return;
+
+        setIsSaving(true);
 
         try {
-            // Récupérer les données step 1
+            // Sauvegarder vers Supabase
+            await updateUserProfile({
+                energy_moments: selectedMoments
+            });
+
+            // Garder aussi en localStorage pour le flow
             const existingData = localStorage.getItem('manae_onboarding');
             const parsedData = existingData ? JSON.parse(existingData) : {};
-
-            // Ajouter les données step 2
             const payload = {
                 ...parsedData,
                 step: 2,
                 energy_moments: selectedMoments,
                 completed_at: new Date().toISOString()
             };
-
             localStorage.setItem('manae_onboarding', JSON.stringify(payload));
-            console.log('✅ Données step 2 sauvegardées:', payload);
 
+            console.log('Saved to Supabase and localStorage');
             router.push('/onboarding/step3');
         } catch (error) {
-            console.error('❌ Erreur sauvegarde:', error);
+            console.error('Error saving:', error);
+            alert('Erreur lors de la sauvegarde');
+        } finally {
+            setIsSaving(false);
         }
     };
 
@@ -131,10 +158,10 @@ export default function OnboardingStep2() {
                             </Button>
                             <Button
                                 type="submit"
-                                disabled={selectedMoments.length === 0}
+                                disabled={selectedMoments.length === 0 || isSaving || isLoading}
                                 className="flex-1"
                             >
-                                Continuer →
+                                {isSaving ? 'Sauvegarde...' : 'Continuer →'}
                             </Button>
                         </div>
                     </form>

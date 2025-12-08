@@ -5,24 +5,38 @@ import { useRouter } from 'next/navigation';
 import { Input } from '@/components/ui/Input';
 import { Button } from '@/components/ui/Button';
 import { OnboardingData, ValidationErrors } from '@/types';
+import { getOrCreateUserProfile, updateUserProfile } from '@/services/supabaseService';
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export default function OnboardingStep1() {
     const router = useRouter();
-
-    // Simuler les données du sign up (à remplacer par les vraies données plus tard)
-    const signUpData = {
-        firstName: 'Lena',
-        lastName: 'Martin',
-        email: 'lena.martin@example.com'
-    };
+    const [isLoading, setIsLoading] = useState(true);
 
     const [formData, setFormData] = useState<OnboardingData>({
-        firstName: signUpData.firstName,
-        lastName: signUpData.lastName,
-        email: signUpData.email
+        firstName: '',
+        lastName: '',
+        email: ''
     });
+
+    // Charger le profil utilisateur existant
+    useEffect(() => {
+        const loadProfile = async () => {
+            try {
+                const profile = await getOrCreateUserProfile();
+                setFormData({
+                    firstName: profile.first_name || '',
+                    lastName: profile.last_name || '',
+                    email: profile.email || ''
+                });
+            } catch (error) {
+                console.error('Error loading profile:', error);
+            } finally {
+                setIsLoading(false);
+            }
+        };
+        loadProfile();
+    }, []);
 
     const [touched, setTouched] = useState<{ [key in keyof OnboardingData]?: boolean }>({});
     const [errors, setErrors] = useState<ValidationErrors>({});
@@ -64,24 +78,38 @@ export default function OnboardingStep1() {
         setTouched(prev => ({ ...prev, [name]: true }));
     };
 
-    const handleSubmit = (e: React.FormEvent) => {
-        e.preventDefault();
-        if (!isValid) return;
+    const [isSaving, setIsSaving] = useState(false);
 
-        const payload = {
-            step: 1,
-            first_name: formData.firstName,
-            last_name: formData.lastName,
-            email: formData.email,
-            completed_at: new Date().toISOString()
-        };
+    const handleSubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!isValid || isSaving) return;
+
+        setIsSaving(true);
 
         try {
+            // Sauvegarder vers Supabase
+            await updateUserProfile({
+                first_name: formData.firstName,
+                last_name: formData.lastName
+            });
+
+            // Garder aussi en localStorage pour le flow onboarding
+            const payload = {
+                step: 1,
+                first_name: formData.firstName,
+                last_name: formData.lastName,
+                email: formData.email,
+                completed_at: new Date().toISOString()
+            };
             localStorage.setItem('manae_onboarding', JSON.stringify(payload));
-            console.log('✅ Données sauvegardées:', payload);
+
+            console.log('Saved to Supabase and localStorage');
             router.push('/onboarding/step2');
         } catch (error) {
-            console.error('❌ Erreur sauvegarde:', error);
+            console.error('Error saving profile:', error);
+            alert('Erreur lors de la sauvegarde');
+        } finally {
+            setIsSaving(false);
         }
     };
 
@@ -151,8 +179,8 @@ export default function OnboardingStep1() {
                         </p>
 
                         <div className="pt-4">
-                            <Button type="submit" disabled={!isValid}>
-                                Continuer →
+                            <Button type="submit" disabled={!isValid || isSaving || isLoading}>
+                                {isSaving ? 'Sauvegarde...' : 'Continuer →'}
                             </Button>
                         </div>
                     </form>

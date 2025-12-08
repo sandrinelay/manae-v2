@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/Button';
 import { openGoogleAuthPopup, exchangeCodeForToken } from '@/lib/googleCalendar';
+import { updateUserProfile } from '@/services/supabaseService';
 
 export default function OnboardingStep4() {
     const router = useRouter();
@@ -17,10 +18,15 @@ export default function OnboardingStep4() {
             const code = await openGoogleAuthPopup();
             const tokens = await exchangeCodeForToken(code);
 
-            // Save tokens
+            // Save tokens locally (TODO: sauvegarder côté serveur de façon sécurisée)
             localStorage.setItem('manae_google_tokens', JSON.stringify(tokens));
 
-            // Mark onboarding as complete
+            // Marquer l'onboarding comme terminé dans Supabase
+            await updateUserProfile({
+                onboarding_completed: true
+            });
+
+            // Garder aussi en localStorage
             const onboardingData = localStorage.getItem('manae_onboarding');
             const parsedData = onboardingData ? JSON.parse(onboardingData) : {};
             localStorage.setItem('manae_onboarding', JSON.stringify({
@@ -29,7 +35,7 @@ export default function OnboardingStep4() {
                 completed_at: new Date().toISOString()
             }));
 
-            router.push('/');
+            router.push('/capture');
         } catch (err) {
             console.error('Auth error:', err);
             setError('Une erreur est survenue lors de la connexion.');
@@ -38,8 +44,16 @@ export default function OnboardingStep4() {
         }
     };
 
-    const handleSkip = () => {
-        router.push('/');
+    const handleSkip = async () => {
+        try {
+            // Marquer l'onboarding comme terminé même sans Google Calendar
+            await updateUserProfile({
+                onboarding_completed: true
+            });
+        } catch (error) {
+            console.error('Error updating profile:', error);
+        }
+        router.push('/capture');
     };
 
     return (

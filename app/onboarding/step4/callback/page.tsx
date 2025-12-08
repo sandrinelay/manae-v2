@@ -1,9 +1,9 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 
-export default function GoogleCallbackPage() {
+function GoogleCallbackContent() {
     const searchParams = useSearchParams();
 
     useEffect(() => {
@@ -29,11 +29,24 @@ export default function GoogleCallbackPage() {
     }, [searchParams]);
 
     return (
+        <div className="text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
+            <p className="text-text-medium">Connexion en cours...</p>
+        </div>
+    );
+}
+
+export default function GoogleCallbackPage() {
+    return (
         <div className="min-h-screen bg-mint flex items-center justify-center p-6">
-            <div className="text-center">
-                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
-                <p className="text-text-medium">Connexion en cours...</p>
-            </div>
+            <Suspense fallback={
+                <div className="text-center">
+                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
+                    <p className="text-text-medium">Chargement...</p>
+                </div>
+            }>
+                <GoogleCallbackContent />
+            </Suspense>
         </div>
     );
 }

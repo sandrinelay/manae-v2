@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/Button';
 import { ConstraintCard } from '@/components/ui/ConstraintCard';
@@ -9,9 +9,12 @@ import { Constraint } from '@/types';
 import { detectConflict } from '@/utils/conflictDetector';
 import { ConflictModal } from '@/components/ui/ConflictModal';
 import { DeleteConfirmModal } from '@/components/ui/DeleteConfirmModal';
+import { saveConstraints, getConstraints } from '@/services/supabaseService';
 
 export default function OnboardingStep3() {
     const router = useRouter();
+    const [isSaving, setIsSaving] = useState(false);
+    const [isLoading, setIsLoading] = useState(true);
 
     // Contrainte "Travail" pré-remplie
     const defaultConstraint: Constraint = {
@@ -25,6 +28,33 @@ export default function OnboardingStep3() {
     };
 
     const [constraints, setConstraints] = useState<Constraint[]>([defaultConstraint]);
+
+    // Charger les contraintes existantes
+    useEffect(() => {
+        const loadConstraints = async () => {
+            try {
+                const existingConstraints = await getConstraints();
+                if (existingConstraints && existingConstraints.length > 0) {
+                    // Convertir le format de la DB vers le format local
+                    const mapped: Constraint[] = existingConstraints.map(c => ({
+                        id: c.id,
+                        name: c.name,
+                        category: c.category as Constraint['category'],
+                        days: c.days,
+                        start_time: c.start_time,
+                        end_time: c.end_time,
+                        allow_lunch_break: false // pas dans la DB
+                    }));
+                    setConstraints(mapped);
+                }
+            } catch (error) {
+                console.error('Error loading constraints:', error);
+            } finally {
+                setIsLoading(false);
+            }
+        };
+        loadConstraints();
+    }, []);
     const [showForm, setShowForm] = useState(false);
     const [editingConstraint, setEditingConstraint] = useState<Constraint | undefined>();
     const [pendingConstraint, setPendingConstraint] = useState<Omit<Constraint, 'id'> | null>(null);
@@ -115,24 +145,39 @@ export default function OnboardingStep3() {
         router.push('/onboarding/step2');
     };
 
-    const handleSubmit = () => {
+    const handleSubmit = async () => {
+        if (isSaving) return;
+        setIsSaving(true);
+
         try {
+            // Sauvegarder vers Supabase
+            const constraintsForDb = constraints.map(c => ({
+                name: c.name,
+                category: c.category,
+                days: c.days,
+                start_time: c.start_time,
+                end_time: c.end_time
+            }));
+            await saveConstraints(constraintsForDb);
+
+            // Garder aussi en localStorage
             const existingData = localStorage.getItem('manae_onboarding');
             const parsedData = existingData ? JSON.parse(existingData) : {};
-
             const payload = {
                 ...parsedData,
                 step: 3,
                 constraints: constraints,
                 completed_at: new Date().toISOString()
             };
-
             localStorage.setItem('manae_onboarding', JSON.stringify(payload));
-            console.log('✅ Données step 3 sauvegardées:', payload);
 
-            router.push('/onboarding/step4')
+            console.log('Saved to Supabase and localStorage');
+            router.push('/onboarding/step4');
         } catch (error) {
-            console.error('❌ Erreur sauvegarde:', error);
+            console.error('Error saving:', error);
+            alert('Erreur lors de la sauvegarde');
+        } finally {
+            setIsSaving(false);
         }
     };
 
@@ -246,9 +291,10 @@ export default function OnboardingStep3() {
                         <Button
                             type="button"
                             onClick={handleSubmit}
+                            disabled={isSaving || isLoading}
                             className="flex-1"
                         >
-                            Continuer →
+                            {isSaving ? 'Sauvegarde...' : 'Continuer →'}
                         </Button>
                     </div>
 

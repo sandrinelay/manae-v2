@@ -1,5 +1,4 @@
 const GOOGLE_CLIENT_ID = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID;
-const GOOGLE_CLIENT_SECRET = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_SECRET;
 
 // Scopes pour lire ET écrire dans le calendrier
 const SCOPES = [
@@ -45,11 +44,9 @@ export const openGoogleAuthPopup = (): Promise<string> => {
 
             if (event.data.type === 'GOOGLE_AUTH_SUCCESS') {
                 window.removeEventListener('message', handleMessage);
-                // popup.close(); // Géré par la popup elle-même pour éviter l'erreur COOP
                 resolve(event.data.code);
             } else if (event.data.type === 'GOOGLE_AUTH_ERROR') {
                 window.removeEventListener('message', handleMessage);
-                // popup.close(); // Géré par la popup elle-même
                 reject(new Error(event.data.error));
             }
         };
@@ -68,23 +65,24 @@ export const openGoogleAuthPopup = (): Promise<string> => {
 };
 
 /**
- * Échanger le code contre un token
+ * Échanger le code contre un token via notre API route sécurisée
+ * Le client_secret reste côté serveur
  */
 export const exchangeCodeForToken = async (code: string) => {
-    const response = await fetch('https://oauth2.googleapis.com/token', {
+    const redirectUri = `${window.location.origin}/onboarding/step4/callback`;
+
+    const response = await fetch('/api/auth/google', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
             code,
-            client_id: GOOGLE_CLIENT_ID,
-            client_secret: GOOGLE_CLIENT_SECRET,
-            redirect_uri: `${window.location.origin}/onboarding/step4/callback`,
-            grant_type: 'authorization_code'
+            redirect_uri: redirectUri
         })
     });
 
     if (!response.ok) {
-        throw new Error('Failed to exchange code for token');
+        const error = await response.json();
+        throw new Error(error.error || 'Failed to exchange code for token');
     }
 
     return await response.json();

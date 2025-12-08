@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import Header from '@/components/layout/Header'
 import BottomNav from '@/components/layout/BottomNav'
 import CaptureInput from '@/components/capture/CaptureInput'
@@ -11,27 +11,60 @@ import PendingCounter from '@/components/capture/PendingCounter'
 import OrganizeButton from '@/components/capture/OrganizeButton'
 import GoogleCalendarCTA from '@/components/capture/GoogleCalendarCTA'
 import OrganizeModal from '@/components/capture/OrganizeModal'
+import { createThought, getThoughtsCount } from '@/services/supabaseService'
+import { useAuth } from '@/hooks/useAuth'
+
 
 export default function CapturePage() {
+    const { user, isLoading: isAuthLoading } = useAuth()
     const [currentMood, setCurrentMood] = useState<Mood>(null)
     const [captureText, setCaptureText] = useState('')
     const [showAnimation, setShowAnimation] = useState(false)
     const [showOrganizeModal, setShowOrganizeModal] = useState(false)
     const [pendingCount, setPendingCount] = useState(0)
     const [isCalendarConnected, setIsCalendarConnected] = useState(false)
+    const [isSaving, setIsSaving] = useState(false)
 
-    const handleCapture = () => {
-        if (!captureText.trim()) return
+    // Charger le count initial depuis Supabase une fois authentifié
+    useEffect(() => {
+        const loadCount = async () => {
+            if (!user) return
+            try {
+                const count = await getThoughtsCount()
+                setPendingCount(count)
+            } catch (error) {
+                console.error('Error loading thoughts count:', error)
+            }
+        }
+        loadCount()
+    }, [user])
 
-        // Store capture with current mood
-        console.log('Captured:', captureText, 'Mood:', currentMood)
+    const handleCapture = async (text: string) => {
+        if (isSaving || !text.trim() || isAuthLoading || !user) return
 
-        // Show animation
-        setShowAnimation(true)
+        setIsSaving(true)
+
+        try {
+            // Save to Supabase thoughts table
+            await createThought({
+                raw_text: text.trim(),
+                mood: currentMood
+            })
+
+            console.log('Saved to Supabase:', text, 'Mood:', currentMood)
+
+            // Show animation
+            setShowAnimation(true)
+        } catch (error) {
+            console.error('Error saving capture:', error)
+            alert('Erreur lors de la sauvegarde')
+        } finally {
+            setIsSaving(false)
+        }
     }
 
-    const handleVoiceTranscription = (text: string) => {
-        setCaptureText(text)
+    const handleVoiceTranscription = async (text: string) => {
+        await handleCapture(text)
     }
 
     const handleMoodSelect = (mood: Mood) => {
@@ -76,7 +109,7 @@ export default function CapturePage() {
                         <CaptureInput
                             value={captureText}
                             onChange={setCaptureText}
-                            onEnterPress={handleCapture}
+                            onEnterPress={() => handleCapture(captureText)}
                             placeholder="Qu'est-ce qui te tracasse ?"
                         />
                     </div>
@@ -93,7 +126,7 @@ export default function CapturePage() {
                 {/* Capture Button */}
                 {captureText.trim() && (
                     <button
-                        onClick={handleCapture}
+                        onClick={() => handleCapture(captureText)}
                         className="w-full py-3 bg-primary text-white rounded-xl font-bold hover:bg-primary-dark transition-colors shadow-md animate-fadeIn"
                     >
                         Capturer
@@ -112,6 +145,7 @@ export default function CapturePage() {
                 <OrganizeButton
                     count={pendingCount}
                     onClick={handleOrganize}
+                    disabled={isSaving}
                 />
             </main>
 
