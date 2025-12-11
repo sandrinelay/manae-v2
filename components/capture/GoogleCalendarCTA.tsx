@@ -2,9 +2,10 @@
 
 interface GoogleCalendarCTAProps {
     onConnect: () => void
+    isConnecting?: boolean
 }
 
-export default function GoogleCalendarCTA({ onConnect }: GoogleCalendarCTAProps) {
+export default function GoogleCalendarCTA({ onConnect, isConnecting = false }: GoogleCalendarCTAProps) {
     return (
         <div className="bg-orange-50 border border-orange-200 rounded-xl p-4 animate-fadeIn">
             <div className="flex items-start gap-3">
@@ -22,9 +23,17 @@ export default function GoogleCalendarCTA({ onConnect }: GoogleCalendarCTAProps)
 
                     <button
                         onClick={onConnect}
-                        className="bg-white hover:bg-gray-50 text-text-dark font-medium py-2 px-4 rounded-lg border border-orange-200 transition-colors text-sm font-quicksand"
+                        disabled={isConnecting}
+                        className="bg-white hover:bg-gray-50 text-text-dark font-medium py-2 px-4 rounded-lg border border-orange-200 transition-colors text-sm font-quicksand disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
                     >
-                        Connecter Google Calendar
+                        {isConnecting ? (
+                            <>
+                                <div className="w-4 h-4 border-2 border-orange-300 border-t-orange-600 rounded-full animate-spin" />
+                                Connexion en cours...
+                            </>
+                        ) : (
+                            'Connecter Google Calendar'
+                        )}
                     </button>
                 </div>
             </div>

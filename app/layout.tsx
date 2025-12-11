@@ -34,7 +34,9 @@ export default function RootLayout({
         className={`${geistSans.variable} ${geistMono.variable} ${quicksand.variable} antialiased`}
       >
         <AuthInitializer />
-        {children}
+        <div className="app-container">
+          {children}
+        </div>
       </body>
     </html>
   );

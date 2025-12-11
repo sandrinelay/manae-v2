@@ -2,39 +2,39 @@
 
 :root {
   /* Base colors */
-  --background: #ffffff;
+  --background: #fefefe;
   --foreground: #171717;
 
   /* Brand colors - New Palette */
-  --primary: #14B8A6;
+  --primary: #4A7488;
   /* Active Teal - Freshness, Efficiency */
-  --primary-dark: #0D9488;
+  --primary-dark: #4A7488;
   /* Darker teal for hover states */
-  --secondary: #334155;
+  --secondary: #A03884;
   /* Slate - Class, Stability */
-  --secondary-light: #475569;
+  --secondary-light: #A03884;
   /* Lighter slate for hover */
 
   /* Background colors */
-  --bg-mint: #F0FDFA;
+  --bg-mint: #F2F5F7;
   /* Mint Ice - Lightness */
   --bg-white: #FFFFFF;
   /* Pure White - Clarity */
-  --bg-gray: #F9FAFB;
+  --bg-gray: #F2F5F7;
   /* Light gray for disabled states */
 
   /* Text colors */
-  --text-dark: #334155;
+  --text-dark: #333538;
   /* Deep Slate - Readability */
-  --text-medium: #64748B;
+  --text-medium: #333538;
   /* Medium slate */
-  --text-muted: #94A3B8;
+  --text-muted: #A03884;
   /* Muted slate */
 
   /* Border colors */
   --border-light: #E2E8F0;
   /* Light slate border */
-  --border-primary: #14B8A6;
+  --border-primary: #4A7488;
   /* Teal border */
 }
 
@@ -86,17 +86,48 @@
   --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1);
 }
 
-@media (prefers-color-scheme: dark) {
+/* @media (prefers-color-scheme: dark) {
   :root {
     --background: #0a0a0a;
     --foreground: #ededed;
   }
-}
+} */
 
 body {
   background: var(--background);
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
+}
+
+/* Container responsive - Mobile first */
+.app-container {
+  width: 100%;
+  min-height: 100dvh;
+  margin: 0 auto;
+  background: var(--bg-mint);
+}
+
+/* Tablette : légère marge latérale */
+@media (min-width: 640px) {
+  body {
+    display: flex;
+    justify-content: center;
+    background: #f2F3F7;
+  }
+
+  .app-container {
+    max-width: 540px;
+  }
+}
+
+/* Desktop : container centré avec max-width */
+@media (min-width: 1024px) {
+  .app-container {
+    max-width: 480px;
+    box-shadow: 0 0 40px rgba(0, 0, 0, 0.08);
+    border-left: 1px solid var(--border-light);
+    border-right: 1px solid var(--border-light);
+  }
 }
 
 /* === ANIMATIONS === */

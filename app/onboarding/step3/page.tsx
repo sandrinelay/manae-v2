@@ -43,7 +43,7 @@ export default function OnboardingStep3() {
                         days: c.days,
                         start_time: c.start_time,
                         end_time: c.end_time,
-                        allow_lunch_break: false // pas dans la DB
+                        allow_lunch_break: c.allow_lunch_break ?? false
                     }));
                     setConstraints(mapped);
                 }
@@ -156,7 +156,8 @@ export default function OnboardingStep3() {
                 category: c.category,
                 days: c.days,
                 start_time: c.start_time,
-                end_time: c.end_time
+                end_time: c.end_time,
+                allow_lunch_break: c.allow_lunch_break
             }));
             await saveConstraints(constraintsForDb);
 

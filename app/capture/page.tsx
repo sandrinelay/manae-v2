@@ -13,6 +13,7 @@ import GoogleCalendarCTA from '@/components/capture/GoogleCalendarCTA'
 import OrganizeModal from '@/components/capture/OrganizeModal'
 import { createThought, getThoughtsCount } from '@/services/supabaseService'
 import { useAuth } from '@/hooks/useAuth'
+import { openGoogleAuthPopup, exchangeCodeForToken } from '@/lib/googleCalendar'
 
 
 export default function CapturePage() {
@@ -23,21 +24,32 @@ export default function CapturePage() {
     const [showOrganizeModal, setShowOrganizeModal] = useState(false)
     const [pendingCount, setPendingCount] = useState(0)
     const [isCalendarConnected, setIsCalendarConnected] = useState(false)
+    const [isConnectingCalendar, setIsConnectingCalendar] = useState(false)
     const [isSaving, setIsSaving] = useState(false)
+
+    // Fonction pour rafraîchir le count
+    const refreshPendingCount = async () => {
+        if (!user) return
+        try {
+            const count = await getThoughtsCount()
+            setPendingCount(count)
+        } catch (error) {
+            console.error('Error loading thoughts count:', error)
+        }
+    }
 
     // Charger le count initial depuis Supabase une fois authentifié
     useEffect(() => {
-        const loadCount = async () => {
-            if (!user) return
-            try {
-                const count = await getThoughtsCount()
-                setPendingCount(count)
-            } catch (error) {
-                console.error('Error loading thoughts count:', error)
-            }
-        }
-        loadCount()
+        refreshPendingCount()
     }, [user])
+
+    // Vérifier si Google Calendar est déjà connecté
+    useEffect(() => {
+        const tokens = localStorage.getItem('google_tokens')
+        if (tokens) {
+            setIsCalendarConnected(true)
+        }
+    }, [])
 
     const handleCapture = async (text: string) => {
         if (isSaving || !text.trim() || isAuthLoading || !user) return
@@ -90,12 +102,31 @@ export default function CapturePage() {
 
     const handleCloseModal = () => {
         setShowOrganizeModal(false)
-        setPendingCount(0)
     }
 
-    const handleConnectCalendar = () => {
-        console.log('Connecting Google Calendar...')
-        setIsCalendarConnected(true)
+    const handleConnectCalendar = async () => {
+        if (isConnectingCalendar) return
+
+        setIsConnectingCalendar(true)
+
+        try {
+            // Ouvrir popup OAuth Google
+            const code = await openGoogleAuthPopup()
+
+            // Échanger le code contre un token
+            const tokens = await exchangeCodeForToken(code)
+
+            // Stocker les tokens (localStorage pour l'instant, TODO: secure storage)
+            localStorage.setItem('google_tokens', JSON.stringify(tokens))
+
+            setIsCalendarConnected(true)
+            console.log('Google Calendar connected successfully')
+        } catch (error) {
+            console.error('Error connecting Google Calendar:', error)
+            // Ne pas mettre isCalendarConnected à true en cas d'erreur
+        } finally {
+            setIsConnectingCalendar(false)
+        }
     }
 
     return (
@@ -135,7 +166,10 @@ export default function CapturePage() {
 
                 {/* Google Calendar CTA */}
                 {!isCalendarConnected && (
-                    <GoogleCalendarCTA onConnect={handleConnectCalendar} />
+                    <GoogleCalendarCTA
+                        onConnect={handleConnectCalendar}
+                        isConnecting={isConnectingCalendar}
+                    />
                 )}
 
                 {/* Pending Counter */}
@@ -159,7 +193,7 @@ export default function CapturePage() {
             <OrganizeModal
                 isOpen={showOrganizeModal}
                 onClose={handleCloseModal}
-                captureCount={pendingCount}
+                onSuccess={refreshPendingCount}
             />
         </div>
     )

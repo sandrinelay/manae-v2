@@ -1,14 +1,9 @@
 import { createClient } from '@/lib/supabase/client'
+import { Item, ItemStatus, ItemType, Thought } from '@/types'
 
 // Types basés sur le schéma de la base de données
 
-export interface Thought {
-    id: string
-    user_id: string
-    raw_text: string
-    mood: 'energetic' | 'calm' | 'overwhelmed' | 'tired' | null
-    created_at: string
-}
+export type { Thought } from '@/types'
 
 
 
@@ -31,6 +26,7 @@ export interface Constraint {
     days: string[]
     start_time: string
     end_time: string
+    allow_lunch_break: boolean | null
     created_at: string
 }
 
@@ -91,12 +87,52 @@ export async function getThoughtsCount() {
         .from('thoughts')
         .select('*', { count: 'exact', head: true })
         .eq('user_id', user.id)
+        .eq('processed', false)
 
     if (error) {
         console.error('Error getting thoughts count:', error)
         return 0
     }
     return count || 0
+}
+
+export async function getUnprocessedThoughts() {
+    const supabase = getSupabase()
+    const { data: { user } } = await supabase.auth.getUser()
+
+    if (!user) {
+        throw new Error('User not authenticated')
+    }
+
+    const { data, error } = await supabase
+        .from('thoughts')
+        .select('*')
+        .eq('user_id', user.id)
+        .eq('processed', false)
+        .order('created_at', { ascending: true })
+
+    if (error) throw error
+    return data as Thought[]
+}
+
+export async function markThoughtsAsProcessed(thoughtIds: string[]) {
+    const supabase = getSupabase()
+    const { data: { user } } = await supabase.auth.getUser()
+
+    if (!user) {
+        throw new Error('User not authenticated')
+    }
+
+    const { error } = await supabase
+        .from('thoughts')
+        .update({
+            processed: true,
+            processed_at: new Date().toISOString()
+        })
+        .in('id', thoughtIds)
+        .eq('user_id', user.id)
+
+    if (error) throw error
 }
 
 
@@ -209,4 +245,108 @@ export async function getConstraints() {
 
     if (error) throw error
     return data as Constraint[]
+}
+
+// ============ ITEMS ============
+
+export async function createItem(item: Omit<Item, 'id' | 'user_id' | 'created_at' | 'updated_at'>) {
+    const supabase = getSupabase()
+    const { data: { user } } = await supabase.auth.getUser()
+
+    if (!user) {
+        throw new Error('User not authenticated')
+    }
+
+    const { data, error } = await supabase
+        .from('items')
+        .insert({
+            ...item,
+            user_id: user.id
+        })
+        .select()
+        .single()
+
+    if (error) throw error
+    return data as Item
+}
+
+export async function getItems(filters?: {
+    status?: ItemStatus | ItemStatus[]
+    type?: ItemType
+    parent_project_id?: string | null
+}) {
+    const supabase = getSupabase()
+    const { data: { user } } = await supabase.auth.getUser()
+
+    if (!user) {
+        throw new Error('User not authenticated')
+    }
+
+    let query = supabase
+        .from('items')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false })
+
+    if (filters?.status) {
+        if (Array.isArray(filters.status)) {
+            query = query.in('status', filters.status)
+        } else {
+            query = query.eq('status', filters.status)
+        }
+    }
+
+    if (filters?.type) {
+        query = query.eq('type', filters.type)
+    }
+
+    if (filters?.parent_project_id !== undefined) {
+        if (filters.parent_project_id === null) {
+            query = query.is('parent_project_id', null)
+        } else {
+            query = query.eq('parent_project_id', filters.parent_project_id)
+        }
+    }
+
+    const { data, error } = await query
+
+    if (error) throw error
+    return data as Item[]
+}
+
+export async function updateItem(id: string, updates: Partial<Item>) {
+    const supabase = getSupabase()
+    const { data: { user } } = await supabase.auth.getUser()
+
+    if (!user) {
+        throw new Error('User not authenticated')
+    }
+
+    const { data, error } = await supabase
+        .from('items')
+        .update(updates)
+        .eq('id', id)
+        .eq('user_id', user.id)
+        .select()
+        .single()
+
+    if (error) throw error
+    return data as Item
+}
+
+export async function deleteItem(id: string) {
+    const supabase = getSupabase()
+    const { data: { user } } = await supabase.auth.getUser()
+
+    if (!user) {
+        throw new Error('User not authenticated')
+    }
+
+    const { error } = await supabase
+        .from('items')
+        .delete()
+        .eq('id', id)
+        .eq('user_id', user.id)
+
+    if (error) throw error
 }

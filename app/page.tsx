@@ -42,14 +42,14 @@ export default function Dashboard() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-mint flex items-center justify-center">
+      <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-mint flex items-start justify-center p-6 pt-12">
+    <div className="min-h-screen bg-background flex items-start justify-center p-6 pt-12">
       <div className="w-full max-w-md">
         {/* Header */}
         <header className="flex justify-between items-center mb-8">

@@ -13,7 +13,8 @@ export async function POST(request: NextRequest) {
 
         // Client secret is now safely on the server
         const clientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID
-        const clientSecret = process.env.GOOGLE_CLIENT_SECRET
+        // Support both env var names for backwards compatibility
+        const clientSecret = process.env.GOOGLE_CLIENT_SECRET || process.env.NEXT_PUBLIC_GOOGLE_CLIENT_SECRET
 
         if (!clientId || !clientSecret) {
             console.error('Google OAuth credentials not configured')
