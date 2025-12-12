@@ -73,7 +73,7 @@ export default function OnboardingStep4() {
                         Pour que je puisse vérifier tes disponibilités et ajouter tes tâches au bon moment.
                     </p>
 
-                    <div className="bg-white rounded-2xl p-6 mb-8 shadow-sm border border-gray-100 flex flex-col items-center text-center">
+                    <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 flex flex-col items-center text-center">
                         <div className="w-16 h-16 bg-blue-50 rounded-full flex items-center justify-center mb-4 text-3xl">
                             📅
                         </div>
@@ -98,6 +98,12 @@ export default function OnboardingStep4() {
                     </div>
 
                     <div className="text-center">
+                    <button
+                            onClick={handleSkip}
+                            className="text-text-muted hover:text-text-dark text-sm font-medium transition-colors mt-4 mb-6"
+                        >
+                            Passer cette étape pour le moment
+                        </button>
                         <Button
                             type="button"
                             variant="secondary"
@@ -106,12 +112,6 @@ export default function OnboardingStep4() {
                         >
                             ← Retour
                         </Button>
-                        <button
-                            onClick={handleSkip}
-                            className="text-text-muted hover:text-text-dark text-sm font-medium transition-colors"
-                        >
-                            Passer cette étape pour le moment
-                        </button>
                     </div>
                 </main>
             </div>
