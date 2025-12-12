@@ -91,6 +91,7 @@ export default function OnboardingStep1() {
             // Garder aussi en localStorage pour le flow onboarding
             const payload = {
                 step: 1,
+                currentStep: 2,
                 first_name: formData.firstName,
                 last_name: formData.lastName,
                 email: formData.email,
@@ -109,23 +110,9 @@ export default function OnboardingStep1() {
     };
 
     return (
-        <div className="min-h-screen bg-mint flex items-start justify-center p-6 pt-12">
+        <div className="min-h-screen bg-mint flex items-start justify-center">
             <div className="w-full max-w-md">
-                <header className="flex justify-between items-center mb-6">
-                    <h1 className="text-3xl font-semibold text-secondary tracking-tight" style={{ fontFamily: 'var(--font-quicksand)' }}>
-                        manae
-                    </h1>
-                    <span className="text-sm font-medium text-text-muted bg-white px-3 py-1 rounded-full">
-                        Étape 1 / 4
-                    </span>
-                </header>
-
-                <div className="w-full h-1 bg-gray-light rounded-full mb-8 overflow-hidden">
-                    <div
-                        className="h-full bg-gradient-to-r from-primary via-secondary to-primary"
-                        style={{ width: '25%' }}
-                    />
-                </div>
+ 
 
                 <main>
                     <h2 className="text-2xl font-bold text-text-dark mb-3">

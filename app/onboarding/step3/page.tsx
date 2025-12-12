@@ -211,26 +211,10 @@ export default function OnboardingStep3() {
     };
 
     return (
-        <div className="min-h-screen bg-mint flex items-start justify-center p-6 pt-12">
+        <div className="min-h-screen bg-mint flex items-start justify-center">
             <div className="w-full max-w-md">
 
-                {/* Header */}
-                <header className="flex justify-between items-center mb-6">
-                    <h1 className="text-3xl font-semibold text-secondary tracking-tight" style={{ fontFamily: 'var(--font-quicksand)' }}>
-                        manae
-                    </h1>
-                    <span className="text-sm font-medium text-text-muted bg-white px-3 py-1 rounded-full">
-                        Étape 3 / 4
-                    </span>
-                </header>
 
-                {/* Progress Bar */}
-                <div className="w-full h-1 bg-white rounded-full mb-8 overflow-hidden">
-                    <div
-                        className="h-full bg-gradient-to-r from-primary via-secondary to-primary"
-                        style={{ width: '75%' }}
-                    />
-                </div>
 
                 {/* Content */}
                 <main>

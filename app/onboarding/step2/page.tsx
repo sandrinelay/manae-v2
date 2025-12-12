@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/Button';
 import { EnergyCard } from '@/components/ui/EnergyCard';
 import { SunriseIcon, CoffeeIcon, BriefcaseIcon, SunsetIcon, MoonIcon } from '@/components/ui/icons/TimeIcons';
 import { updateUserProfile, getOrCreateUserProfile } from '@/services/supabaseService';
+import { ArrowLeftIcon, ChevronLeft } from 'lucide-react';
 
 
 interface EnergyMoment {
@@ -93,26 +94,9 @@ export default function OnboardingStep2() {
     };
 
     return (
-        <div className="min-h-screen bg-mint flex items-start justify-center p-6 pt-12">
+        <div className="min-h-screen bg-mint flex items-start justify-center">
             <div className="w-full max-w-md">
 
-                {/* Header */}
-                <header className="flex justify-between items-center mb-6">
-                    <h1 className="text-3xl font-semibold text-secondary tracking-tight" style={{ fontFamily: 'var(--font-quicksand)' }}>
-                        manae
-                    </h1>
-                    <span className="text-sm font-medium text-text-muted bg-mint px-3 py-1 rounded-full">
-                        Étape 2 / 4
-                    </span>
-                </header>
-
-                {/* Progress Bar */}
-                <div className="w-full h-1 bg-mint rounded-full mb-8 overflow-hidden">
-                    <div
-                        className="h-full bg-gradient-to-r from-primary via-secondary to-primary"
-                        style={{ width: '50%' }}
-                    />
-                </div>
 
                 {/* Content */}
                 <main>
