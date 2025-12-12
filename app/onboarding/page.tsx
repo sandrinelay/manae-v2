@@ -40,7 +40,7 @@ export default function OnboardingStep1() {
 
     const [touched, setTouched] = useState<{ [key in keyof OnboardingData]?: boolean }>({});
     const [errors, setErrors] = useState<ValidationErrors>({});
-    const [isValid, setIsValid] = useState(true);
+    const [isValid, setIsValid] = useState(false);
 
     useEffect(() => {
         const newErrors: ValidationErrors = {};
@@ -56,13 +56,8 @@ export default function OnboardingStep1() {
             valid = false;
         }
 
-        if (!formData.email.trim()) {
-            newErrors.email = "L'email est requis";
-            valid = false;
-        } else if (!EMAIL_REGEX.test(formData.email)) {
-            newErrors.email = "L'email n'est pas valide";
-            valid = false;
-        }
+        // L'email est pré-rempli depuis Supabase Auth et désactivé
+        // On ne valide que prénom et nom (l'email est toujours valide car il vient de l'auth)
 
         setErrors(newErrors);
         setIsValid(valid);
@@ -134,7 +129,7 @@ export default function OnboardingStep1() {
 
                 <main>
                     <h2 className="text-2xl font-bold text-text-dark mb-3">
-                        Faisons connaissance 👋
+                        Faisons connaissance
                     </h2>
                     <p className="text-base text-text-medium mb-8 leading-relaxed">
                         Quelques infos pour personnaliser ton expérience.

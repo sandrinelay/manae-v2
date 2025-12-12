@@ -235,7 +235,7 @@ export default function OnboardingStep3() {
                 {/* Content */}
                 <main>
                     <h2 className="text-2xl font-bold text-text-dark mb-3">
-                        Tes temps indisponibles ⏰
+                        Tes temps indisponibles
                     </h2>
                     <p className="text-base text-text-medium mb-6 leading-relaxed">
                         Bloque tes créneaux fixes pour que je te propose le bon moment.

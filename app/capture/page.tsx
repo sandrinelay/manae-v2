@@ -120,6 +120,12 @@ export default function CapturePage() {
             localStorage.setItem('google_tokens', JSON.stringify(tokens))
 
             setIsCalendarConnected(true)
+
+            // Notifier le Header que la connexion a réussi
+            window.dispatchEvent(new CustomEvent('calendar-connection-changed', {
+                detail: { connected: true }
+            }))
+
             console.log('Google Calendar connected successfully')
         } catch (error) {
             console.error('Error connecting Google Calendar:', error)

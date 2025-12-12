@@ -10,13 +10,17 @@ export default function CalendarBadge({ connected }: CalendarBadgeProps) {
             className="relative group"
             aria-label={connected ? "Agenda connecté" : "Agenda non connecté"}
         >
-            <div className="w-10 h-10 rounded-full bg-mint flex items-center justify-center">
+            <div className={`w-10 h-10 rounded-full bg-mint flex items-center justify-center
+                          ${!connected ? 'animate-pulse' : ''}`}>
                 <CalendarIcon connected={connected} />
             </div>
 
             {/* Tooltip on hover */}
-            <div className="absolute top-full mt-2 right-0 bg-secondary text-white text-xs px-3 py-1.5 rounded-lg whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
-                {connected ? "Agenda connecté" : "Agenda non connecté"}
+            <div className="absolute top-full mt-2 right-0 bg-secondary text-white text-xs
+                          px-3 py-1.5 rounded-lg whitespace-nowrap
+                          opacity-0 group-hover:opacity-100 transition-opacity
+                          pointer-events-none z-50 shadow-lg">
+                {connected ? "✅ Agenda connecté" : "⚠️ Connecter ton agenda"}
             </div>
         </button>
     )
@@ -32,7 +36,7 @@ function CalendarIcon({ connected }: { connected: boolean }) {
                 fill="none"
                 stroke="currentColor"
                 strokeWidth="2"
-                className={connected ? "text-primary" : "text-text-muted"}
+                className={connected ? "text-primary" : "text-orange-500"}
             >
                 <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
                 <line x1="16" y1="2" x2="16" y2="6" />
@@ -41,11 +45,9 @@ function CalendarIcon({ connected }: { connected: boolean }) {
             </svg>
 
             {connected ? (
-                <div className="absolute -top-1 -right-1 w-3 h-3 bg-primary rounded-full border-2 border-white" />
+                <div className="absolute -top-1 -right-1 w-3 h-3 bg-green-500 rounded-full border-2 border-white" />
             ) : (
-                <div className="absolute -top-1 -right-1 w-3 h-3 bg-orange-500 rounded-full border-2 border-white">
-                    <span className="absolute inset-0 flex items-center justify-center text-white text-[8px] font-bold">!</span>
-                </div>
+                <div className="absolute -top-1 -right-1 w-3 h-3 bg-orange-500 rounded-full border-2 border-white animate-ping" />
             )}
         </div>
     )
