@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import OpenAI from 'openai'
 import { createClient } from '@/lib/supabase/server'
-import type { AIAnalyzedItem } from '@/types'
+import type { LegacyAIAnalyzedItem as AIAnalyzedItem } from '@/types'
 
 export async function POST(request: NextRequest) {
   try {

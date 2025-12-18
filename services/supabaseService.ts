@@ -1,5 +1,5 @@
 import { createClient } from '@/lib/supabase/client'
-import { Item, ItemStatus, ItemType, Thought } from '@/types'
+import { LegacyItem as Item, LegacyItemStatus as ItemStatus, LegacyItemType as ItemType, Thought } from '@/types'
 
 // Types basés sur le schéma de la base de données
 

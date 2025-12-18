@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { Item } from '@/types'
+import { LegacyItem as Item } from '@/types'
 
 interface OrganizeModalProps {
   isOpen: boolean

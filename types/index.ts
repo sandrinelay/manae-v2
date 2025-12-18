@@ -1,3 +1,14 @@
+// ============================================
+// RE-EXPORT NOUVEAUX TYPES (Source de vérité)
+// ============================================
+
+export * from './items'
+export * from './shopping-lists'
+
+// ============================================
+// ONBOARDING & CONSTRAINTS (existants)
+// ============================================
+
 export interface OnboardingData {
     firstName: string;
     lastName: string;
@@ -40,83 +51,74 @@ export const DAYS_OF_WEEK = [
 ];
 
 // ============================================
-// ITEMS (résultats analyse IA)
+// TYPES LEGACY (pour compatibilité pendant migration)
+// À terme, utiliser les nouveaux types de ./items.ts
 // ============================================
 
-export type ItemType = 'task' | 'course' | 'note'
+/** @deprecated Utiliser ItemType de ./items.ts */
+export type LegacyItemType = 'task' | 'course' | 'note'
 
-export type ItemStatus =
-  | 'idea'      // 💡 Envie floue, pas structurée
-  | 'project'   // 📋 Décomposée en étapes
-  | 'ready'     // ✅ Prête à planifier
-  | 'planned'   // 📅 Slot Google Calendar trouvé
-  | 'completed' // ✔️ Terminée
-  | 'rejected'  // ❌ Refusée par user
+/** @deprecated Utiliser ItemState de ./items.ts */
+export type LegacyItemStatus =
+  | 'idea'
+  | 'project'
+  | 'ready'
+  | 'planned'
+  | 'completed'
+  | 'rejected'
 
-export type ItemCategory = 'work' | 'personal' | 'kids' | 'admin' | 'home' | 'other'
+/** @deprecated Utiliser ItemContext de ./items.ts */
+export type LegacyItemCategory = 'work' | 'personal' | 'kids' | 'admin' | 'home' | 'other'
 
 export type ItemPriority = 'low' | 'medium' | 'high'
 
 export interface SuggestedSlot {
-  start: string // ISO 8601
-  end: string   // ISO 8601
-  duration: number // minutes
+  start: string
+  end: string
+  duration: number
 }
 
-export interface Item {
+/** @deprecated Utiliser Item de ./items.ts */
+export interface LegacyItem {
   id: string
   user_id: string
   thought_id: string | null
-
-  // Contenu
   text: string
   refined_text: string | null
-
-  // Classification
-  type: ItemType
-  status: ItemStatus
-  category: ItemCategory | null
-
-  // Métadonnées projet (si status = 'project')
+  type: LegacyItemType
+  status: LegacyItemStatus
+  category: LegacyItemCategory | null
   project_steps: string[] | null
   project_budget: string | null
   project_time: string | null
   project_motivation: string | null
-
-  // Planification
   priority: ItemPriority | null
   deadline: string | null
   suggested_slot: SuggestedSlot | null
   planned_date: string | null
   completed_date: string | null
-
-  // Relations
   parent_project_id: string | null
-
-  // Timestamps
   created_at: string
   analyzed_at: string | null
   developed_at: string | null
   updated_at: string
 }
 
-// ============================================
-// RESPONSES IA
-// ============================================
-
-export interface AIAnalysisResult {
-  items: AIAnalyzedItem[]
-  thoughts_processed: string[] // IDs des thoughts analysées
+/** @deprecated */
+export interface LegacyAIAnalysisResult {
+  items: LegacyAIAnalyzedItem[]
+  thoughts_processed: string[]
 }
 
-export interface AIAnalyzedItem {
+/** @deprecated */
+export interface LegacyAIAnalyzedItem {
   text: string
-  type: ItemType
-  status: ItemStatus
-  category: ItemCategory
+  type: LegacyItemType
+  status: LegacyItemStatus
+  category: LegacyItemCategory
   priority?: ItemPriority
   deadline?: string
-  reasoning?: string // Pour debug
+  reasoning?: string
 }
 
 export interface AIProjectDevelopment {
@@ -129,7 +131,7 @@ export interface AIProjectDevelopment {
 }
 
 // ============================================
-// THOUGHT (mise à jour)
+// THOUGHT (compatible legacy)
 // ============================================
 
 export interface Thought {
