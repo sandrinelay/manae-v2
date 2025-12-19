@@ -8,9 +8,12 @@ import type { CaptureResult } from '@/services/capture'
 // TYPES
 // ============================================
 
+type Mood = 'energetic' | 'calm' | 'overwhelmed' | 'tired'
+
 interface CaptureModalProps {
   content: string
   captureResult: CaptureResult
+  mood: Mood | null
   onSave: (type: ItemType, action: ActionType) => void
   onClose: () => void
 }
@@ -22,7 +25,7 @@ interface ActionButton {
   value: ActionType
   requiresAI?: boolean
   variant?: 'primary' | 'danger'
-  state?: string // État qui sera appliqué à l'item
+  state?: string
 }
 
 // ============================================
@@ -70,6 +73,21 @@ const TYPE_CONFIG: Record<ItemType, {
   }
 }
 
+// Suggestions selon le mood
+const MOOD_SUGGESTIONS: Record<Mood, string> = {
+  energetic: 'Parfait moment pour faire ça maintenant !',
+  overwhelmed: 'Cette tâche peut attendre, concentre-toi sur l\'essentiel',
+  tired: 'On la planifie pour demain quand tu seras en forme ?',
+  calm: 'Bon moment pour les tâches qui demandent de la réflexion'
+}
+
+const MOOD_ICONS: Record<Mood, string> = {
+  energetic: '💪',
+  overwhelmed: '⚠️',
+  tired: '😴',
+  calm: '☕'
+}
+
 // ============================================
 // COMPOSANT
 // ============================================
@@ -77,6 +95,7 @@ const TYPE_CONFIG: Record<ItemType, {
 export function CaptureModal({
   content,
   captureResult,
+  mood,
   onSave,
   onClose
 }: CaptureModalProps) {
@@ -99,18 +118,26 @@ export function CaptureModal({
 
       {/* Modal */}
       <div className="fixed inset-x-0 bottom-0 z-50 bg-white rounded-t-3xl shadow-2xl animate-slide-up max-w-2xl mx-auto">
-        <div className="p-6 space-y-6">
+        <div className="p-6 space-y-4">
+
+          {/* Bouton fermer */}
+          <button
+            onClick={onClose}
+            className="absolute top-4 right-4 w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-light transition-colors text-text-muted"
+          >
+            ✕
+          </button>
 
           {/* Indicateur IA */}
           {captureResult.aiUsed && captureResult.suggestedType && (
             <div className="flex items-center gap-2 text-sm">
-              <span className="text-teal-600">IA suggère :</span>
-              <span className="font-medium text-teal-600">
+              <span className="text-primary">IA suggère :</span>
+              <span className="font-medium text-primary">
                 {TYPE_CONFIG[captureResult.suggestedType].icon}{' '}
                 {TYPE_CONFIG[captureResult.suggestedType].label}
               </span>
               {captureResult.creditsRemaining !== null && (
-                <span className="ml-auto text-slate-500">
+                <span className="ml-auto text-text-muted">
                   {captureResult.creditsRemaining} crédits restants
                 </span>
               )}
@@ -127,7 +154,7 @@ export function CaptureModal({
                 Veuillez catégoriser manuellement. Les fonctions IA (Planifier, Développer) sont désactivées.
               </p>
               <button
-                className="mt-3 text-sm font-medium text-teal-600 hover:text-teal-700"
+                className="mt-3 text-sm font-medium text-primary hover:opacity-80"
                 onClick={() => {
                   // TODO: Router vers page upgrade
                   console.log('Navigate to upgrade page')
@@ -139,13 +166,29 @@ export function CaptureModal({
           )}
 
           {/* Contenu capturé */}
-          <div className="p-4 bg-slate-50 rounded-lg border border-slate-200">
-            <p className="text-slate-800 whitespace-pre-wrap">{content}</p>
+          <div className="p-4 bg-mint rounded-lg border border-border">
+            <p className="text-text-dark whitespace-pre-wrap">{content}</p>
           </div>
+
+          {/* Durée estimée (pour tasks) */}
+          {selectedType === 'task' && (
+            <div className="text-sm text-text-muted">
+              <span className="font-medium">⏱️ Durée estimée :</span> ~15 min
+            </div>
+          )}
+
+          {/* Suggestion selon mood */}
+          {mood && (
+            <div className="p-3 bg-blue-50 border border-blue-200 rounded-xl">
+              <p className="text-sm text-blue-800">
+                {MOOD_ICONS[mood]} {MOOD_SUGGESTIONS[mood]}
+              </p>
+            </div>
+          )}
 
           {/* Sélecteur de type */}
           <div>
-            <p className="text-sm font-medium text-slate-700 mb-3">
+            <p className="text-sm font-medium text-text-dark mb-3">
               Type :
             </p>
             <div className="grid grid-cols-4 gap-2">
@@ -160,8 +203,8 @@ export function CaptureModal({
                     className={`
                       flex flex-col items-center gap-2 py-3 px-2 rounded-xl font-medium transition-all
                       ${isSelected
-                        ? 'bg-teal-500 text-white shadow-lg scale-105'
-                        : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                        ? 'bg-primary text-white shadow-lg scale-105'
+                        : 'bg-gray-light text-text-dark hover:bg-border'
                       }
                     `}
                   >
@@ -174,7 +217,7 @@ export function CaptureModal({
           </div>
 
           {/* Actions */}
-          <div className="flex gap-2">
+          <div className="flex gap-2 flex-wrap">
             {config.actions.map((action) => {
               const isDisabled = action.requiresAI && !hasAIQuota
 
@@ -184,12 +227,12 @@ export function CaptureModal({
                   onClick={() => !isDisabled && onSave(selectedType, action.value)}
                   disabled={isDisabled}
                   className={`
-                    flex-1 py-3 px-4 rounded-xl font-medium transition-all
+                    flex-1 min-w-[100px] py-3 px-4 rounded-xl font-medium transition-all
                     ${action.variant === 'danger'
                       ? 'bg-red-500 text-white hover:bg-red-600 active:scale-95'
                       : isDisabled
-                        ? 'bg-slate-200 text-slate-400 cursor-not-allowed'
-                        : 'bg-teal-500 text-white hover:bg-teal-600 active:scale-95'
+                        ? 'bg-gray-light text-text-muted cursor-not-allowed'
+                        : 'bg-primary text-white hover:opacity-90 active:scale-95'
                     }
                     disabled:opacity-50 disabled:cursor-not-allowed
                   `}
@@ -199,12 +242,23 @@ export function CaptureModal({
                 </button>
               )
             })}
+
+            {/* Bouton Déléguer (grisé) */}
+            <button
+              disabled
+              className="flex-1 min-w-[100px] py-3 px-4 rounded-xl font-medium bg-gray-light text-text-muted cursor-not-allowed relative group"
+            >
+              Déléguer 👥
+              <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-1 bg-text-dark text-white text-xs rounded-lg opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none">
+                Disponible avec le forfait Famille
+              </span>
+            </button>
           </div>
 
           {/* Bouton Annuler */}
           <button
             onClick={onClose}
-            className="w-full py-2 text-slate-500 hover:text-slate-700 font-medium"
+            className="w-full py-2 text-text-muted hover:text-text-dark font-medium"
           >
             Annuler
           </button>
