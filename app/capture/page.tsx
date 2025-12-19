@@ -11,9 +11,11 @@ import PendingCounter from '@/components/capture/PendingCounter'
 import OrganizeButton from '@/components/capture/OrganizeButton'
 import GoogleCalendarCTA from '@/components/capture/GoogleCalendarCTA'
 import OrganizeModal from '@/components/capture/OrganizeModal'
-import { createThought, getThoughtsCount } from '@/services/supabaseService'
 import { useAuth } from '@/hooks/useAuth'
+import { useItemCapture } from '@/hooks/useItemCapture'
+import { getItemsCount } from '@/services/supabase/items.service'
 import { openGoogleAuthPopup, exchangeCodeForToken } from '@/lib/googleCalendar'
+import type { Mood as ItemMood } from '@/types/items'
 
 
 export default function CapturePage() {
@@ -25,16 +27,30 @@ export default function CapturePage() {
     const [pendingCount, setPendingCount] = useState(0)
     const [isCalendarConnected, setIsCalendarConnected] = useState(false)
     const [isConnectingCalendar, setIsConnectingCalendar] = useState(false)
-    const [isSaving, setIsSaving] = useState(false)
 
-    // Fonction pour rafraîchir le count
+    const {
+        captureAndAnalyze,
+        isCapturing,
+        isAnalyzing,
+        error: captureError
+    } = useItemCapture({
+        onCaptureSuccess: () => {
+            setShowAnimation(true)
+        },
+        onCaptureError: (error) => {
+            console.error('Error saving capture:', error)
+            alert('Erreur lors de la sauvegarde')
+        }
+    })
+
+    // Fonction pour rafraîchir le count des items captured
     const refreshPendingCount = async () => {
         if (!user) return
         try {
-            const count = await getThoughtsCount()
+            const count = await getItemsCount({ state: 'captured' })
             setPendingCount(count)
         } catch (error) {
-            console.error('Error loading thoughts count:', error)
+            console.error('Error loading items count:', error)
         }
     }
 
@@ -51,27 +67,23 @@ export default function CapturePage() {
         }
     }, [])
 
-    const handleCapture = async (text: string) => {
-        if (isSaving || !text.trim() || isAuthLoading || !user) return
+    // Convertir le Mood du composant vers le Mood des items
+    const convertMood = (mood: Mood): ItemMood | undefined => {
+        if (!mood) return undefined
+        // Le MoodSelector utilise 'energetic' | 'neutral' | 'tired' | null
+        // qui correspond exactement à notre ItemMood
+        return mood as ItemMood
+    }
 
-        setIsSaving(true)
+    const handleCapture = async (text: string) => {
+        if (isCapturing || isAnalyzing || !text.trim() || isAuthLoading || !user) return
 
         try {
-            // Save to Supabase thoughts table
-            await createThought({
-                raw_text: text.trim(),
-                mood: currentMood
-            })
-
+            // Capture et analyse avec la nouvelle architecture
+            await captureAndAnalyze(text.trim(), convertMood(currentMood))
             console.log('Saved to Supabase:', text, 'Mood:', currentMood)
-
-            // Show animation
-            setShowAnimation(true)
         } catch (error) {
-            console.error('Error saving capture:', error)
-            alert('Erreur lors de la sauvegarde')
-        } finally {
-            setIsSaving(false)
+            // L'erreur est déjà gérée par onCaptureError
         }
     }
 
@@ -87,13 +99,12 @@ export default function CapturePage() {
         setCurrentMood(null)
     }
 
-    const handleAnimationComplete = () => {
-        setPendingCount(prev => prev + 1)
+    const handleAnimationComplete = async () => {
         setShowAnimation(false)
         setCaptureText('')
-
-        // Reset mood after capture
         setCurrentMood(null)
+        // Rafraîchir le count après la capture
+        await refreshPendingCount()
     }
 
     const handleOrganize = () => {
@@ -135,6 +146,8 @@ export default function CapturePage() {
         }
     }
 
+    const isSaving = isCapturing || isAnalyzing
+
     return (
         <div className="min-h-screen bg-mint flex flex-col">
             <Header />
@@ -164,9 +177,10 @@ export default function CapturePage() {
                 {captureText.trim() && (
                     <button
                         onClick={() => handleCapture(captureText)}
-                        className="w-full py-3 bg-primary text-white rounded-xl font-bold hover:bg-primary-dark transition-colors shadow-md animate-fadeIn"
+                        disabled={isSaving}
+                        className="w-full py-3 bg-primary text-white rounded-xl font-bold hover:bg-primary-dark transition-colors shadow-md animate-fadeIn disabled:opacity-50 disabled:cursor-not-allowed"
                     >
-                        Capturer
+                        {isSaving ? 'Analyse en cours...' : 'Capturer'}
                     </button>
                 )}
 
