@@ -10,7 +10,8 @@ import CapturedAnimation from '@/components/capture/CapturedAnimation'
 import PendingCounter from '@/components/capture/PendingCounter'
 import OrganizeButton from '@/components/capture/OrganizeButton'
 import GoogleCalendarCTA from '@/components/capture/GoogleCalendarCTA'
-import OrganizeModal from '@/components/capture/OrganizeModal'
+// TODO: Implement new OrganizeModal with new architecture
+// import OrganizeModal from '@/components/capture/OrganizeModal'
 import { useAuth } from '@/hooks/useAuth'
 import { useItemCapture } from '@/hooks/useItemCapture'
 import { getItemsCount } from '@/services/supabase/items.service'
@@ -23,7 +24,8 @@ export default function CapturePage() {
     const [currentMood, setCurrentMood] = useState<Mood>(null)
     const [captureText, setCaptureText] = useState('')
     const [showAnimation, setShowAnimation] = useState(false)
-    const [showOrganizeModal, setShowOrganizeModal] = useState(false)
+    // TODO: Re-enable when new OrganizeModal is implemented
+    // const [showOrganizeModal, setShowOrganizeModal] = useState(false)
     const [pendingCount, setPendingCount] = useState(0)
     const [isCalendarConnected, setIsCalendarConnected] = useState(false)
     const [isConnectingCalendar, setIsConnectingCalendar] = useState(false)
@@ -107,13 +109,15 @@ export default function CapturePage() {
         await refreshPendingCount()
     }
 
+    // TODO: Re-enable when new OrganizeModal is implemented
     const handleOrganize = () => {
-        setShowOrganizeModal(true)
+        // setShowOrganizeModal(true)
+        console.log('TODO: Open new OrganizeModal')
     }
 
-    const handleCloseModal = () => {
-        setShowOrganizeModal(false)
-    }
+    // const handleCloseModal = () => {
+    //     setShowOrganizeModal(false)
+    // }
 
     const handleConnectCalendar = async () => {
         if (isConnectingCalendar) return
@@ -210,11 +214,12 @@ export default function CapturePage() {
                 <CapturedAnimation onComplete={handleAnimationComplete} />
             )}
 
-            <OrganizeModal
+            {/* TODO: Re-enable when new OrganizeModal is implemented */}
+            {/* <OrganizeModal
                 isOpen={showOrganizeModal}
                 onClose={handleCloseModal}
                 onSuccess={refreshPendingCount}
-            />
+            /> */}
         </div>
     )
 }
