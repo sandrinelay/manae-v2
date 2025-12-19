@@ -1,29 +1,46 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { LegacyItem as Item } from '@/types'
+import type { Item, ItemType, ItemState, ItemContext, AIAnalyzedItem } from '@/types/items'
+
+// Interface pour les items analysés par l'API (avant sauvegarde)
+interface AnalyzedDisplayItem {
+  content: string
+  type: ItemType
+  context?: ItemContext
+  confidence: number
+  extracted_data: {
+    date?: string
+    time?: string
+    location?: string
+    items?: string[]
+  }
+  suggestions: string[]
+  // UI state
+  id?: string
+  state?: ItemState
+}
 
 interface OrganizeModalProps {
   isOpen: boolean
   onClose: () => void
-  onSuccess: () => void // Callback pour rafraîchir le count
+  onSuccess: () => void
 }
 
 export default function OrganizeModal({ isOpen, onClose, onSuccess }: OrganizeModalProps) {
   const [isAnalyzing, setIsAnalyzing] = useState(true)
-  const [items, setItems] = useState<Item[]>([])
+  const [items, setItems] = useState<AnalyzedDisplayItem[]>([])
   const [warning, setWarning] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
-  const [expandedProjects, setExpandedProjects] = useState<Set<string>>(new Set())
-  const [developingIds, setDevelopingIds] = useState<Set<string>>(new Set())
+  const [processingIds, setProcessingIds] = useState<Set<string>>(new Set())
 
   useEffect(() => {
     if (isOpen) {
-      analyzeThoughts()
+      analyzeItems()
     }
   }, [isOpen])
 
-  const analyzeThoughts = async () => {
+  const analyzeItems = async () => {
     setIsAnalyzing(true)
     setWarning(null)
     setError(null)
@@ -37,7 +54,7 @@ export default function OrganizeModal({ isOpen, onClose, onSuccess }: OrganizeMo
       const data = await response.json()
 
       if (!response.ok) {
-        if (data.error === 'No thoughts to analyze') {
+        if (data.error === 'No items to analyze') {
           setItems([])
           setIsAnalyzing(false)
           return
@@ -45,7 +62,13 @@ export default function OrganizeModal({ isOpen, onClose, onSuccess }: OrganizeMo
         throw new Error(data.error || 'Analysis failed')
       }
 
-      setItems(data.items || [])
+      // Ajouter un ID temporaire pour le tracking UI
+      const itemsWithIds = (data.items || []).map((item: AnalyzedDisplayItem, idx: number) => ({
+        ...item,
+        id: `temp-${idx}-${Date.now()}`
+      }))
+
+      setItems(itemsWithIds)
 
       if (data.warning) {
         setWarning(data.warning)
@@ -59,32 +82,40 @@ export default function OrganizeModal({ isOpen, onClose, onSuccess }: OrganizeMo
     }
   }
 
-  const handleDevelopIdea = async (itemId: string) => {
-    setDevelopingIds(prev => new Set(prev).add(itemId))
+  const handleValidate = async (itemId: string) => {
+    const item = items.find(i => i.id === itemId)
+    if (!item) return
+
+    setProcessingIds(prev => new Set(prev).add(itemId))
 
     try {
-      const response = await fetch('/api/develop-idea', {
+      // Créer l'item dans la base avec state = 'active'
+      const response = await fetch('/api/items', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ itemId })
+        body: JSON.stringify({
+          type: item.type,
+          state: 'active',
+          content: item.content,
+          context: item.context,
+          ai_analysis: {
+            type_suggestion: item.type,
+            confidence: item.confidence,
+            extracted_data: item.extracted_data,
+            suggestions: item.suggestions
+          }
+        })
       })
 
-      if (!response.ok) throw new Error('Development failed')
+      if (!response.ok) throw new Error('Failed to save item')
 
-      const data = await response.json()
-
-      // Mettre à jour l'item dans la liste
-      setItems(prev => prev.map(item =>
-        item.id === itemId ? data.item : item
-      ))
-
-      // Auto-expand le projet développé
-      setExpandedProjects(prev => new Set(prev).add(itemId))
+      // Retirer de la liste
+      setItems(prev => prev.filter(i => i.id !== itemId))
     } catch (error) {
-      console.error('Development error:', error)
-      alert('Erreur lors du développement de l\'idée.')
+      console.error('Validate error:', error)
+      alert('Erreur lors de la validation')
     } finally {
-      setDevelopingIds(prev => {
+      setProcessingIds(prev => {
         const next = new Set(prev)
         next.delete(itemId)
         return next
@@ -92,62 +123,23 @@ export default function OrganizeModal({ isOpen, onClose, onSuccess }: OrganizeMo
     }
   }
 
-  const toggleProject = (id: string) => {
-    setExpandedProjects(prev => {
-      const next = new Set(prev)
-      if (next.has(id)) {
-        next.delete(id)
-      } else {
-        next.add(id)
-      }
-      return next
-    })
-  }
-
-  const handleValidate = async (itemId: string) => {
-    try {
-      const response = await fetch('/api/items/update', {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          itemId,
-          updates: { status: 'ready' }
-        })
-      })
-
-      if (!response.ok) throw new Error('Validate failed')
-
-      // Mettre à jour localement
-      setItems(prev => prev.map(item =>
-        item.id === itemId ? { ...item, status: 'ready' as const } : item
-      ))
-    } catch (error) {
-      console.error('Validate error:', error)
-    }
-  }
-
   const handleReject = async (itemId: string) => {
+    setProcessingIds(prev => new Set(prev).add(itemId))
+
     try {
-      const response = await fetch('/api/items/update', {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          itemId,
-          updates: { status: 'rejected' }
-        })
+      // Simplement retirer de la liste (l'item captured sera archivé)
+      setItems(prev => prev.filter(i => i.id !== itemId))
+    } finally {
+      setProcessingIds(prev => {
+        const next = new Set(prev)
+        next.delete(itemId)
+        return next
       })
-
-      if (!response.ok) throw new Error('Reject failed')
-
-      // Retirer de la liste
-      setItems(prev => prev.filter(item => item.id !== itemId))
-    } catch (error) {
-      console.error('Reject error:', error)
     }
   }
 
   const handleCloseModal = () => {
-    onSuccess() // Rafraîchir le count de thoughts
+    onSuccess()
     onClose()
   }
 
@@ -181,7 +173,7 @@ export default function OrganizeModal({ isOpen, onClose, onSuccess }: OrganizeMo
               <p className="text-sm text-red-800 font-medium mb-2">❌ Erreur</p>
               <p className="text-sm text-red-700">{error}</p>
               <button
-                onClick={analyzeThoughts}
+                onClick={analyzeItems}
                 className="mt-3 px-4 py-2 bg-red-100 text-red-800 rounded-lg text-sm font-medium hover:bg-red-200 transition-colors"
               >
                 Réessayer
@@ -208,12 +200,9 @@ export default function OrganizeModal({ isOpen, onClose, onSuccess }: OrganizeMo
                 <ItemCard
                   key={item.id}
                   item={item}
-                  isExpanded={expandedProjects.has(item.id)}
-                  isDeveloping={developingIds.has(item.id)}
-                  onToggleExpand={() => toggleProject(item.id)}
-                  onDevelopIdea={handleDevelopIdea}
-                  onValidate={handleValidate}
-                  onReject={handleReject}
+                  isProcessing={processingIds.has(item.id || '')}
+                  onValidate={() => handleValidate(item.id || '')}
+                  onReject={() => handleReject(item.id || '')}
                 />
               ))}
             </div>
@@ -232,7 +221,7 @@ export default function OrganizeModal({ isOpen, onClose, onSuccess }: OrganizeMo
             <button
               className="flex-1 py-3 px-4 rounded-lg bg-primary hover:bg-primary-dark transition-colors font-semibold text-white font-quicksand"
             >
-              Tout planifier
+              Tout valider
             </button>
           </div>
         )}
@@ -256,246 +245,45 @@ function AnalyzingLoader() {
 }
 
 interface ItemCardProps {
-  item: Item
-  isExpanded: boolean
-  isDeveloping: boolean
-  onToggleExpand: () => void
-  onDevelopIdea: (id: string) => void
-  onValidate: (id: string) => void
-  onReject: (id: string) => void
-}
-
-function ItemCard({ item, isExpanded, isDeveloping, onToggleExpand, onDevelopIdea, onValidate, onReject }: ItemCardProps) {
-  // Idée floue → afficher card spéciale pour développer
-  if (item.status === 'idea') {
-    return (
-      <IdeaCard
-        item={item}
-        isDeveloping={isDeveloping}
-        onDevelop={() => onDevelopIdea(item.id)}
-        onReject={() => onReject(item.id)}
-      />
-    )
-  }
-
-  // Projet développé → afficher étapes
-  if (item.status === 'project') {
-    return (
-      <ProjectCard
-        item={item}
-        isExpanded={isExpanded}
-        onToggleExpand={onToggleExpand}
-        onValidate={() => onValidate(item.id)}
-        onReject={() => onReject(item.id)}
-      />
-    )
-  }
-
-  // Task/Course/Note ready → cards classiques
-  if (item.type === 'course') {
-    return <CourseCard item={item} />
-  }
-
-  if (item.type === 'note') {
-    return <NoteCard item={item} />
-  }
-
-  // Default: task ready
-  return (
-    <TaskCard
-      item={item}
-      onValidate={() => onValidate(item.id)}
-      onReject={() => onReject(item.id)}
-    />
-  )
-}
-
-interface IdeaCardProps {
-  item: Item
-  isDeveloping: boolean
-  onDevelop: () => void
-  onReject: () => void
-}
-
-function IdeaCard({ item, isDeveloping, onDevelop, onReject }: IdeaCardProps) {
-  return (
-    <div className="bg-purple-50 border border-purple-200 rounded-xl p-4">
-      <div className="flex items-start gap-3 mb-3">
-        <div className="w-8 h-8 rounded-lg bg-purple-100 flex items-center justify-center flex-shrink-0">
-          💡
-        </div>
-        <div className="flex-1">
-          <p className="text-text-dark font-semibold font-quicksand mb-1">
-            {item.text}
-          </p>
-          <p className="text-text-muted text-xs">
-            Idée floue • {getCategoryLabel(item.category)}
-          </p>
-        </div>
-      </div>
-
-      <div className="bg-white rounded-lg p-3 mb-3 border border-purple-200">
-        <p className="text-text-medium text-sm">
-          Cette idée peut être développée en projet concret avec des étapes.
-        </p>
-      </div>
-
-      <div className="flex gap-2">
-        <button
-          onClick={onDevelop}
-          disabled={isDeveloping}
-          className="flex-1 py-2 px-3 rounded-lg bg-purple-500 text-white text-sm font-medium hover:bg-purple-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-        >
-          {isDeveloping ? (
-            <>
-              <div className="w-4 h-4 rounded-full border-2 border-white/30 border-t-white animate-spin" />
-              Développement...
-            </>
-          ) : (
-            <>
-              <SparklesIconSmall />
-              Développer
-            </>
-          )}
-        </button>
-        <button
-          onClick={onReject}
-          className="py-2 px-3 rounded-lg border border-border text-text-medium text-sm font-medium hover:bg-gray-light transition-colors"
-        >
-          Refuser
-        </button>
-      </div>
-    </div>
-  )
-}
-
-interface ProjectCardProps {
-  item: Item
-  isExpanded: boolean
-  onToggleExpand: () => void
+  item: AnalyzedDisplayItem
+  isProcessing: boolean
   onValidate: () => void
   onReject: () => void
 }
 
-function ProjectCard({ item, isExpanded, onToggleExpand, onValidate, onReject }: ProjectCardProps) {
-  const steps = item.project_steps || []
+function ItemCard({ item, isProcessing, onValidate, onReject }: ItemCardProps) {
+  const config = getTypeConfig(item.type)
 
   return (
-    <div className="bg-purple-50 border border-purple-200 rounded-xl p-4">
+    <div className={`${config.bgColor} ${config.borderColor} border rounded-xl p-4`}>
       <div className="flex items-start gap-3 mb-3">
-        <div className="w-8 h-8 rounded-lg bg-purple-100 flex items-center justify-center flex-shrink-0">
-          📋
+        <div className={`w-8 h-8 rounded-lg ${config.iconBg} flex items-center justify-center flex-shrink-0`}>
+          {config.icon}
         </div>
-        <div className="flex-1">
-          <p className="text-text-dark font-semibold font-quicksand mb-1">
-            {item.refined_text || item.text}
-          </p>
-          <p className="text-text-muted text-xs">
-            Projet • {getCategoryLabel(item.category)}
-          </p>
-        </div>
-      </div>
-
-      {/* Motivation */}
-      {item.project_motivation && (
-        <div className="bg-purple-100/50 rounded-lg p-3 mb-3">
-          <p className="text-purple-700 text-sm italic">
-            "{item.project_motivation}"
-          </p>
-        </div>
-      )}
-
-      <div className="bg-white rounded-lg p-3 mb-3 border border-purple-200">
-        <div className="flex items-center justify-between mb-2">
-          <p className="text-text-medium text-sm font-medium">
-            Étapes ({steps.length})
-          </p>
-          {item.project_time && (
-            <span className="text-xs text-text-muted">
-              ⏱ {item.project_time}
-            </span>
-          )}
-        </div>
-
-        {isExpanded ? (
-          <div className="space-y-2">
-            {steps.map((step, idx) => (
-              <div key={idx} className="flex items-start gap-2">
-                <div className="w-5 h-5 rounded-full bg-purple-100 flex items-center justify-center flex-shrink-0 mt-0.5">
-                  <span className="text-xs text-purple-600 font-medium">{idx + 1}</span>
-                </div>
-                <span className="text-text-dark text-sm">{step}</span>
-              </div>
-            ))}
-          </div>
-        ) : (
-          <p className="text-text-muted text-sm">
-            {steps.slice(0, 2).join(' → ')}...
-          </p>
-        )}
-
-        {item.project_budget && (
-          <div className="mt-2 pt-2 border-t border-border">
-            <span className="text-xs text-text-muted">
-              Budget estimé : <span className="text-primary font-medium">{item.project_budget}</span>
-            </span>
-          </div>
-        )}
-      </div>
-
-      <div className="flex gap-2">
-        <button
-          onClick={onToggleExpand}
-          className="flex-1 py-2 px-3 rounded-lg bg-white border border-purple-200 text-text-dark text-sm font-medium hover:bg-purple-50 transition-colors"
-        >
-          {isExpanded ? 'Réduire' : 'Voir les étapes'}
-        </button>
-        <button
-          onClick={onValidate}
-          className="flex-1 py-2 px-3 rounded-lg bg-purple-500 text-white text-sm font-medium hover:bg-purple-600 transition-colors"
-        >
-          Valider
-        </button>
-        <button
-          onClick={onReject}
-          className="py-2 px-3 rounded-lg border border-border text-text-medium text-sm font-medium hover:bg-gray-light transition-colors"
-        >
-          Refuser
-        </button>
-      </div>
-    </div>
-  )
-}
-
-interface TaskCardProps {
-  item: Item
-  onValidate: () => void
-  onReject: () => void
-}
-
-function TaskCard({ item, onValidate, onReject }: TaskCardProps) {
-  return (
-    <div className="bg-mint/50 border border-primary/20 rounded-xl p-4">
-      <div className="flex items-start gap-3 mb-3">
-        <div className="w-5 h-5 rounded border-2 border-primary flex-shrink-0 mt-0.5" />
         <div className="flex-1">
           <p className="text-text-dark font-medium font-quicksand">
-            {item.text}
+            {item.content}
           </p>
           <div className="flex items-center gap-2 mt-1">
             <span className="text-text-muted text-xs">
-              {getCategoryLabel(item.category)}
+              {config.label}
             </span>
-            {item.priority && (
-              <span className={`text-xs px-2 py-0.5 rounded-full ${getPriorityStyle(item.priority)}`}>
-                {getPriorityLabel(item.priority)}
+            {item.context && (
+              <span className="text-text-muted text-xs">
+                • {getContextLabel(item.context)}
+              </span>
+            )}
+            {item.confidence < 0.7 && (
+              <span className="text-xs px-2 py-0.5 rounded-full bg-yellow-100 text-yellow-700">
+                À confirmer
               </span>
             )}
           </div>
         </div>
       </div>
 
-      {item.suggested_slot && (
+      {/* Suggestions */}
+      {item.suggestions.length > 0 && (
         <div className="bg-white rounded-lg p-3 mb-3 border border-border">
           <div className="flex items-center gap-2 mb-2">
             <SparklesIconSmall />
@@ -503,22 +291,45 @@ function TaskCard({ item, onValidate, onReject }: TaskCardProps) {
               Suggestion
             </span>
           </div>
-          <p className="text-text-dark text-sm font-medium">
-            {formatSlot(item.suggested_slot)}
+          <p className="text-text-dark text-sm">
+            {item.suggestions[0]}
           </p>
+        </div>
+      )}
+
+      {/* Extracted data */}
+      {(item.extracted_data.date || item.extracted_data.time || item.extracted_data.location) && (
+        <div className="flex flex-wrap gap-2 mb-3">
+          {item.extracted_data.date && (
+            <span className="text-xs px-2 py-1 rounded-full bg-blue-100 text-blue-700">
+              📅 {formatDate(item.extracted_data.date)}
+            </span>
+          )}
+          {item.extracted_data.time && (
+            <span className="text-xs px-2 py-1 rounded-full bg-blue-100 text-blue-700">
+              🕐 {item.extracted_data.time}
+            </span>
+          )}
+          {item.extracted_data.location && (
+            <span className="text-xs px-2 py-1 rounded-full bg-blue-100 text-blue-700">
+              📍 {item.extracted_data.location}
+            </span>
+          )}
         </div>
       )}
 
       <div className="flex gap-2">
         <button
           onClick={onValidate}
-          className="flex-1 py-2 px-3 rounded-lg bg-primary text-white text-sm font-medium hover:bg-primary-dark transition-colors"
+          disabled={isProcessing}
+          className="flex-1 py-2 px-3 rounded-lg bg-primary text-white text-sm font-medium hover:bg-primary-dark transition-colors disabled:opacity-50"
         >
-          Planifier
+          {isProcessing ? 'En cours...' : 'Valider'}
         </button>
         <button
           onClick={onReject}
-          className="py-2 px-3 rounded-lg border border-border text-text-medium text-sm font-medium hover:bg-gray-light transition-colors"
+          disabled={isProcessing}
+          className="py-2 px-3 rounded-lg border border-border text-text-medium text-sm font-medium hover:bg-gray-light transition-colors disabled:opacity-50"
         >
           Plus tard
         </button>
@@ -527,104 +338,61 @@ function TaskCard({ item, onValidate, onReject }: TaskCardProps) {
   )
 }
 
-function CourseCard({ item }: { item: Item }) {
-  return (
-    <div className="bg-green-50 border border-green-200 rounded-xl p-4">
-      <div className="flex items-start gap-3 mb-3">
-        <div className="w-8 h-8 rounded-lg bg-green-100 flex items-center justify-center flex-shrink-0">
-          🛒
-        </div>
-        <div className="flex-1">
-          <p className="text-text-dark font-medium font-quicksand">
-            {item.text}
-          </p>
-          <p className="text-text-muted text-xs mt-1">
-            Course
-          </p>
-        </div>
-      </div>
-
-      <div className="bg-white rounded-lg p-3 border border-green-200">
-        <div className="flex items-center gap-2">
-          <CheckIconSmall />
-          <span className="text-text-dark text-sm">
-            Ajouté à ta liste de courses
-          </span>
-        </div>
-      </div>
-    </div>
-  )
-}
-
-function NoteCard({ item }: { item: Item }) {
-  return (
-    <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-4">
-      <div className="flex items-start gap-3 mb-3">
-        <div className="w-8 h-8 rounded-lg bg-yellow-100 flex items-center justify-center flex-shrink-0">
-          📝
-        </div>
-        <div className="flex-1">
-          <p className="text-text-dark font-medium font-quicksand">
-            {item.text}
-          </p>
-          <p className="text-text-muted text-xs mt-1">
-            Mémo
-          </p>
-        </div>
-      </div>
-
-      <div className="bg-white rounded-lg p-3 border border-yellow-200">
-        <div className="flex items-center gap-2">
-          <CheckIconSmall />
-          <span className="text-text-dark text-sm">
-            Enregistré dans Mémos
-          </span>
-        </div>
-      </div>
-    </div>
-  )
-}
-
 // Helper functions
-function getCategoryLabel(category: string | null): string {
-  const labels: Record<string, string> = {
-    work: 'Travail',
+function getTypeConfig(type: ItemType) {
+  const configs = {
+    task: {
+      icon: '✓',
+      label: 'Tâche',
+      bgColor: 'bg-mint/50',
+      borderColor: 'border-primary/20',
+      iconBg: 'bg-primary/10'
+    },
+    note: {
+      icon: '📝',
+      label: 'Mémo',
+      bgColor: 'bg-yellow-50',
+      borderColor: 'border-yellow-200',
+      iconBg: 'bg-yellow-100'
+    },
+    idea: {
+      icon: '💡',
+      label: 'Idée',
+      bgColor: 'bg-purple-50',
+      borderColor: 'border-purple-200',
+      iconBg: 'bg-purple-100'
+    },
+    list_item: {
+      icon: '🛒',
+      label: 'Course',
+      bgColor: 'bg-green-50',
+      borderColor: 'border-green-200',
+      iconBg: 'bg-green-100'
+    }
+  }
+  return configs[type] || configs.task
+}
+
+function getContextLabel(context: ItemContext): string {
+  const labels: Record<ItemContext, string> = {
     personal: 'Personnel',
-    kids: 'Enfants',
-    admin: 'Admin',
-    home: 'Maison',
-    other: 'Autre'
+    family: 'Famille',
+    work: 'Travail',
+    health: 'Santé'
   }
-  return labels[category || 'other'] || 'Autre'
+  return labels[context] || context
 }
 
-function getPriorityLabel(priority: string): string {
-  const labels: Record<string, string> = {
-    high: 'Urgent',
-    medium: 'Normal',
-    low: 'Peut attendre'
-  }
-  return labels[priority] || ''
-}
-
-function getPriorityStyle(priority: string): string {
-  const styles: Record<string, string> = {
-    high: 'bg-red-100 text-red-700',
-    medium: 'bg-yellow-100 text-yellow-700',
-    low: 'bg-gray-100 text-gray-600'
-  }
-  return styles[priority] || ''
-}
-
-function formatSlot(slot: { start: string; end: string; duration: number } | null): string {
-  if (!slot) return ''
+function formatDate(isoDate: string): string {
   try {
-    const start = new Date(slot.start)
-    const day = start.toLocaleDateString('fr-FR', { weekday: 'long' })
-    const time = start.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })
-    return `${day} à ${time} (${slot.duration} min)`
+    const date = new Date(isoDate)
+    return date.toLocaleDateString('fr-FR', {
+      weekday: 'short',
+      day: 'numeric',
+      month: 'short'
+    })
   } catch {
-    return ''
+    return isoDate
   }
 }
 
@@ -642,14 +410,6 @@ function SparklesIconSmall() {
   return (
     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-primary">
       <path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z" />
-    </svg>
-  )
-}
-
-function CheckIconSmall() {
-  return (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="text-green-600">
-      <polyline points="20 6 9 17 4 12" />
     </svg>
   )
 }
