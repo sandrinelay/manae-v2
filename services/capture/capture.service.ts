@@ -41,12 +41,17 @@ export async function captureThought(
   userId: string,
   content: string
 ): Promise<CaptureResult> {
+  console.log('🔍 [captureThought] START - userId:', userId, 'content:', content.substring(0, 50))
+
   try {
     // 1. Vérifier le quota IA
+    console.log('🔍 [captureThought] Checking AI quota...')
     const quota = await checkAIQuota(userId)
+    console.log('🔍 [captureThought] Quota result:', quota)
 
     // 2. Si quota OK → Analyser avec IA
     if (quota.canUse) {
+      console.log('🔍 [captureThought] Quota OK, calling /api/analyze...')
       try {
         // Appel API d'analyse
         const response = await fetch('/api/analyze', {
@@ -55,49 +60,60 @@ export async function captureThought(
           body: JSON.stringify({ content })
         })
 
+        console.log('🔍 [captureThought] API response status:', response.status)
+
         if (!response.ok) {
           throw new Error('API analyze failed')
         }
 
         const analysis: AIAnalysis = await response.json()
+        console.log('🔍 [captureThought] Analysis result:', analysis)
 
         // Tracker l'usage (incrémenter compteur)
         await trackAIUsage(userId, 'analyze')
 
-        return {
+        const result = {
           success: true,
           aiUsed: true,
           suggestedType: analysis.type_suggestion,
           aiAnalysis: analysis,
           creditsRemaining: quota.creditsRemaining ? quota.creditsRemaining - 1 : null
         }
+        console.log('🔍 [captureThought] Returning SUCCESS with AI:', result)
+        return result
       } catch (error) {
-        console.error('Error analyzing thought:', error)
+        console.error('🔍 [captureThought] Error analyzing thought:', error)
 
         // Si l'API IA échoue, continuer sans IA
-        return {
+        const fallbackResult = {
           success: true,
           aiUsed: false,
           quotaExceeded: false,
           error: 'AI analysis failed, please categorize manually'
         }
+        console.log('🔍 [captureThought] Returning FALLBACK (AI failed):', fallbackResult)
+        return fallbackResult
       }
     }
 
     // 3. Si quota épuisé → Pas d'analyse IA
-    return {
+    const quotaExceededResult = {
       success: true,
       aiUsed: false,
       quotaExceeded: true,
       creditsRemaining: 0
     }
+    console.log('🔍 [captureThought] Quota exceeded, returning:', quotaExceededResult)
+    return quotaExceededResult
   } catch (error) {
-    console.error('Error in captureThought:', error)
-    return {
+    console.error('🔍 [captureThought] CRITICAL ERROR:', error)
+    const errorResult = {
       success: false,
       aiUsed: false,
       error: error instanceof Error ? error.message : 'Unknown error'
     }
+    console.log('🔍 [captureThought] Returning ERROR result:', errorResult)
+    return errorResult
   }
 }
 

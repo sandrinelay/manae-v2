@@ -45,27 +45,38 @@ export function CaptureFlow({ userId, onSuccess }: CaptureFlowProps) {
   }, [])
 
   const handleCapture = async () => {
+    console.log('🚀 [CaptureFlow] handleCapture CALLED')
+    console.log('🚀 [CaptureFlow] content:', content)
+    console.log('🚀 [CaptureFlow] userId:', userId)
+
     if (!content.trim()) {
+      console.log('🚀 [CaptureFlow] Content empty, showing error')
       setError('Veuillez saisir une pensée')
       return
     }
 
     setIsCapturing(true)
     setError(null)
+    console.log('🚀 [CaptureFlow] Set isCapturing=true, calling captureThought...')
 
     try {
       const result = await captureThought(userId, content)
+      console.log('🚀 [CaptureFlow] captureThought returned:', result)
 
       if (!result.success) {
+        console.log('🚀 [CaptureFlow] result.success is FALSE, setting error')
         setError(result.error || 'Erreur lors de la capture')
         return
       }
 
+      console.log('🚀 [CaptureFlow] result.success is TRUE, calling setCaptureResult...')
       setCaptureResult(result)
+      console.log('🚀 [CaptureFlow] setCaptureResult called! Modal should open now.')
     } catch (err) {
-      console.error('Error in handleCapture:', err)
+      console.error('🚀 [CaptureFlow] CATCH ERROR:', err)
       setError('Une erreur est survenue')
     } finally {
+      console.log('🚀 [CaptureFlow] FINALLY block, setting isCapturing=false')
       setIsCapturing(false)
     }
   }
@@ -142,12 +153,12 @@ export function CaptureFlow({ userId, onSuccess }: CaptureFlowProps) {
   }
 
   return (
-    <div className="min-h-screen bg-mint flex items-center justify-center p-6">
-      <div className="w-full max-w-2xl space-y-6">
+    <div className="flex-1 p-6">
+      <div className="w-full max-w-2xl mx-auto space-y-6">
 
-        {/* Titre */}
-        <div className="text-center space-y-2">
-          <h1 className="text-3xl font-bold text-text-dark font-quicksand">
+        {/* Titre - ALIGNÉ À GAUCHE */}
+        <div className="text-left space-y-2">
+          <h1 className="text-2xl font-bold text-text-dark font-quicksand">
             Qu'avez-vous en tête ?
           </h1>
           <p className="text-text-muted">
@@ -162,12 +173,13 @@ export function CaptureFlow({ userId, onSuccess }: CaptureFlowProps) {
             value={content}
             onChange={(e) => setContent(e.target.value)}
             placeholder="Ex: Appeler pédiatre pour Milo, ajouter les oeufs et la farine, partir au Cambodge en 2027"
-            rows={8}
+            rows={6}
             className="w-full p-6 text-lg border-2 border-border rounded-3xl focus:border-primary focus:ring-4 focus:ring-primary/20 outline-none transition-all resize-none text-text-dark placeholder:text-text-muted shadow-sm bg-white"
             disabled={isCapturing}
           />
 
-          {/* Icônes bas gauche (désactivées) */}
+          {/* Icônes bas gauche - COMMENTÉES (feature future : vocal + photo) */}
+          {/*
           <div className="absolute bottom-4 left-4 flex gap-3">
             <button disabled className="w-10 h-10 flex items-center justify-center rounded-full bg-gray-light text-text-muted cursor-not-allowed">
               🎤
@@ -176,6 +188,7 @@ export function CaptureFlow({ userId, onSuccess }: CaptureFlowProps) {
               📷
             </button>
           </div>
+          */}
 
           {/* IA READY */}
           <div className="absolute bottom-4 right-4 text-xs text-primary font-medium">
@@ -234,7 +247,7 @@ export function CaptureFlow({ userId, onSuccess }: CaptureFlowProps) {
 
         {/* Hint */}
         <p className="text-sm text-text-muted text-center">
-          L'IA organise tout pour vous
+          Manae organise tout pour toi
         </p>
       </div>
 

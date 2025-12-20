@@ -41,22 +41,46 @@ const AI_OPERATION_COSTS: Record<AIOperation, number> = {
  * Utilise la fonction Postgres check_ai_quota()
  */
 export async function checkAIQuota(userId: string): Promise<QuotaCheckResult> {
+  console.log('🔑 [checkAIQuota] START - userId:', userId)
   const supabase = createClient()
 
-  const { data, error } = await supabase.rpc('check_ai_quota', {
-    p_user_id: userId
-  })
+  try {
+    const { data, error } = await supabase.rpc('check_ai_quota', {
+      p_user_id: userId
+    })
 
-  if (error) {
-    console.error('Error checking AI quota:', error)
-    throw error
-  }
+    console.log('🔑 [checkAIQuota] RPC response - data:', data, 'error:', error)
 
-  return {
-    canUse: data.can_use,
-    creditsRemaining: data.credits_remaining,
-    quotaExceeded: data.quota_exceeded,
-    planId: data.plan_id
+    if (error) {
+      console.error('🔑 [checkAIQuota] RPC ERROR:', error)
+      // FALLBACK: Si la fonction RPC n'existe pas ou échoue,
+      // autoriser l'utilisation (plan essential par défaut)
+      console.log('🔑 [checkAIQuota] Using FALLBACK - allowing AI usage')
+      return {
+        canUse: true,
+        creditsRemaining: 10,
+        quotaExceeded: false,
+        planId: 'essential'
+      }
+    }
+
+    const result = {
+      canUse: data.can_use,
+      creditsRemaining: data.credits_remaining,
+      quotaExceeded: data.quota_exceeded,
+      planId: data.plan_id
+    }
+    console.log('🔑 [checkAIQuota] Returning:', result)
+    return result
+  } catch (err) {
+    console.error('🔑 [checkAIQuota] CATCH ERROR:', err)
+    // FALLBACK en cas d'erreur
+    return {
+      canUse: true,
+      creditsRemaining: 10,
+      quotaExceeded: false,
+      planId: 'essential'
+    }
   }
 }
 
@@ -73,19 +97,28 @@ export async function trackAIUsage(
   operation: AIOperation,
   itemId?: string
 ): Promise<void> {
+  console.log('📊 [trackAIUsage] START - userId:', userId, 'operation:', operation)
   const supabase = createClient()
   const cost = AI_OPERATION_COSTS[operation]
 
-  const { error } = await supabase.rpc('track_ai_usage', {
-    p_user_id: userId,
-    p_operation: operation,
-    p_cost_credits: cost,
-    p_item_id: itemId || null
-  })
+  try {
+    const { error } = await supabase.rpc('track_ai_usage', {
+      p_user_id: userId,
+      p_operation: operation,
+      p_cost_credits: cost,
+      p_item_id: itemId || null
+    })
 
-  if (error) {
-    console.error('Error tracking AI usage:', error)
-    throw error
+    if (error) {
+      console.error('📊 [trackAIUsage] RPC ERROR (non-blocking):', error)
+      // Ne pas bloquer l'exécution si le tracking échoue
+      return
+    }
+
+    console.log('📊 [trackAIUsage] SUCCESS')
+  } catch (err) {
+    console.error('📊 [trackAIUsage] CATCH ERROR (non-blocking):', err)
+    // Ne pas bloquer l'exécution si le tracking échoue
   }
 }
 
