@@ -6,6 +6,7 @@ import { CaptureModal } from './CaptureModal'
 import { MoodSelector, type Mood } from './MoodSelector'
 import { useGoogleCalendarStatus } from '@/hooks/useGoogleCalendarStatus'
 import { captureThought, saveItem, saveMultipleListItems, extractMultipleItems } from '@/services/capture'
+import { openGoogleAuthPopup, exchangeCodeForToken } from '@/lib/googleCalendar'
 import type { CaptureResult } from '@/services/capture'
 import type { ItemType, Mood as ItemMood } from '@/types/items'
 
@@ -39,10 +40,40 @@ export function CaptureFlow({ userId, onSuccess }: CaptureFlowProps) {
   const [isCapturing, setIsCapturing] = useState(false)
   const [captureResult, setCaptureResult] = useState<CaptureResult | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [isConnectingCalendar, setIsConnectingCalendar] = useState(false)
 
   useEffect(() => {
     textareaRef.current?.focus()
   }, [])
+
+  const handleConnectCalendar = async () => {
+    if (isConnectingCalendar) return
+
+    setIsConnectingCalendar(true)
+
+    try {
+      // Ouvrir popup OAuth Google
+      const code = await openGoogleAuthPopup()
+
+      // Échanger le code contre un token
+      const tokens = await exchangeCodeForToken(code)
+
+      // Stocker les tokens
+      localStorage.setItem('google_tokens', JSON.stringify(tokens))
+
+      // Notifier les composants que la connexion a réussi
+      window.dispatchEvent(new CustomEvent('calendar-connection-changed', {
+        detail: { connected: true }
+      }))
+
+      console.log('Google Calendar connected successfully')
+    } catch (err) {
+      console.error('Error connecting Google Calendar:', err)
+      setError('Erreur lors de la connexion à Google Calendar')
+    } finally {
+      setIsConnectingCalendar(false)
+    }
+  }
 
   const handleCapture = async () => {
     console.log('🚀 [CaptureFlow] handleCapture CALLED')
@@ -233,11 +264,26 @@ export function CaptureFlow({ userId, onSuccess }: CaptureFlowProps) {
         {!isGoogleCalendarConnected && (
           <div className="space-y-2">
             <button
-              onClick={() => router.push('/settings/calendar')}
-              className="w-full py-4 border-2 border-primary text-primary font-medium rounded-2xl hover:bg-mint transition-all flex items-center justify-center gap-2"
+              onClick={handleConnectCalendar}
+              disabled={isConnectingCalendar}
+              className="w-full py-4 border-2 border-primary text-primary font-medium rounded-2xl hover:bg-mint transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              <span>📅</span>
-              Connecter Google Calendar
+              {isConnectingCalendar ? (
+                <>
+                  <svg className="animate-spin h-5 w-5" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                  </svg>
+                  Connexion...
+                </>
+              ) : (
+                <>
+                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                  </svg>
+                  Connecter Google Calendar
+                </>
+              )}
             </button>
             <p className="text-xs text-center text-text-muted">
               Important pour des suggestions pertinentes
