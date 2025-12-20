@@ -1,24 +1,48 @@
 import { NextRequest, NextResponse } from 'next/server'
 import OpenAI from 'openai'
 import { createClient } from '@/lib/supabase/server'
-import type { AIAnalyzedItem } from '@/types'
+
+// ============================================
+// TYPES
+// ============================================
+
+interface AnalyzeRequest {
+  content: string
+}
+
+interface AnalyzeResponse {
+  type_suggestion: 'task' | 'note' | 'idea' | 'list_item'
+  confidence: number
+  extracted_data: {
+    date?: string
+    time?: string
+    duration?: number // minutes
+    items?: string[] // Pour courses multiples
+    category?: string // Pour courses : "fruits", "légumes", etc.
+  }
+  suggestions: string[]
+}
+
+// ============================================
+// API ROUTE
+// ============================================
 
 export async function POST(request: NextRequest) {
   try {
-    // 0. Vérifier que la clé API OpenAI est configurée
+    // 1. Vérifier configuration OpenAI
     if (!process.env.OPENAI_API_KEY) {
-      console.error('OPENAI_API_KEY is not configured')
-      return NextResponse.json(
-        { error: 'OpenAI API key not configured. Please add OPENAI_API_KEY to .env.local' },
-        { status: 500 }
-      )
+      console.error('OPENAI_API_KEY not configured')
+      // Retourner fallback au lieu d'erreur
+      const body = await request.json().catch(() => ({ content: '' }))
+      const fallback = basicAnalysis(body.content || '')
+      return NextResponse.json(fallback)
     }
 
     const openai = new OpenAI({
       apiKey: process.env.OPENAI_API_KEY
     })
 
-    // 1. Vérifier auth
+    // 2. Vérifier authentification
     const supabase = await createClient()
     const { data: { user }, error: authError } = await supabase.auth.getUser()
 
@@ -26,300 +50,191 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    // 2. Récupérer thoughts non-processed
-    const { data: thoughts, error: thoughtsError } = await supabase
-      .from('thoughts')
-      .select('*')
-      .eq('user_id', user.id)
-      .eq('processed', false)
-      .order('created_at', { ascending: true })
+    // 3. Parser le body
+    const { content }: AnalyzeRequest = await request.json()
 
-    if (thoughtsError) throw thoughtsError
-
-    if (!thoughts || thoughts.length === 0) {
-      return NextResponse.json({
-        error: 'No thoughts to analyze'
-      }, { status: 400 })
+    if (!content || !content.trim()) {
+      return NextResponse.json(
+        { error: 'Content is required' },
+        { status: 400 }
+      )
     }
 
-    // 3. Récupérer historique catégories user (pour contexte)
-    const { data: pastItems } = await supabase
-      .from('items')
-      .select('category, text')
-      .eq('user_id', user.id)
-      .not('category', 'is', null)
-      .order('created_at', { ascending: false })
-      .limit(20)
-
-    const categoryContext = pastItems
-      ? `Historique des catégories utilisées : ${pastItems.map(i => `"${i.text}" → ${i.category}`).join(', ')}`
-      : ''
-
-    // 4. Construire prompt
-    const thoughtsText = thoughts.map(t => `- ${t.raw_text}`).join('\n')
-
+    // 4. Construire le prompt
     const prompt = `Tu es un assistant d'organisation pour parents débordés.
 
-Analyse ces pensées capturées et découpe-les en items distincts si nécessaire.
+Analyse cette pensée capturée et détermine son type :
 
-PENSÉES À ANALYSER :
-${thoughtsText}
+PENSÉE : "${content}"
 
-${categoryContext}
+TYPES POSSIBLES :
+1. "task" : Action concrète à faire
+   Exemples : "Appeler pédiatre pour Milo", "Réserver table restaurant samedi"
 
-Pour chaque item détecté, détermine :
+2. "note" : Information à retenir (pas d'action)
+   Exemples : "Code wifi : ABC123", "Léa allergique aux arachides"
 
-1. TYPE (nature de la chose) :
-   - "task" : Action concrète à faire (ex: "Appeler le dentiste")
-   - "course" : Liste d'achats (ex: "Acheter lait, pain, œufs")
-   - "note" : Information/mémo à retenir (ex: "Léa adore les licornes")
+3. "idea" : Projet abstrait à développer
+   Exemples : "Partir au Cambodge en 2027", "Refaire la déco du salon"
 
-2. STATUS (maturité de l'action) :
-   - "idea" : Envie floue, pas encore structurée (ex: "Faire un truc sympa ce week-end")
-   - "ready" : Action claire et actionnable immédiatement (ex: "Réserver coiffeur samedi 10h")
+4. "list_item" : Article(s) de courses
+   Exemples : "Lait", "Oeufs, farine, sucre"
 
-3. CATEGORY (contexte) :
-   - "work" : Professionnel
-   - "personal" : Personnel
-   - "kids" : Enfants/école
-   - "admin" : Administratif/paperasse
-   - "home" : Maison/ménage
-   - "other" : Si incertain
+DONNÉES À EXTRAIRE :
+- Si date/heure mentionnée : extraire au format ISO
+- Si durée mentionnée : extraire en minutes
+- Si courses multiples : découper en liste
+- Si courses : deviner catégorie (fruits, légumes, produits laitiers, etc.)
 
-4. PRIORITY (si détectable) :
-   - "high" : Urgent/important
-   - "medium" : Normal
-   - "low" : Peut attendre
-
-5. DEADLINE (si mentionnée) : Format ISO 8601
-
-RÈGLES IMPORTANTES :
-- Si la pensée contient plusieurs actions séparées par virgules ou "et", découpe-les
-- Si c'est une envie vague sans action claire → status: "idea"
-- Si c'est actionnable maintenant → status: "ready"
-- Si mots-clés achats/courses → type: "course"
-- Si info à retenir (pas d'action) → type: "note"
-- Par défaut category: "other" si incertain
+RÈGLES :
+- Si contient un verbe d'action ET pas abstrait → task
+- Si info factuelle sans action → note
+- Si projet vague/lointain → idea
+- Si mot-clé achat (acheter, lait, pain, etc.) → list_item
+- Confiance haute (0.9+) si évident, moyenne (0.6-0.8) si ambigu
 
 Réponds UNIQUEMENT en JSON valide, sans markdown :
 {
-  "items": [
-    {
-      "text": "texte reformulé clair",
-      "type": "task" | "course" | "note",
-      "status": "idea" | "ready",
-      "category": "work" | "personal" | "kids" | "admin" | "home" | "other",
-      "priority": "low" | "medium" | "high" ou null,
-      "deadline": "ISO 8601" ou null,
-      "reasoning": "explication courte du choix"
-    }
+  "type_suggestion": "task" | "note" | "idea" | "list_item",
+  "confidence": 0.95,
+  "extracted_data": {
+    "date": "2025-12-25" ou null,
+    "time": "14:30" ou null,
+    "duration": 30 ou null,
+    "items": ["item1", "item2"] ou null,
+    "category": "fruits" ou null
+  },
+  "suggestions": [
+    "Conseil pertinent 1",
+    "Conseil pertinent 2"
   ]
 }`
 
-    // 5. Appel OpenAI avec retry
-    let completion
-    let retries = 0
-    const maxRetries = 2
-
-    while (retries <= maxRetries) {
-      try {
-        completion = await openai.chat.completions.create({
-          model: 'gpt-4o-mini',
-          messages: [
-            {
-              role: 'system',
-              content: 'Tu es un assistant expert en organisation et productivité. Tu réponds toujours en JSON valide.'
-            },
-            {
-              role: 'user',
-              content: prompt
-            }
-          ],
-          temperature: 0.7,
-          max_tokens: 2000
-        })
-        break // Succès, sortir de la boucle
-      } catch (error: unknown) {
-        const err = error as { status?: number }
-        if (err.status === 429 && retries < maxRetries) {
-          // Rate limit, attendre et réessayer
-          await new Promise(resolve => setTimeout(resolve, 60000))
-          retries++
-        } else {
-          throw error
+    // 5. Appeler OpenAI
+    const completion = await openai.chat.completions.create({
+      model: 'gpt-4o-mini',
+      messages: [
+        {
+          role: 'system',
+          content: 'Tu es un expert en organisation et productivité. Tu réponds toujours en JSON valide.'
+        },
+        {
+          role: 'user',
+          content: prompt
         }
-      }
-    }
+      ],
+      temperature: 0.7,
+      max_tokens: 1000
+    })
 
-    if (!completion) {
-      throw new Error('Failed to get completion after retries')
-    }
-
-    // 6. Parser réponse IA
-    const content = completion.choices[0].message.content || ''
+    // 6. Parser la réponse
+    const responseContent = completion.choices[0].message.content || ''
 
     // Nettoyer markdown si présent
-    const cleanContent = content
+    const cleanContent = responseContent
       .replace(/```json\n?/g, '')
       .replace(/```\n?/g, '')
       .trim()
 
-    let aiResponse
+    let aiResponse: AnalyzeResponse
     try {
       aiResponse = JSON.parse(cleanContent)
     } catch (parseError) {
-      console.error('Failed to parse AI response:', cleanContent)
-      throw new Error('Invalid JSON from AI')
+      console.error('Failed to parse OpenAI response:', cleanContent)
+
+      // Fallback : analyse basique
+      const fallback = basicAnalysis(content)
+      return NextResponse.json(fallback)
     }
 
-    // 7. Insérer items en base
-    const itemsToInsert = aiResponse.items.map((item: AIAnalyzedItem) => ({
-      thought_id: thoughts[0].id, // Simplification : lier au premier thought
-      text: item.text,
-      type: item.type,
-      status: item.status,
-      category: item.category || 'other',
-      priority: item.priority || null,
-      deadline: item.deadline || null,
-      analyzed_at: new Date().toISOString(),
-      user_id: user.id
-    }))
+    // 7. Valider la réponse
+    if (!['task', 'note', 'idea', 'list_item'].includes(aiResponse.type_suggestion)) {
+      console.error('Invalid type from AI:', aiResponse.type_suggestion)
+      const fallback = basicAnalysis(content)
+      return NextResponse.json(fallback)
+    }
 
-    const { data: insertedItems, error: insertError } = await supabase
-      .from('items')
-      .insert(itemsToInsert)
-      .select()
+    // 8. Retourner le résultat
+    return NextResponse.json(aiResponse)
 
-    if (insertError) throw insertError
-
-    // 8. Marquer thoughts comme processed
-    const thoughtIds = thoughts.map(t => t.id)
-    const { error: updateError } = await supabase
-      .from('thoughts')
-      .update({
-        processed: true,
-        processed_at: new Date().toISOString()
-      })
-      .in('id', thoughtIds)
-
-    if (updateError) throw updateError
-
-    // 9. Retourner résultat
-    return NextResponse.json({
-      items: insertedItems,
-      thoughts_processed: thoughtIds
-    })
-
-  } catch (error: unknown) {
-    const err = error as { message?: string }
+  } catch (error) {
     console.error('Analysis error:', error)
 
-    // Fallback règles basiques si IA plante
-    if (err.message?.includes('OpenAI') || err.message?.includes('JSON')) {
-      try {
-        const supabase = await createClient()
-        const { data: { user } } = await supabase.auth.getUser()
-
-        if (!user) throw new Error('No user')
-
-        const { data: thoughts } = await supabase
-          .from('thoughts')
-          .select('*')
-          .eq('user_id', user.id)
-          .eq('processed', false)
-
-        if (!thoughts || thoughts.length === 0) {
-          return NextResponse.json({ error: 'No thoughts' }, { status: 400 })
-        }
-
-        // Analyse basique par règles
-        const basicItems = thoughts.flatMap(thought =>
-          basicAnalysis(thought.raw_text, thought.id, user.id)
-        )
-
-        const { data: insertedItems } = await supabase
-          .from('items')
-          .insert(basicItems)
-          .select()
-
-        const thoughtIds = thoughts.map(t => t.id)
-        await supabase
-          .from('thoughts')
-          .update({ processed: true, processed_at: new Date().toISOString() })
-          .in('id', thoughtIds)
-
-        return NextResponse.json({
-          items: insertedItems,
-          thoughts_processed: thoughtIds,
-          warning: 'Analyse simplifiée utilisée (IA temporairement indisponible)'
-        })
-      } catch (fallbackError) {
-        console.error('Fallback error:', fallbackError)
-      }
+    // En cas d'erreur, retourner fallback
+    try {
+      const body = await request.clone().json()
+      const fallback = basicAnalysis(body.content || '')
+      return NextResponse.json(fallback)
+    } catch {
+      return NextResponse.json(
+        { error: 'Analysis failed' },
+        { status: 500 }
+      )
     }
-
-    return NextResponse.json(
-      { error: err.message || 'Analysis failed' },
-      { status: 500 }
-    )
   }
 }
 
-// Type pour les items basiques
-type BasicItem = {
-  thought_id: string
-  user_id: string
-  text: string
-  type: 'task' | 'course' | 'note'
-  status: 'ready' | 'idea'
-  category: string
-  analyzed_at: string
-}
+// ============================================
+// FALLBACK : Analyse basique sans IA
+// ============================================
 
-// Fonction fallback analyse basique
-function basicAnalysis(text: string, thoughtId: string, userId: string): BasicItem[] {
-  const lowerText = text.toLowerCase()
+function basicAnalysis(content: string): AnalyzeResponse {
+  const lowerContent = content.toLowerCase()
 
   // Détection courses
-  if (lowerText.includes('acheter') || lowerText.includes('courses') ||
-      lowerText.includes('lait') || lowerText.includes('pain')) {
-    return [{
-      thought_id: thoughtId,
-      user_id: userId,
-      text: text,
-      type: 'course',
-      status: 'ready',
-      category: 'home',
-      analyzed_at: new Date().toISOString()
-    }]
+  const coursesKeywords = ['acheter', 'lait', 'pain', 'oeufs', 'farine', 'courses', 'supermarché', 'beurre', 'fromage']
+  if (coursesKeywords.some(keyword => lowerContent.includes(keyword))) {
+    const items = content.split(/[,;]/).map(item => item.trim()).filter(item => item.length > 0)
+    return {
+      type_suggestion: 'list_item',
+      confidence: 0.7,
+      extracted_data: {
+        items: items.length > 1 ? items : undefined
+      },
+      suggestions: ['Ajoutez ces articles à votre liste de courses']
+    }
   }
 
-  // Découpage par virgules/points
-  const segments = text
-    .split(/[,;]|\.(?!\d)/)
-    .map(s => s.trim())
-    .filter(s => s.length > 5)
-
-  if (segments.length > 1) {
-    return segments.map(segment => ({
-      thought_id: thoughtId,
-      user_id: userId,
-      text: segment,
-      type: 'task',
-      status: 'ready',
-      category: 'other',
-      analyzed_at: new Date().toISOString()
-    }))
+  // Détection idée (mots-clés projet)
+  const ideaKeywords = ['projet', 'envie', 'rêve', 'aimerais', 'voudrais', 'partir', 'voyager', 'un jour', 'plus tard', '202']
+  if (ideaKeywords.some(keyword => lowerContent.includes(keyword))) {
+    return {
+      type_suggestion: 'idea',
+      confidence: 0.6,
+      extracted_data: {},
+      suggestions: ['Développez cette idée en projet concret']
+    }
   }
 
-  // Fallback générique
-  return [{
-    thought_id: thoughtId,
-    user_id: userId,
-    text: text,
-    type: 'task',
-    status: 'ready',
-    category: 'other',
-    analyzed_at: new Date().toISOString()
-  }]
+  // Détection note (pas de verbe d'action)
+  const notePatterns = ['code', 'mot de passe', 'numéro', 'adresse', 'allergique', 'aime', 'adore', 'déteste', 'anniversaire']
+  if (notePatterns.some(pattern => lowerContent.includes(pattern))) {
+    return {
+      type_suggestion: 'note',
+      confidence: 0.7,
+      extracted_data: {},
+      suggestions: ['Information enregistrée']
+    }
+  }
+
+  // Détection task par verbes d'action
+  const actionVerbs = ['appeler', 'réserver', 'acheter', 'faire', 'envoyer', 'payer', 'prendre', 'rappeler', 'contacter', 'aller']
+  const hasAction = actionVerbs.some(verb => lowerContent.includes(verb))
+
+  if (hasAction) {
+    return {
+      type_suggestion: 'task',
+      confidence: 0.7,
+      extracted_data: {},
+      suggestions: ['Tâche ajoutée à votre liste']
+    }
+  }
+
+  // Par défaut : task
+  return {
+    type_suggestion: 'task',
+    confidence: 0.5,
+    extracted_data: {},
+    suggestions: ['Type à confirmer']
+  }
 }

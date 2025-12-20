@@ -2,8 +2,13 @@
 
 import { useState, useEffect } from 'react'
 import CalendarBadge from '@/lib/layout/CalendarBadge'
+import Link from 'next/link'
 
-export default function Header() {
+interface HeaderProps {
+    userName?: string
+}
+
+export default function Header({ userName }: HeaderProps) {
     const [isCalendarConnected, setIsCalendarConnected] = useState(false)
 
     // Vérifier au mount si Google Calendar est connecté
@@ -24,13 +29,19 @@ export default function Header() {
     }, [])
 
     return (
-        <header className="bg-white border-b border-border px-4 py-3 flex items-center justify-between">
-            <h1 className="font-quicksand text-2xl font-bold text-secondary">
-                Manae
-            </h1>
+        <header className="bg-white border-b border-border px-6 py-4 flex items-center justify-between sticky top-0 z-50">
+            <Link href="/capture" className="font-quicksand text-2xl font-bold text-text-dark tracking-tight">
+                manae
+            </Link>
 
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-4">
                 <CalendarBadge connected={isCalendarConnected} />
+
+                {userName && (
+                    <span className="text-sm text-text-muted hidden sm:block">
+                        {userName}
+                    </span>
+                )}
 
                 <button
                     className="w-10 h-10 rounded-full bg-mint flex items-center justify-center hover:bg-primary/10 transition-colors"
