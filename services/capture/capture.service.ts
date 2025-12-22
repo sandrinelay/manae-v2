@@ -8,9 +8,27 @@ import type { ItemType, ItemState, AIAnalysis } from '@/types/items'
 // TYPES
 // ============================================
 
+// Item multi-pensée retourné par l'API
+export interface MultiThoughtItem {
+  content: string
+  type_suggestion: ItemType
+  confidence: number
+  extracted_data: {
+    context?: 'personal' | 'family' | 'work' | 'health' | 'other'
+    date?: string
+    time?: string
+    duration?: number
+    items?: string[]
+    category?: string
+  }
+  suggestions: string[]
+}
+
 export interface CaptureResult {
   success: boolean
   aiUsed: boolean
+  multiple?: boolean
+  items?: MultiThoughtItem[]
   suggestedType?: ItemType
   aiAnalysis?: AIAnalysis
   creditsRemaining?: number | null
@@ -24,8 +42,8 @@ export interface SaveItemInput {
   content: string
   state?: ItemState
   aiAnalysis?: AIAnalysis
-  mood?: 'energetic' | 'neutral' | 'tired'
-  context?: 'personal' | 'family' | 'work' | 'health'
+  mood?: 'energetic' | 'neutral' | 'overwhelmed' | 'tired'
+  context?: 'personal' | 'family' | 'work' | 'health' | 'other'
   listId?: string // Pour list_item
 }
 
@@ -66,13 +84,27 @@ export async function captureThought(
           throw new Error('API analyze failed')
         }
 
-        const analysis: AIAnalysis = await response.json()
+        const analysis = await response.json()
         console.log('🔍 [captureThought] Analysis result:', analysis)
 
         // Tracker l'usage (incrémenter compteur)
         await trackAIUsage(userId, 'analyze')
 
-        const result = {
+        // Gérer multi-pensées
+        if (analysis.multiple && Array.isArray(analysis.items)) {
+          const multiResult: CaptureResult = {
+            success: true,
+            aiUsed: true,
+            multiple: true,
+            items: analysis.items,
+            creditsRemaining: quota.creditsRemaining ? quota.creditsRemaining - 1 : null
+          }
+          console.log('🔍 [captureThought] Returning MULTI-THOUGHTS:', multiResult)
+          return multiResult
+        }
+
+        // Pensée simple
+        const result: CaptureResult = {
           success: true,
           aiUsed: true,
           suggestedType: analysis.type_suggestion,
@@ -129,6 +161,11 @@ export async function saveItem(input: SaveItemInput): Promise<string> {
   const supabase = createClient()
 
   // Préparer les données
+  // Contexte : priorité input > AI extracted_data > fallback 'other'
+  const resolvedContext = input.context
+    || input.aiAnalysis?.extracted_data?.context
+    || 'other'
+
   const itemData: Record<string, unknown> = {
     user_id: input.userId,
     type: input.type,
@@ -136,7 +173,7 @@ export async function saveItem(input: SaveItemInput): Promise<string> {
     content: input.content,
     ai_analysis: input.aiAnalysis || null,
     mood: input.mood || null,
-    context: input.context || null,
+    context: resolvedContext,
     metadata: {
       categorized_by: input.aiAnalysis ? 'ai' : 'user'
     }
@@ -211,24 +248,43 @@ async function getOrCreateDefaultShoppingList(userId: string): Promise<string> {
 // ============================================
 
 /**
- * Pour les courses : "lait pain oeufs" → ['lait', 'pain', 'oeufs']
+ * Nettoie et extrait plusieurs items d'un contenu
+ * Enlève tous les mots parasites liés aux courses
+ * Ex: "ajouter le lait à la liste de course" → ['Lait']
+ * Ex: "acheter banane au course" → ['Banane']
  */
 export function extractMultipleItems(content: string): string[] {
-  // Split par virgules, retours à la ligne, ou espaces multiples
-  const items = content
-    .split(/[,\n]+/)
+  // Split par virgules, retours à la ligne, ou "et"
+  const rawItems = content
+    .split(/[,\n]|(?:\s+et\s+)/i)
     .map(item => item.trim())
     .filter(item => item.length > 0)
 
-  // Si pas de virgules/retours, split par espaces simples
-  if (items.length === 1) {
-    return content
-      .split(/\s+/)
-      .map(item => item.trim())
-      .filter(item => item.length > 1) // Ignorer les mots d'1 lettre
-  }
+  // Nettoyer chaque item
+  const cleanedItems = rawItems.map(item => {
+    let cleaned = item
 
-  return items
+    // 1. Enlever les verbes d'achat au début
+    cleaned = cleaned.replace(/^(acheter|prendre|récupérer|chercher|ajouter)\s+/i, '').trim()
+
+    // 2. Enlever les articles au début
+    cleaned = cleaned.replace(/^(du|de la|des|de l'|d'|le|la|les|un|une)\s+/i, '').trim()
+
+    // 3. Enlever les expressions liées aux courses (à la fin ou milieu)
+    cleaned = cleaned.replace(/\s*(à|au|aux|dans|pour)\s+(la|le|les)?\s*(liste|course|courses|panier|caddie).*$/i, '').trim()
+
+    // 4. Re-nettoyer les articles si nouvelle phrase
+    cleaned = cleaned.replace(/^(du|de la|des|de l'|d'|le|la|les|un|une)\s+/i, '').trim()
+
+    // 5. Capitaliser première lettre
+    if (cleaned.length > 0) {
+      cleaned = cleaned.charAt(0).toUpperCase() + cleaned.slice(1).toLowerCase()
+    }
+
+    return cleaned
+  }).filter(item => item.length > 1) // Ignorer items trop courts
+
+  return cleanedItems
 }
 
 // ============================================

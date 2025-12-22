@@ -6,7 +6,7 @@ type Mood = 'energetic' | 'calm' | 'overwhelmed' | 'tired'
 
 interface MoodSelectorProps {
   selectedMood: Mood | null
-  onSelectMood: (mood: Mood) => void
+  onSelectMood: (mood: Mood | null) => void
   disabled?: boolean
 }
 
@@ -75,6 +75,15 @@ const MOODS: MoodConfig[] = [
 ]
 
 export function MoodSelector({ selectedMood, onSelectMood, disabled }: MoodSelectorProps) {
+  // Re-clic sur un mood sélectionné = désélection
+  const handleMoodClick = (moodValue: Mood) => {
+    if (selectedMood === moodValue) {
+      onSelectMood(null)
+    } else {
+      onSelectMood(moodValue)
+    }
+  }
+
   return (
     <div className="space-y-3">
       <p className="text-sm font-medium text-text-dark">
@@ -87,7 +96,7 @@ export function MoodSelector({ selectedMood, onSelectMood, disabled }: MoodSelec
           return (
             <button
               key={mood.value}
-              onClick={() => onSelectMood(mood.value)}
+              onClick={() => handleMoodClick(mood.value)}
               disabled={disabled}
               className={`
                 relative py-4 px-3 rounded-2xl font-medium transition-all

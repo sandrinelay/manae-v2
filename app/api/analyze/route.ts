@@ -10,17 +10,33 @@ interface AnalyzeRequest {
   content: string
 }
 
+interface ExtractedData {
+  context?: 'personal' | 'family' | 'work' | 'health' | 'other'
+  date?: string
+  time?: string
+  duration?: number
+  items?: string[]
+  category?: string
+}
+
 interface AnalyzeResponse {
   type_suggestion: 'task' | 'note' | 'idea' | 'list_item'
   confidence: number
-  extracted_data: {
-    date?: string
-    time?: string
-    duration?: number // minutes
-    items?: string[] // Pour courses multiples
-    category?: string // Pour courses : "fruits", "légumes", etc.
-  }
+  extracted_data: ExtractedData
   suggestions: string[]
+}
+
+interface MultiItemResponse {
+  content: string
+  type_suggestion: 'task' | 'note' | 'idea' | 'list_item'
+  confidence: number
+  extracted_data: ExtractedData
+  suggestions: string[]
+}
+
+interface MultiAnalyzeResponse {
+  multiple: true
+  items: MultiItemResponse[]
 }
 
 // ============================================
@@ -32,7 +48,6 @@ export async function POST(request: NextRequest) {
     // 1. Vérifier configuration OpenAI
     if (!process.env.OPENAI_API_KEY) {
       console.error('OPENAI_API_KEY not configured')
-      // Retourner fallback au lieu d'erreur
       const body = await request.json().catch(() => ({ content: '' }))
       const fallback = basicAnalysis(body.content || '')
       return NextResponse.json(fallback)
@@ -67,48 +82,82 @@ Analyse cette pensée capturée et détermine son type :
 
 PENSÉE : "${content}"
 
+⚠️ RÈGLE CRITIQUE DE DÉCOUPAGE :
+
+1. DÉCOUPE TOUJOURS si séparé par virgule ET verbes d'action répétés :
+   - "Acheter X, acheter Y, acheter Z" → 3 tasks séparées
+   - "Appeler X, appeler Y" → 2 tasks séparées
+
+2. DÉCOUPE si "et" relie deux actions DIFFÉRENTES :
+   - "Appeler dentiste et pédiatre" → 2 tasks séparées (2 personnes différentes à appeler)
+   - "Acheter pain et lait" → 1 list_item (même action, articles de courses)
+
+3. NE DÉCOUPE PAS si liste simple sans verbes répétés :
+   - "Lait, pain, œufs" → 1 list_item groupé
+   - "Faire X, Y et Z" → 1 task groupé (si même contexte)
+
 TYPES POSSIBLES :
 1. "task" : Action concrète à faire
-   Exemples : "Appeler pédiatre pour Milo", "Réserver table restaurant samedi"
-
 2. "note" : Information à retenir (pas d'action)
-   Exemples : "Code wifi : ABC123", "Léa allergique aux arachides"
-
 3. "idea" : Projet abstrait à développer
-   Exemples : "Partir au Cambodge en 2027", "Refaire la déco du salon"
-
 4. "list_item" : Article(s) de courses
-   Exemples : "Lait", "Oeufs, farine, sucre"
+
+CONTEXTE À DÉTECTER (OBLIGATOIRE) :
+- "personal" : Vie personnelle (coiffeur, sport, loisirs)
+- "family" : Famille/enfants (pédiatre, école, activités enfants)
+- "work" : Travail/professionnel
+- "health" : Santé (médecin, dentiste, médicaments, soins)
+- "other" : Si la pensée n'entre pas dans les 4 catégories ci-dessus
 
 DONNÉES À EXTRAIRE :
+- Contexte : OBLIGATOIRE
 - Si date/heure mentionnée : extraire au format ISO
 - Si durée mentionnée : extraire en minutes
-- Si courses multiples : découper en liste
-- Si courses : deviner catégorie (fruits, légumes, produits laitiers, etc.)
 
-RÈGLES :
-- Si contient un verbe d'action ET pas abstrait → task
-- Si info factuelle sans action → note
-- Si projet vague/lointain → idea
-- Si mot-clé achat (acheter, lait, pain, etc.) → list_item
-- Confiance haute (0.9+) si évident, moyenne (0.6-0.8) si ambigu
+Réponds UNIQUEMENT en JSON valide, sans markdown.
 
-Réponds UNIQUEMENT en JSON valide, sans markdown :
+Si UNE SEULE pensée :
 {
-  "type_suggestion": "task" | "note" | "idea" | "list_item",
+  "type_suggestion": "task",
   "confidence": 0.95,
   "extracted_data": {
-    "date": "2025-12-25" ou null,
-    "time": "14:30" ou null,
-    "duration": 30 ou null,
-    "items": ["item1", "item2"] ou null,
-    "category": "fruits" ou null
+    "context": "family",
+    "date": null,
+    "time": null,
+    "duration": null,
+    "items": null,
+    "category": null
   },
-  "suggestions": [
-    "Conseil pertinent 1",
-    "Conseil pertinent 2"
+  "suggestions": ["conseil 1"]
+}
+
+Si PLUSIEURS pensées distinctes (OBLIGATOIRE si verbes répétés ou personnes/entités différentes) :
+{
+  "multiple": true,
+  "items": [
+    {
+      "content": "Appeler dentiste",
+      "type_suggestion": "task",
+      "confidence": 0.9,
+      "extracted_data": { "context": "health" },
+      "suggestions": []
+    },
+    {
+      "content": "Appeler pédiatre",
+      "type_suggestion": "task",
+      "confidence": 0.9,
+      "extracted_data": { "context": "family" },
+      "suggestions": []
+    }
   ]
-}`
+}
+
+EXEMPLES CONCRETS DE DÉCOUPAGE :
+- "Appeler dentiste et pédiatre" → multiple: true, 2 items (dentiste=health, pédiatre=family)
+- "Acheter vêtements, acheter dressing, acheter lit" → multiple: true, 3 items
+- "Réserver coiffeur et ostéopathe" → multiple: true, 2 items (coiffeur=personal, ostéopathe=health)
+- "Lait, pain, œufs" → multiple: false, 1 list_item
+- "Acheter pain et lait" → multiple: false, 1 list_item`
 
     // 5. Appeler OpenAI
     const completion = await openai.chat.completions.create({
@@ -124,7 +173,7 @@ Réponds UNIQUEMENT en JSON valide, sans markdown :
         }
       ],
       temperature: 0.7,
-      max_tokens: 1000
+      max_tokens: 1500
     })
 
     // 6. Parser la réponse
@@ -136,26 +185,38 @@ Réponds UNIQUEMENT en JSON valide, sans markdown :
       .replace(/```\n?/g, '')
       .trim()
 
-    let aiResponse: AnalyzeResponse
+    let aiResponse: AnalyzeResponse | MultiAnalyzeResponse
     try {
       aiResponse = JSON.parse(cleanContent)
     } catch (parseError) {
       console.error('Failed to parse OpenAI response:', cleanContent)
-
-      // Fallback : analyse basique
       const fallback = basicAnalysis(content)
       return NextResponse.json(fallback)
     }
 
-    // 7. Valider la réponse
-    if (!['task', 'note', 'idea', 'list_item'].includes(aiResponse.type_suggestion)) {
-      console.error('Invalid type from AI:', aiResponse.type_suggestion)
+    // 7. Gérer multi-pensées
+    if ('multiple' in aiResponse && aiResponse.multiple && Array.isArray(aiResponse.items)) {
+      return NextResponse.json({
+        multiple: true,
+        items: aiResponse.items
+      })
+    }
+
+    // 8. Valider la réponse simple
+    const singleResponse = aiResponse as AnalyzeResponse
+    if (!['task', 'note', 'idea', 'list_item'].includes(singleResponse.type_suggestion)) {
+      console.error('Invalid type from AI:', singleResponse.type_suggestion)
       const fallback = basicAnalysis(content)
       return NextResponse.json(fallback)
     }
 
-    // 8. Retourner le résultat
-    return NextResponse.json(aiResponse)
+    // S'assurer que le contexte est présent
+    if (!singleResponse.extracted_data.context) {
+      singleResponse.extracted_data.context = 'other'
+    }
+
+    // 9. Retourner le résultat
+    return NextResponse.json(singleResponse)
 
   } catch (error) {
     console.error('Analysis error:', error)
@@ -181,14 +242,31 @@ Réponds UNIQUEMENT en JSON valide, sans markdown :
 function basicAnalysis(content: string): AnalyzeResponse {
   const lowerContent = content.toLowerCase()
 
+  // Détection contexte basique
+  const detectContext = (): 'personal' | 'family' | 'work' | 'health' | 'other' => {
+    const familyKeywords = ['pédiatre', 'pediatre', 'école', 'ecole', 'enfant', 'bébé', 'bebe', 'crèche', 'creche', 'nounou', 'garderie']
+    const healthKeywords = ['médecin', 'medecin', 'docteur', 'pharmacie', 'médicament', 'medicament', 'rdv médical', 'hopital', 'hôpital']
+    const workKeywords = ['travail', 'bureau', 'réunion', 'reunion', 'client', 'projet pro', 'collègue', 'collegue', 'boss']
+    const personalKeywords = ['coiffeur', 'sport', 'gym', 'yoga', 'massage', 'restaurant', 'cinéma', 'cinema', 'ami', 'copain']
+
+    if (familyKeywords.some(k => lowerContent.includes(k))) return 'family'
+    if (healthKeywords.some(k => lowerContent.includes(k))) return 'health'
+    if (workKeywords.some(k => lowerContent.includes(k))) return 'work'
+    if (personalKeywords.some(k => lowerContent.includes(k))) return 'personal'
+    return 'other'
+  }
+
+  const context = detectContext()
+
   // Détection courses
-  const coursesKeywords = ['acheter', 'lait', 'pain', 'oeufs', 'farine', 'courses', 'supermarché', 'beurre', 'fromage']
+  const coursesKeywords = ['acheter', 'lait', 'pain', 'oeufs', 'œufs', 'farine', 'courses', 'supermarché', 'beurre', 'fromage']
   if (coursesKeywords.some(keyword => lowerContent.includes(keyword))) {
     const items = content.split(/[,;]/).map(item => item.trim()).filter(item => item.length > 0)
     return {
       type_suggestion: 'list_item',
       confidence: 0.7,
       extracted_data: {
+        context,
         items: items.length > 1 ? items : undefined
       },
       suggestions: ['Ajoutez ces articles à votre liste de courses']
@@ -201,7 +279,7 @@ function basicAnalysis(content: string): AnalyzeResponse {
     return {
       type_suggestion: 'idea',
       confidence: 0.6,
-      extracted_data: {},
+      extracted_data: { context },
       suggestions: ['Développez cette idée en projet concret']
     }
   }
@@ -212,7 +290,7 @@ function basicAnalysis(content: string): AnalyzeResponse {
     return {
       type_suggestion: 'note',
       confidence: 0.7,
-      extracted_data: {},
+      extracted_data: { context },
       suggestions: ['Information enregistrée']
     }
   }
@@ -225,7 +303,7 @@ function basicAnalysis(content: string): AnalyzeResponse {
     return {
       type_suggestion: 'task',
       confidence: 0.7,
-      extracted_data: {},
+      extracted_data: { context },
       suggestions: ['Tâche ajoutée à votre liste']
     }
   }
@@ -234,7 +312,7 @@ function basicAnalysis(content: string): AnalyzeResponse {
   return {
     type_suggestion: 'task',
     confidence: 0.5,
-    extracted_data: {},
+    extracted_data: { context: 'other' },
     suggestions: ['Type à confirmer']
   }
 }

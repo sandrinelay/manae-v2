@@ -3,23 +3,23 @@
 import { useState, useRef, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { CaptureModal } from './CaptureModal'
+import { MultiCaptureModal } from './MultiCaptureModal'
 import { MoodSelector, type Mood } from './MoodSelector'
 import { useGoogleCalendarStatus } from '@/hooks/useGoogleCalendarStatus'
 import { captureThought, saveItem, saveMultipleListItems, extractMultipleItems } from '@/services/capture'
 import { openGoogleAuthPopup, exchangeCodeForToken } from '@/lib/googleCalendar'
-import type { CaptureResult } from '@/services/capture'
+import type { CaptureResult, MultiThoughtItem } from '@/services/capture'
 import type { ItemType, Mood as ItemMood } from '@/types/items'
-
-type ActionType = 'save' | 'plan' | 'develop' | 'add_to_list' | 'delete'
+import type { ActionType } from './CaptureModal'
 
 // Conversion des moods UI vers les moods DB
+// UI: calm → DB: neutral (les autres sont identiques)
 function convertMoodToItemMood(mood: Mood | null): ItemMood | undefined {
   if (!mood) return undefined
-  // Mapping : calm → neutral, overwhelmed → tired
   const mapping: Record<Mood, ItemMood> = {
     energetic: 'energetic',
     calm: 'neutral',
-    overwhelmed: 'tired',
+    overwhelmed: 'overwhelmed',
     tired: 'tired'
   }
   return mapping[mood]
@@ -39,6 +39,7 @@ export function CaptureFlow({ userId, onSuccess }: CaptureFlowProps) {
   const [selectedMood, setSelectedMood] = useState<Mood | null>(null)
   const [isCapturing, setIsCapturing] = useState(false)
   const [captureResult, setCaptureResult] = useState<CaptureResult | null>(null)
+  const [multiItems, setMultiItems] = useState<MultiThoughtItem[] | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [isConnectingCalendar, setIsConnectingCalendar] = useState(false)
 
@@ -52,16 +53,10 @@ export function CaptureFlow({ userId, onSuccess }: CaptureFlowProps) {
     setIsConnectingCalendar(true)
 
     try {
-      // Ouvrir popup OAuth Google
       const code = await openGoogleAuthPopup()
-
-      // Échanger le code contre un token
       const tokens = await exchangeCodeForToken(code)
-
-      // Stocker les tokens
       localStorage.setItem('google_tokens', JSON.stringify(tokens))
 
-      // Notifier les composants que la connexion a réussi
       window.dispatchEvent(new CustomEvent('calendar-connection-changed', {
         detail: { connected: true }
       }))
@@ -77,41 +72,93 @@ export function CaptureFlow({ userId, onSuccess }: CaptureFlowProps) {
 
   const handleCapture = async () => {
     console.log('🚀 [CaptureFlow] handleCapture CALLED')
-    console.log('🚀 [CaptureFlow] content:', content)
-    console.log('🚀 [CaptureFlow] userId:', userId)
 
     if (!content.trim()) {
-      console.log('🚀 [CaptureFlow] Content empty, showing error')
       setError('Veuillez saisir une pensée')
       return
     }
 
     setIsCapturing(true)
     setError(null)
-    console.log('🚀 [CaptureFlow] Set isCapturing=true, calling captureThought...')
 
     try {
       const result = await captureThought(userId, content)
       console.log('🚀 [CaptureFlow] captureThought returned:', result)
 
       if (!result.success) {
-        console.log('🚀 [CaptureFlow] result.success is FALSE, setting error')
         setError(result.error || 'Erreur lors de la capture')
         return
       }
 
-      console.log('🚀 [CaptureFlow] result.success is TRUE, calling setCaptureResult...')
+      // Multi-pensées détectées → ouvrir MultiCaptureModal
+      if (result.multiple && result.items && result.items.length > 1) {
+        console.log('🚀 [CaptureFlow] Multi-pensées détectées:', result.items.length)
+        setMultiItems(result.items)
+        // Stocker les crédits restants dans captureResult pour MultiCaptureModal
+        setCaptureResult({
+          success: true,
+          aiUsed: true,
+          creditsRemaining: result.creditsRemaining
+        })
+        return
+      }
+
+      // Pensée unique → ouvrir CaptureModal normale
       setCaptureResult(result)
-      console.log('🚀 [CaptureFlow] setCaptureResult called! Modal should open now.')
     } catch (err) {
       console.error('🚀 [CaptureFlow] CATCH ERROR:', err)
       setError('Une erreur est survenue')
     } finally {
-      console.log('🚀 [CaptureFlow] FINALLY block, setting isCapturing=false')
       setIsCapturing(false)
     }
   }
 
+  // Handler pour sauvegarder une pensée depuis MultiCaptureModal
+  const handleSaveMultiPensée = async (index: number, type: ItemType, action: ActionType) => {
+    if (!multiItems) return
+
+    const pensée = multiItems[index]
+
+    if (action === 'delete') {
+      return // Skip, géré par MultiCaptureModal
+    }
+
+    try {
+      let state: 'active' | 'planned' | 'project' = 'active'
+      if (action === 'plan') state = 'planned'
+      if (action === 'develop') state = 'project'
+
+      const itemId = await saveItem({
+        userId,
+        type,
+        content: pensée.content,
+        state,
+        mood: convertMoodToItemMood(selectedMood),
+        aiAnalysis: {
+          type_suggestion: pensée.type_suggestion,
+          confidence: pensée.confidence,
+          extracted_data: pensée.extracted_data,
+          suggestions: pensée.suggestions
+        }
+      })
+
+      console.log('🚀 [handleSaveMultiPensée] Saved item:', itemId)
+
+      // Navigation pour actions spéciales
+      if (action === 'plan') {
+        router.push(`/items/${itemId}/schedule`)
+      } else if (action === 'develop') {
+        router.push(`/ideas/${itemId}/develop`)
+      }
+
+      onSuccess?.()
+    } catch (err) {
+      console.error('Error saving multi-pensée:', err)
+      setError('Erreur lors de la sauvegarde')
+    }
+  }
+
+  // Handler pour pensée unique (CaptureModal)
   const handleSave = async (type: ItemType, action: ActionType) => {
     if (action === 'delete') {
       handleReset()
@@ -174,6 +221,7 @@ export function CaptureFlow({ userId, onSuccess }: CaptureFlowProps) {
 
   const handleReset = () => {
     setCaptureResult(null)
+    setMultiItems(null)
     setContent('')
     setSelectedMood(null)
     setError(null)
@@ -187,7 +235,7 @@ export function CaptureFlow({ userId, onSuccess }: CaptureFlowProps) {
     <div className="flex-1 p-6">
       <div className="w-full max-w-2xl mx-auto space-y-6">
 
-        {/* Titre - ALIGNÉ À GAUCHE */}
+        {/* Titre */}
         <div className="text-left space-y-2">
           <h1 className="text-2xl font-bold text-text-dark font-quicksand">
             Qu'avez-vous en tête ?
@@ -208,18 +256,6 @@ export function CaptureFlow({ userId, onSuccess }: CaptureFlowProps) {
             className="w-full p-6 text-lg border-2 border-border rounded-3xl focus:border-primary focus:ring-4 focus:ring-primary/20 outline-none transition-all resize-none text-text-dark placeholder:text-text-muted shadow-sm bg-white"
             disabled={isCapturing}
           />
-
-          {/* Icônes bas gauche - COMMENTÉES (feature future : vocal + photo) */}
-          {/*
-          <div className="absolute bottom-4 left-4 flex gap-3">
-            <button disabled className="w-10 h-10 flex items-center justify-center rounded-full bg-gray-light text-text-muted cursor-not-allowed">
-              🎤
-            </button>
-            <button disabled className="w-10 h-10 flex items-center justify-center rounded-full bg-gray-light text-text-muted cursor-not-allowed">
-              📷
-            </button>
-          </div>
-          */}
 
           {/* IA READY */}
           <div className="absolute bottom-4 right-4 text-xs text-primary font-medium">
@@ -297,8 +333,19 @@ export function CaptureFlow({ userId, onSuccess }: CaptureFlowProps) {
         </p>
       </div>
 
-      {/* Modal */}
-      {captureResult && (
+      {/* Modal Multi-Pensées */}
+      {multiItems && multiItems.length > 1 && (
+        <MultiCaptureModal
+          items={multiItems}
+          mood={selectedMood}
+          creditsRemaining={captureResult?.creditsRemaining}
+          onSave={handleSaveMultiPensée}
+          onClose={handleReset}
+        />
+      )}
+
+      {/* Modal Pensée Unique */}
+      {captureResult && !multiItems && (
         <CaptureModal
           content={content}
           captureResult={captureResult}

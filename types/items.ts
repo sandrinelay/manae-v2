@@ -35,8 +35,12 @@ export type ItemContext = 'personal' | 'family' | 'work' | 'health'
 
 /**
  * Mood = Humeur au moment de la capture
+ * - energetic : Énergique
+ * - neutral : Calme (UI: calm)
+ * - overwhelmed : Débordé(e)
+ * - tired : Fatigué(e)
  */
-export type Mood = 'energetic' | 'neutral' | 'tired'
+export type Mood = 'energetic' | 'neutral' | 'overwhelmed' | 'tired'
 
 /**
  * Structure retournée par l'IA lors de l'analyse
@@ -45,10 +49,13 @@ export interface AIAnalysis {
   type_suggestion: ItemType
   confidence: number
   extracted_data: {
+    context?: 'personal' | 'family' | 'work' | 'health' | 'other'
     date?: string
     time?: string
+    duration?: number
     location?: string
     items?: string[] // Pour list_item (détection multi-items)
+    category?: string
   }
   suggestions: string[]
 }
