@@ -250,33 +250,70 @@ async function getOrCreateDefaultShoppingList(userId: string): Promise<string> {
 /**
  * Nettoie et extrait plusieurs items d'un contenu
  * Enlève tous les mots parasites liés aux courses
- * Ex: "ajouter le lait à la liste de course" → ['Lait']
- * Ex: "acheter banane au course" → ['Banane']
+ *
+ * Patterns supportés :
+ * - "acheter lait pain œufs" → ['Lait', 'Pain', 'Œufs'] (espaces)
+ * - "lait, pain, œufs" → ['Lait', 'Pain', 'Œufs'] (virgules)
+ * - "lait et pain et œufs" → ['Lait', 'Pain', 'Œufs'] (et)
+ * - "ajouter le lait à la liste de course" → ['Lait']
  */
 export function extractMultipleItems(content: string): string[] {
-  // Split par virgules, retours à la ligne, ou "et"
-  const rawItems = content
-    .split(/[,\n]|(?:\s+et\s+)/i)
-    .map(item => item.trim())
-    .filter(item => item.length > 0)
+  // 1. Nettoyer le contenu global d'abord
+  let cleanedContent = content
 
-  // Nettoyer chaque item
+  // Enlever les verbes d'achat au début
+  cleanedContent = cleanedContent.replace(/^(acheter|prendre|récupérer|chercher|ajouter)\s+/i, '').trim()
+
+  // Enlever les expressions liées aux courses à la fin
+  cleanedContent = cleanedContent.replace(/\s*(à|au|aux|dans|pour)\s+(la|le|les)?\s*(liste|course|courses|panier|caddie).*$/i, '').trim()
+
+  // 2. Détecter le type de séparateur utilisé
+  const hasCommas = cleanedContent.includes(',')
+  const hasEt = /\s+et\s+/i.test(cleanedContent)
+
+  let rawItems: string[]
+
+  if (hasCommas) {
+    // Split par virgules
+    rawItems = cleanedContent.split(',').map(item => item.trim()).filter(item => item.length > 0)
+  } else if (hasEt) {
+    // Split par "et"
+    rawItems = cleanedContent.split(/\s+et\s+/i).map(item => item.trim()).filter(item => item.length > 0)
+  } else {
+    // Pas de séparateur évident → essayer de détecter une liste séparée par espaces
+    // On split par espaces et on filtre les articles/mots vides
+    const words = cleanedContent.split(/\s+/)
+    const stopWords = new Set([
+      'du', 'de', 'la', 'des', 'le', 'les', 'un', 'une', 'l', 'd',
+      'et', 'ou', 'avec', 'sans', 'pour', 'dans', 'sur', 'sous'
+    ])
+
+    // Filtrer les stop words et garder les mots substantifs
+    rawItems = words.filter(word => {
+      const lowerWord = word.toLowerCase().replace(/['']/g, '')
+      return word.length > 1 && !stopWords.has(lowerWord)
+    })
+
+    // Si on a moins de 2 items après filtrage, garder le contenu original comme un seul item
+    if (rawItems.length < 2) {
+      rawItems = [cleanedContent]
+    }
+  }
+
+  // 3. Nettoyer chaque item individuellement
   const cleanedItems = rawItems.map(item => {
     let cleaned = item
 
-    // 1. Enlever les verbes d'achat au début
+    // Enlever les articles au début
+    cleaned = cleaned.replace(/^(du|de la|des|de l'|d'|le|la|les|un|une)\s+/i, '').trim()
+
+    // Enlever les verbes d'achat résiduels
     cleaned = cleaned.replace(/^(acheter|prendre|récupérer|chercher|ajouter)\s+/i, '').trim()
 
-    // 2. Enlever les articles au début
+    // Re-nettoyer les articles si présents après le verbe
     cleaned = cleaned.replace(/^(du|de la|des|de l'|d'|le|la|les|un|une)\s+/i, '').trim()
 
-    // 3. Enlever les expressions liées aux courses (à la fin ou milieu)
-    cleaned = cleaned.replace(/\s*(à|au|aux|dans|pour)\s+(la|le|les)?\s*(liste|course|courses|panier|caddie).*$/i, '').trim()
-
-    // 4. Re-nettoyer les articles si nouvelle phrase
-    cleaned = cleaned.replace(/^(du|de la|des|de l'|d'|le|la|les|un|une)\s+/i, '').trim()
-
-    // 5. Capitaliser première lettre
+    // Capitaliser première lettre
     if (cleaned.length > 0) {
       cleaned = cleaned.charAt(0).toUpperCase() + cleaned.slice(1).toLowerCase()
     }
