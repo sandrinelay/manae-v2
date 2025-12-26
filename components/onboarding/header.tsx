@@ -14,7 +14,7 @@ export default function OnboardingHeader() {
     return (
         <>
         <header className="flex justify-between items-center mb-6">
-            <h1 className="text-3xl font-semibold text-secondary tracking-tight text-quicksand" style={{ fontFamily: 'var(--font-quicksand)' }}>
+            <h1 className="text-[28px] font-bold tracking-tight" style={{ fontFamily: 'var(--font-quicksand)', color: '#333538' }}>
                 manae
             </h1>
 
@@ -25,7 +25,7 @@ export default function OnboardingHeader() {
 
         <div className="w-full h-1 bg-gray-light rounded-full mb-8 overflow-hidden">
             <div
-                className="h-full bg-gradient-to-r from-primary via-secondary to-primary"
+                className="h-full bg-gradient-to-r from-primary to-secondary"
                 style={{ width: `${(stepNumber / 4) * 100}%` }}
             />
         </div>

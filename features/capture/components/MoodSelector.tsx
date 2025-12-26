@@ -10,28 +10,31 @@ interface MoodSelectorProps {
   disabled?: boolean
 }
 
-// Icônes SVG minimalistes
+// Icônes SVG style maquette
 const EnergeticIcon = () => (
-  <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+  <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
     <path strokeLinecap="round" strokeLinejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" />
   </svg>
 )
 
 const CalmIcon = () => (
-  <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-    <path strokeLinecap="round" strokeLinejoin="round" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
+  <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+    <path strokeLinecap="round" strokeLinejoin="round" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707" />
+    <circle cx="12" cy="12" r="4" />
   </svg>
 )
 
 const OverwhelmedIcon = () => (
-  <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-    <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+  <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+    <circle cx="12" cy="12" r="9" />
+    <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4m0 4h.01" />
   </svg>
 )
 
 const TiredIcon = () => (
-  <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-    <path strokeLinecap="round" strokeLinejoin="round" d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+  <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+    <rect x="4" y="4" width="16" height="16" rx="2" />
+    <path strokeLinecap="round" strokeLinejoin="round" d="M9 9h.01M15 9h.01M9 15h6" />
   </svg>
 )
 
@@ -40,7 +43,7 @@ interface MoodConfig {
   icon: ReactNode
   label: string
   bgSelected: string
-  bgHover: string
+  iconColorSelected: string
 }
 
 const MOODS: MoodConfig[] = [
@@ -48,34 +51,33 @@ const MOODS: MoodConfig[] = [
     value: 'energetic',
     icon: <EnergeticIcon />,
     label: 'Énergique',
-    bgSelected: 'bg-orange-500',
-    bgHover: 'hover:border-orange-300'
+    bgSelected: 'bg-[#E89B6C]', // Orange pastel - énergie, vitalité, enthousiasme
+    iconColorSelected: 'text-white'
   },
   {
     value: 'calm',
     icon: <CalmIcon />,
     label: 'Calme',
-    bgSelected: 'bg-primary',
-    bgHover: 'hover:border-primary'
+    bgSelected: 'bg-[#7EB89E]', // Vert pastel - sérénité, équilibre, harmonie
+    iconColorSelected: 'text-white'
   },
   {
     value: 'overwhelmed',
     icon: <OverwhelmedIcon />,
     label: 'Débordé(e)',
-    bgSelected: 'bg-red-500',
-    bgHover: 'hover:border-red-300'
+    bgSelected: 'bg-[#E07B7B]', // Corail saturé pastel - stress, urgence, tension
+    iconColorSelected: 'text-white'
   },
   {
     value: 'tired',
     icon: <TiredIcon />,
     label: 'Fatigué(e)',
-    bgSelected: 'bg-slate-500',
-    bgHover: 'hover:border-slate-400'
+    bgSelected: 'bg-[#8E9AAF]', // Gris pastel bleuté - fatigue, repos, calme
+    iconColorSelected: 'text-white'
   }
 ]
 
 export function MoodSelector({ selectedMood, onSelectMood, disabled }: MoodSelectorProps) {
-  // Re-clic sur un mood sélectionné = désélection
   const handleMoodClick = (moodValue: Mood) => {
     if (selectedMood === moodValue) {
       onSelectMood(null)
@@ -86,10 +88,10 @@ export function MoodSelector({ selectedMood, onSelectMood, disabled }: MoodSelec
 
   return (
     <div className="space-y-3">
-      <p className="text-sm font-medium text-text-dark">
-        Comment te sens-tu ? <span className="text-text-muted font-normal">(facultatif)</span>
+      <p className="text-xs font-semibold text-text-dark uppercase tracking-wide">
+        Comment te sens-tu ? (facultatif)
       </p>
-      <div className="grid grid-cols-4 gap-2">
+      <div className="flex gap-3">
         {MOODS.map((mood) => {
           const isSelected = selectedMood === mood.value
 
@@ -99,18 +101,33 @@ export function MoodSelector({ selectedMood, onSelectMood, disabled }: MoodSelec
               onClick={() => handleMoodClick(mood.value)}
               disabled={disabled}
               className={`
-                relative py-4 px-3 rounded-2xl font-medium transition-all
+                flex flex-col items-center gap-2 p-3 rounded-2xl flex-1
+                transition-all duration-200 ease-out
+                transform 
                 ${isSelected
-                  ? `${mood.bgSelected} text-white shadow-lg scale-105`
-                  : `bg-white border-2 border-border text-text-dark ${mood.bgHover}`
+                  ? `${mood.bgSelected} shadow-lg `
+                  : 'bg-white  hover:border-primary/30 hover:shadow-md'
                 }
                 disabled:opacity-50 disabled:cursor-not-allowed
               `}
             >
-              <div className={`flex justify-center mb-2 ${isSelected ? 'text-white' : 'text-text-muted'}`}>
-                {mood.icon}
+              {/* Icon circle */}
+              <div className={`
+                w-10 h-10 rounded-full flex items-center justify-center
+                transition-all duration-200
+                ${isSelected
+                  ? 'bg-white/20 scale-110'
+                  : 'bg-gray-light'
+                }
+              `}>
+                <div className={`transition-colors duration-200 ${isSelected ? mood.iconColorSelected : 'text-text-muted'}`}>
+                  {mood.icon}
+                </div>
               </div>
-              <span className="text-xs block text-center">{mood.label}</span>
+              {/* Label */}
+              <span className={`text-xs font-medium transition-colors duration-200 ${isSelected ? 'text-white' : 'text-text-dark'}`}>
+                {mood.label}
+              </span>
             </button>
           )
         })}

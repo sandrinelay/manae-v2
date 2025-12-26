@@ -172,11 +172,6 @@ export function CaptureModal({
             <span className="w-5 h-5">{TYPE_CONFIG[captureResult.suggestedType].icon}</span>
             {TYPE_CONFIG[captureResult.suggestedType].label}
           </span>
-          {captureResult.creditsRemaining !== null && (
-            <span className="ml-auto text-text-muted">
-              {captureResult.creditsRemaining} crédits restants
-            </span>
-          )}
         </div>
       )}
 
@@ -295,17 +290,24 @@ export function CaptureModal({
         onClick={onClose}
       />
 
-      {/* Modal */}
-      <div className="fixed inset-x-0 bottom-0 z-50 bg-white rounded-t-3xl shadow-2xl animate-slide-up max-w-2xl mx-auto">
-        <div className="p-6 relative">
-          {/* Bouton fermer */}
+      {/* Modal - positionné au-dessus du BottomNav (environ 80px de hauteur) */}
+      <div className="fixed inset-x-0 bottom-20 z-50 bg-white rounded-t-3xl shadow-2xl animate-slide-up max-w-2xl mx-auto mx-4">
+        {/* Header avec crédits et bouton fermer */}
+        <div className="flex items-center justify-end gap-3 px-6 pt-4">
+          {captureResult.creditsRemaining !== null && captureResult.creditsRemaining !== undefined && (
+            <span className="text-xs text-text-muted">
+              {captureResult.creditsRemaining} crédits restants
+            </span>
+          )}
           <button
             onClick={onClose}
-            className="absolute top-4 right-4 w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-light transition-colors text-text-muted"
+            className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-light transition-colors text-text-muted"
           >
             ✕
           </button>
+        </div>
 
+        <div className="px-6 pb-6 max-h-[70vh] overflow-y-auto">
           <ModalContent />
         </div>
       </div>

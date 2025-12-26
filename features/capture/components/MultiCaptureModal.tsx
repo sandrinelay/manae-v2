@@ -156,8 +156,8 @@ export function MultiCaptureModal({
         onClick={onClose}
       />
 
-      {/* Modal Container */}
-      <div className="fixed inset-x-0 bottom-0 z-50 bg-white rounded-t-3xl shadow-2xl animate-slide-up max-w-2xl mx-auto max-h-[90vh] overflow-hidden flex flex-col">
+      {/* Modal Container - positionné au-dessus du BottomNav */}
+      <div className="fixed inset-x-4 bottom-20 z-50 bg-white rounded-3xl shadow-2xl animate-slide-up max-w-2xl mx-auto max-h-[75vh] overflow-hidden flex flex-col">
 
         {/* Header - Compteur de pensées */}
         <div className="px-6 py-4 border-b border-border flex items-center justify-between shrink-0">

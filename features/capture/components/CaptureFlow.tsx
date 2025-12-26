@@ -5,15 +5,12 @@ import { useRouter } from 'next/navigation'
 import { CaptureModal } from './CaptureModal'
 import { MultiCaptureModal } from './MultiCaptureModal'
 import { MoodSelector, type Mood } from './MoodSelector'
-import { useGoogleCalendarStatus } from '@/hooks/useGoogleCalendarStatus'
 import { captureThought, saveItem, saveMultipleListItems, extractMultipleItems } from '@/services/capture'
-import { openGoogleAuthPopup, exchangeCodeForToken } from '@/lib/googleCalendar'
 import type { CaptureResult, MultiThoughtItem } from '@/services/capture'
 import type { ItemType, Mood as ItemMood } from '@/types/items'
 import type { ActionType } from './CaptureModal'
 
 // Conversion des moods UI vers les moods DB
-// UI: calm → DB: neutral (les autres sont identiques)
 function convertMoodToItemMood(mood: Mood | null): ItemMood | undefined {
   if (!mood) return undefined
   const mapping: Record<Mood, ItemMood> = {
@@ -25,6 +22,20 @@ function convertMoodToItemMood(mood: Mood | null): ItemMood | undefined {
   return mapping[mood]
 }
 
+// Icônes
+const MicrophoneIcon = () => (
+  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+    <path strokeLinecap="round" strokeLinejoin="round" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
+  </svg>
+)
+
+const CameraIcon = () => (
+  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+    <path strokeLinecap="round" strokeLinejoin="round" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
+    <path strokeLinecap="round" strokeLinejoin="round" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
+  </svg>
+)
+
 interface CaptureFlowProps {
   userId: string
   onSuccess?: () => void
@@ -33,7 +44,6 @@ interface CaptureFlowProps {
 export function CaptureFlow({ userId, onSuccess }: CaptureFlowProps) {
   const router = useRouter()
   const textareaRef = useRef<HTMLTextAreaElement>(null)
-  const { isConnected: isGoogleCalendarConnected } = useGoogleCalendarStatus()
 
   const [content, setContent] = useState('')
   const [selectedMood, setSelectedMood] = useState<Mood | null>(null)
@@ -41,38 +51,12 @@ export function CaptureFlow({ userId, onSuccess }: CaptureFlowProps) {
   const [captureResult, setCaptureResult] = useState<CaptureResult | null>(null)
   const [multiItems, setMultiItems] = useState<MultiThoughtItem[] | null>(null)
   const [error, setError] = useState<string | null>(null)
-  const [isConnectingCalendar, setIsConnectingCalendar] = useState(false)
 
   useEffect(() => {
     textareaRef.current?.focus()
   }, [])
 
-  const handleConnectCalendar = async () => {
-    if (isConnectingCalendar) return
-
-    setIsConnectingCalendar(true)
-
-    try {
-      const code = await openGoogleAuthPopup()
-      const tokens = await exchangeCodeForToken(code)
-      localStorage.setItem('google_tokens', JSON.stringify(tokens))
-
-      window.dispatchEvent(new CustomEvent('calendar-connection-changed', {
-        detail: { connected: true }
-      }))
-
-      console.log('Google Calendar connected successfully')
-    } catch (err) {
-      console.error('Error connecting Google Calendar:', err)
-      setError('Erreur lors de la connexion à Google Calendar')
-    } finally {
-      setIsConnectingCalendar(false)
-    }
-  }
-
   const handleCapture = async () => {
-    console.log('🚀 [CaptureFlow] handleCapture CALLED')
-
     if (!content.trim()) {
       setError('Veuillez saisir une pensée')
       return
@@ -83,18 +67,15 @@ export function CaptureFlow({ userId, onSuccess }: CaptureFlowProps) {
 
     try {
       const result = await captureThought(userId, content)
-      console.log('🚀 [CaptureFlow] captureThought returned:', result)
 
       if (!result.success) {
         setError(result.error || 'Erreur lors de la capture')
         return
       }
 
-      // Multi-pensées détectées → ouvrir MultiCaptureModal
+      // Multi-pensées détectées
       if (result.multiple && result.items && result.items.length > 1) {
-        console.log('🚀 [CaptureFlow] Multi-pensées détectées:', result.items.length)
         setMultiItems(result.items)
-        // Stocker les crédits restants dans captureResult pour MultiCaptureModal
         setCaptureResult({
           success: true,
           aiUsed: true,
@@ -103,25 +84,21 @@ export function CaptureFlow({ userId, onSuccess }: CaptureFlowProps) {
         return
       }
 
-      // Pensée unique → ouvrir CaptureModal normale
+      // Pensée unique
       setCaptureResult(result)
     } catch (err) {
-      console.error('🚀 [CaptureFlow] CATCH ERROR:', err)
+      console.error('Error:', err)
       setError('Une erreur est survenue')
     } finally {
       setIsCapturing(false)
     }
   }
 
-  // Handler pour sauvegarder une pensée depuis MultiCaptureModal
   const handleSaveMultiPensée = async (index: number, type: ItemType, action: ActionType) => {
     if (!multiItems) return
 
     const pensée = multiItems[index]
-
-    if (action === 'delete') {
-      return // Skip, géré par MultiCaptureModal
-    }
+    if (action === 'delete') return
 
     try {
       let state: 'active' | 'planned' | 'project' = 'active'
@@ -142,9 +119,6 @@ export function CaptureFlow({ userId, onSuccess }: CaptureFlowProps) {
         }
       })
 
-      console.log('🚀 [handleSaveMultiPensée] Saved item:', itemId)
-
-      // Navigation pour actions spéciales
       if (action === 'plan') {
         router.push(`/items/${itemId}/schedule`)
       } else if (action === 'develop') {
@@ -153,12 +127,11 @@ export function CaptureFlow({ userId, onSuccess }: CaptureFlowProps) {
 
       onSuccess?.()
     } catch (err) {
-      console.error('Error saving multi-pensée:', err)
+      console.error('Error saving:', err)
       setError('Erreur lors de la sauvegarde')
     }
   }
 
-  // Handler pour pensée unique (CaptureModal)
   const handleSave = async (type: ItemType, action: ActionType) => {
     if (action === 'delete') {
       handleReset()
@@ -214,7 +187,7 @@ export function CaptureFlow({ userId, onSuccess }: CaptureFlowProps) {
           break
       }
     } catch (err) {
-      console.error('Error in handleSave:', err)
+      console.error('Error:', err)
       setError('Erreur lors de la sauvegarde')
     }
   }
@@ -225,113 +198,102 @@ export function CaptureFlow({ userId, onSuccess }: CaptureFlowProps) {
     setContent('')
     setSelectedMood(null)
     setError(null)
-
-    setTimeout(() => {
-      textareaRef.current?.focus()
-    }, 100)
+    setTimeout(() => textareaRef.current?.focus(), 100)
   }
 
   return (
-    <div className="flex-1 p-6">
-      <div className="w-full max-w-2xl mx-auto space-y-6">
+    <div className="flex-1 pb-32">
+      {/* Barre décorative fixe sur toute la largeur */}
+      <div
+        className="h-1 w-full mb-4"
+        style={{ background: 'linear-gradient(90deg, #4A7488, #BEE5D3)' }}
+      />
 
+      <div className="px-4">
+
+      {/* Card principale */}
+      <div className="bg-white rounded-3xl p-5 shadow-sm mb-6">
         {/* Titre */}
-        <div className="text-left space-y-2">
-          <h1 className="text-2xl font-bold text-text-dark font-quicksand">
-            Qu'avez-vous en tête ?
-          </h1>
-          <p className="text-text-muted">
-            Tâches, notes, courses, idées... Déposez tout ici.
-          </p>
-        </div>
+        <h1 className="text-xl font-bold text-text-dark mb-1">
+          Qu'as-tu en tête ?
+        </h1>
+        <p className="text-sm text-text-muted mb-4">
+          Tâches, notes, idées, courses... Dépose tout ici.
+        </p>
 
         {/* Textarea */}
-        <div className="relative">
-          <textarea
-            ref={textareaRef}
-            value={content}
-            onChange={(e) => setContent(e.target.value)}
-            placeholder="Ex: Appeler pédiatre pour Milo, ajouter les oeufs et la farine, partir au Cambodge en 2027"
-            rows={6}
-            className="w-full p-6 text-lg border-2 border-border rounded-3xl focus:border-primary focus:ring-4 focus:ring-primary/20 outline-none transition-all resize-none text-text-dark placeholder:text-text-muted shadow-sm bg-white"
-            disabled={isCapturing}
-          />
+        <textarea
+          ref={textareaRef}
+          value={content}
+          onChange={(e) => setContent(e.target.value)}
+          placeholder="Ex: Acheter du café, améliorer ma routine du matin, penser à envoyer le mail à Lena, réserver un créneau sport"
+          rows={4}
+          className="w-full p-4 text-base border border-border rounded-2xl focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all resize-none text-text-dark placeholder:text-text-muted bg-white"
+          disabled={isCapturing}
+        />
 
-          {/* IA READY */}
-          <div className="absolute bottom-4 right-4 text-xs text-primary font-medium">
-            IA READY
+        {/* Bottom row: icons (commentés pour l'instant) */}
+        {/*
+        <div className="flex items-center justify-between mt-3">
+          <div className="flex gap-3">
+            <button
+              disabled
+              className="w-9 h-9 flex items-center justify-center rounded-full bg-gray-light text-text-muted"
+              title="Dictée vocale (bientôt)"
+            >
+              <MicrophoneIcon />
+            </button>
+            <button
+              disabled
+              className="w-9 h-9 flex items-center justify-center rounded-full bg-gray-light text-text-muted"
+              title="Photo (bientôt)"
+            >
+              <CameraIcon />
+            </button>
           </div>
         </div>
+        */}
+      </div>
 
-        {/* Mood Selector */}
+      {/* Mood Selector */}
+      <div className="mb-6">
         <MoodSelector
           selectedMood={selectedMood}
           onSelectMood={setSelectedMood}
           disabled={isCapturing}
         />
-
-        {/* Erreur */}
-        {error && (
-          <div className="p-4 bg-red-50 border border-red-200 rounded-2xl">
-            <p className="text-sm text-red-600 font-medium">{error}</p>
-          </div>
-        )}
-
-        {/* Bouton Capturer */}
-        <button
-          onClick={handleCapture}
-          disabled={!content.trim() || isCapturing}
-          className="w-full py-5 bg-text-dark text-white text-lg font-semibold rounded-full hover:opacity-90 active:scale-98 transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-xl hover:shadow-2xl"
-        >
-          {isCapturing ? (
-            <span className="flex items-center justify-center gap-3">
-              <svg className="animate-spin h-5 w-5" viewBox="0 0 24 24">
-                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
-                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-              </svg>
-              Analyse en cours...
-            </span>
-          ) : (
-            'Capturer mes pensées'
-          )}
-        </button>
-
-        {/* Bouton Google Calendar (si non connecté) */}
-        {!isGoogleCalendarConnected && (
-          <div className="space-y-2">
-            <button
-              onClick={handleConnectCalendar}
-              disabled={isConnectingCalendar}
-              className="w-full py-4 border-2 border-primary text-primary font-medium rounded-2xl hover:bg-mint transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {isConnectingCalendar ? (
-                <>
-                  <svg className="animate-spin h-5 w-5" viewBox="0 0 24 24">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-                  </svg>
-                  Connexion...
-                </>
-              ) : (
-                <>
-                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                  </svg>
-                  Connecter Google Calendar
-                </>
-              )}
-            </button>
-            <p className="text-xs text-center text-text-muted">
-              Important pour des suggestions pertinentes
-            </p>
-          </div>
-        )}
-
-        {/* Hint */}
-        <p className="text-sm text-text-muted text-center">
-          Manae organise tout pour toi
-        </p>
       </div>
+
+      {/* Erreur */}
+      {error && (
+        <div className="p-4 bg-red-50 border border-red-200 rounded-2xl mb-6">
+          <p className="text-sm text-red-600 font-medium">{error}</p>
+        </div>
+      )}
+
+      {/* Bouton CTA */}
+      <button
+        onClick={handleCapture}
+        disabled={!content.trim() || isCapturing}
+        className="w-full py-4 bg-primary text-white text-base font-semibold rounded-2xl hover:opacity-90 active:scale-[0.98] transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-lg flex items-center justify-center gap-3"
+      >
+        {isCapturing ? (
+          <>
+            <svg className="animate-spin h-5 w-5" viewBox="0 0 24 24">
+              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+            </svg>
+            Analyse en cours...
+          </>
+        ) : (
+          <>
+            Capturer mes pensées
+            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
+            </svg>
+          </>
+        )}
+      </button>
 
       {/* Modal Multi-Pensées */}
       {multiItems && multiItems.length > 1 && (
@@ -354,6 +316,7 @@ export function CaptureFlow({ userId, onSuccess }: CaptureFlowProps) {
           onClose={handleReset}
         />
       )}
+      </div>
     </div>
   )
 }
