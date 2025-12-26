@@ -18,8 +18,15 @@ export default function OnboardingStep4() {
             const code = await openGoogleAuthPopup();
             const tokens = await exchangeCodeForToken(code);
 
+            // Calculer expires_at à partir de expires_in (en secondes)
+            const tokensWithExpiry = {
+                ...tokens,
+                expires_at: Date.now() + (tokens.expires_in * 1000)
+            };
+
             // Save tokens locally (TODO: sauvegarder côté serveur de façon sécurisée)
-            localStorage.setItem('manae_google_tokens', JSON.stringify(tokens));
+            // Utiliser 'google_tokens' pour compatibilité avec calendar.service
+            localStorage.setItem('google_tokens', JSON.stringify(tokensWithExpiry));
 
             // Marquer l'onboarding comme terminé dans Supabase
             await updateUserProfile({
