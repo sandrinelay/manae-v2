@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useRef, useEffect } from 'react'
-import { useSearchParams } from 'next/navigation'
+import { useSearchParams, useRouter } from 'next/navigation'
 import { CaptureModal } from './CaptureModal'
 import { MultiCaptureModal } from './MultiCaptureModal'
 import { MoodSelector, type Mood } from './MoodSelector'
@@ -9,6 +9,7 @@ import { captureThought, saveItem, saveMultipleListItems, extractMultipleItems }
 import type { CaptureResult, MultiThoughtItem } from '@/services/capture'
 import type { ItemType, Mood as ItemMood } from '@/types/items'
 import type { ActionType } from './CaptureModal'
+import { useAIQuota } from '@/hooks/useAIQuota'
 
 // Conversion des moods UI vers les moods DB
 function convertMoodToItemMood(mood: Mood | null): ItemMood | undefined {
@@ -44,6 +45,14 @@ interface CaptureFlowProps {
 export function CaptureFlow({ userId, onSuccess }: CaptureFlowProps) {
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const searchParams = useSearchParams()
+  const router = useRouter()
+
+  // Hook quota IA
+  const { quota, maxQuota, isLow, isExhausted, isLoading: isQuotaLoading } = useAIQuota()
+
+  const handleUpgrade = () => {
+    router.push('/settings/subscription')
+  }
 
   const [content, setContent] = useState('')
   const [selectedMood, setSelectedMood] = useState<Mood | null>(null)
@@ -279,6 +288,57 @@ export function CaptureFlow({ userId, onSuccess }: CaptureFlowProps) {
           disabled={isCapturing}
         />
       </div>
+
+      {/* Indicateur quota IA */}
+      {!isQuotaLoading && quota !== null && maxQuota !== null && (
+        <div className="mb-4">
+          {/* Compteur discret (toujours visible) */}
+          <div className="flex justify-end">
+            <span className={`text-xs ${
+              isExhausted ? 'text-red-500' : isLow ? 'text-orange-500' : 'text-text-muted'
+            }`}>
+              {quota}/{maxQuota} crédits IA
+            </span>
+          </div>
+
+          {/* Alerte quota faible (1-3) */}
+          {isLow && !isExhausted && (
+            <div className="bg-orange-50 border border-orange-200 rounded-xl p-4 mt-3">
+              <p className="text-orange-800 text-sm font-medium">
+                Plus que {quota} crédit{quota > 1 ? 's' : ''} IA
+              </p>
+              <p className="text-orange-600 text-xs mt-1">
+                Au-delà, tes pensées seront enregistrées sans tri automatique.
+              </p>
+              <button
+                onClick={handleUpgrade}
+                className="text-orange-700 text-xs mt-2 underline font-medium hover:text-orange-900"
+              >
+                Passer au forfait Plus
+              </button>
+            </div>
+          )}
+
+          {/* Alerte quota épuisé (0) */}
+          {isExhausted && (
+            <div className="bg-red-50 border border-red-200 rounded-xl p-4 mt-3">
+              <p className="text-red-800 text-sm font-medium">
+                Crédits IA épuisés
+              </p>
+              <p className="text-red-600 text-xs mt-1">
+                Tes pensées seront enregistrées sans analyse automatique.
+                Tu pourras les trier manuellement dans "Ma Liste".
+              </p>
+              <button
+                onClick={handleUpgrade}
+                className="mt-3 px-4 py-2 bg-primary text-white text-sm font-medium rounded-lg hover:bg-primary/90 transition-colors"
+              >
+                Passer au forfait Plus
+              </button>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Erreur */}
       {error && (

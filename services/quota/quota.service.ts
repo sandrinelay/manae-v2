@@ -9,6 +9,7 @@ import { createClient } from '@/lib/supabase/client'
 export interface QuotaCheckResult {
   canUse: boolean
   creditsRemaining: number | null // null = illimité
+  quotaMax: number | null         // null = illimité (plan Plus/Family)
   quotaExceeded: boolean
   planId: 'essential' | 'plus' | 'family'
 }
@@ -59,6 +60,7 @@ export async function checkAIQuota(userId: string): Promise<QuotaCheckResult> {
       return {
         canUse: true,
         creditsRemaining: 10,
+        quotaMax: 10,
         quotaExceeded: false,
         planId: 'essential'
       }
@@ -67,6 +69,7 @@ export async function checkAIQuota(userId: string): Promise<QuotaCheckResult> {
     const result = {
       canUse: data.can_use,
       creditsRemaining: data.credits_remaining,
+      quotaMax: data.quota_max ?? null,
       quotaExceeded: data.quota_exceeded,
       planId: data.plan_id
     }
@@ -78,6 +81,7 @@ export async function checkAIQuota(userId: string): Promise<QuotaCheckResult> {
     return {
       canUse: true,
       creditsRemaining: 10,
+      quotaMax: 10,
       quotaExceeded: false,
       planId: 'essential'
     }
