@@ -19,6 +19,7 @@ interface MultiPensée extends MultiThoughtItem {
 interface MultiCaptureModalProps {
   items: MultiThoughtItem[]
   mood: Mood | null
+  userId: string
   creditsRemaining?: number | null
   onSave: (index: number, type: ItemType, action: ActionType) => Promise<void>
   onClose: () => void
@@ -31,6 +32,7 @@ interface MultiCaptureModalProps {
 export function MultiCaptureModal({
   items,
   mood,
+  userId,
   creditsRemaining,
   onSave,
   onClose
@@ -238,6 +240,7 @@ export function MultiCaptureModal({
               creditsRemaining
             }}
             mood={mood}
+            userId={userId}
             onSave={handleSave}
             onClose={onClose}
             isEmbedded={true}

@@ -23,12 +23,14 @@ export interface ValidationErrors {
 
 export interface Constraint {
     id: string;
+    user_id?: string;
     name: string;
     category: 'work' | 'school' | 'home' | 'sport' | 'social' | 'other';
     days: string[];
     start_time: string;
     end_time: string;
-    allow_lunch_break: boolean;
+    allow_lunch_break: boolean | null;
+    created_at?: string;
 }
 
 export const CATEGORY_CONFIG = {

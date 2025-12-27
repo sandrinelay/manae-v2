@@ -17,7 +17,7 @@ export interface Constraint {
     id: string
     user_id: string
     name: string
-    category: string
+    category: 'work' | 'school' | 'home' | 'sport' | 'social' | 'other'
     days: string[]
     start_time: string
     end_time: string

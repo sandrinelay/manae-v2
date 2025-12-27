@@ -1,7 +1,6 @@
 'use client'
 
 import { useState, useRef, useEffect } from 'react'
-import { useRouter } from 'next/navigation'
 import { CaptureModal } from './CaptureModal'
 import { MultiCaptureModal } from './MultiCaptureModal'
 import { MoodSelector, type Mood } from './MoodSelector'
@@ -42,7 +41,6 @@ interface CaptureFlowProps {
 }
 
 export function CaptureFlow({ userId, onSuccess }: CaptureFlowProps) {
-  const router = useRouter()
   const textareaRef = useRef<HTMLTextAreaElement>(null)
 
   const [content, setContent] = useState('')
@@ -105,7 +103,7 @@ export function CaptureFlow({ userId, onSuccess }: CaptureFlowProps) {
       if (action === 'plan') state = 'planned'
       if (action === 'develop') state = 'project'
 
-      const itemId = await saveItem({
+      await saveItem({
         userId,
         type,
         content: pensée.content,
@@ -118,12 +116,6 @@ export function CaptureFlow({ userId, onSuccess }: CaptureFlowProps) {
           suggestions: pensée.suggestions
         }
       })
-
-      if (action === 'plan') {
-        router.push(`/items/${itemId}/schedule`)
-      } else if (action === 'develop') {
-        router.push(`/ideas/${itemId}/develop`)
-      }
 
       onSuccess?.()
     } catch (err) {
@@ -164,7 +156,7 @@ export function CaptureFlow({ userId, onSuccess }: CaptureFlowProps) {
         return
       }
 
-      const itemId = await saveItem({
+      await saveItem({
         userId,
         type,
         content,
@@ -174,18 +166,7 @@ export function CaptureFlow({ userId, onSuccess }: CaptureFlowProps) {
       })
 
       handleReset()
-
-      switch (action) {
-        case 'plan':
-          router.push(`/items/${itemId}/schedule`)
-          break
-        case 'develop':
-          router.push(`/ideas/${itemId}/develop`)
-          break
-        default:
-          onSuccess?.()
-          break
-      }
+      onSuccess?.()
     } catch (err) {
       console.error('Error:', err)
       setError('Erreur lors de la sauvegarde')
@@ -300,6 +281,7 @@ export function CaptureFlow({ userId, onSuccess }: CaptureFlowProps) {
         <MultiCaptureModal
           items={multiItems}
           mood={selectedMood}
+          userId={userId}
           creditsRemaining={captureResult?.creditsRemaining}
           onSave={handleSaveMultiPensée}
           onClose={handleReset}
@@ -312,8 +294,10 @@ export function CaptureFlow({ userId, onSuccess }: CaptureFlowProps) {
           content={content}
           captureResult={captureResult}
           mood={selectedMood}
+          userId={userId}
           onSave={handleSave}
           onClose={handleReset}
+          onSuccess={onSuccess}
         />
       )}
       </div>

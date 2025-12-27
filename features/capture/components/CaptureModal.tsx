@@ -1,8 +1,16 @@
 'use client'
 
-import { useState, type ReactNode } from 'react'
+import { useState, useEffect, type ReactNode } from 'react'
 import type { ItemType } from '@/types/items'
 import type { CaptureResult } from '@/services/capture'
+import { useScheduling } from '@/features/schedule/hooks/useScheduling'
+import { DurationSelector } from '@/features/schedule/components/DurationSelector'
+import { TimeSlotCard } from '@/features/schedule/components/TimeSlotCard'
+import { SuccessModal, formatScheduledDate } from '@/features/schedule/components/SuccessModal'
+import GoogleCalendarCTA from '@/components/capture/GoogleCalendarCTA'
+import { useGoogleCalendarStatus } from '@/hooks/useGoogleCalendarStatus'
+import { saveItem } from '@/services/capture'
+import type { Mood as ItemMood } from '@/types/items'
 
 // ============================================
 // TYPES
@@ -10,13 +18,28 @@ import type { CaptureResult } from '@/services/capture'
 
 type Mood = 'energetic' | 'calm' | 'overwhelmed' | 'tired'
 
+// Conversion UI mood -> DB mood
+function convertMoodToItemMood(mood: Mood | null): ItemMood | undefined {
+  if (!mood) return undefined
+  const mapping: Record<Mood, ItemMood> = {
+    energetic: 'energetic',
+    calm: 'neutral',
+    overwhelmed: 'overwhelmed',
+    tired: 'tired'
+  }
+  return mapping[mood]
+}
+type ModalStep = 'organize' | 'schedule'
+
 interface CaptureModalProps {
   content: string
   captureResult: CaptureResult
   mood: Mood | null
+  userId: string
   onSave: (type: ItemType, action: ActionType) => void
   onClose: () => void
-  isEmbedded?: boolean // Pour mode intégré dans MultiCaptureModal
+  onSuccess?: () => void
+  isEmbedded?: boolean
 }
 
 export type ActionType = 'save' | 'plan' | 'develop' | 'add_to_list' | 'delete'
@@ -29,7 +52,7 @@ interface ActionButton {
 }
 
 // ============================================
-// ICÔNES SVG MINIMALISTES
+// ICÔNES SVG
 // ============================================
 
 const TaskIcon = () => (
@@ -62,8 +85,20 @@ const TrashIcon = () => (
   </svg>
 )
 
+const BackIcon = () => (
+  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+    <path strokeLinecap="round" strokeLinejoin="round" d="M19 12H5M5 12L12 19M5 12L12 5" />
+  </svg>
+)
+
+const CloseIcon = () => (
+  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+    <path strokeLinecap="round" strokeLinejoin="round" d="M18 6L6 18M6 6L18 18" />
+  </svg>
+)
+
 // ============================================
-// CONFIGURATION DES TYPES & ACTIONS
+// CONFIGURATION
 // ============================================
 
 const TYPE_CONFIG: Record<ItemType, {
@@ -76,7 +111,7 @@ const TYPE_CONFIG: Record<ItemType, {
     label: 'Tâche',
     actions: [
       { label: 'Enregistrer', value: 'save', variant: 'primary' },
-      { label: 'Planifier', value: 'plan', variant: 'secondary', requiresAI: true }
+      { label: 'Planifier', value: 'plan', variant: 'secondary' }
     ]
   },
   note: {
@@ -103,66 +138,126 @@ const TYPE_CONFIG: Record<ItemType, {
   }
 }
 
-// Suggestions intelligentes selon mood + contenu + type
-function getMoodSuggestion(
-  mood: Mood,
-  content: string,
-  type: ItemType
-): string {
-  if (type !== 'task') return ''
-
-  const lowerContent = content.toLowerCase()
-  const isUrgent = lowerContent.includes('urgent') || lowerContent.includes('aujourd\'hui') || lowerContent.includes('maintenant')
-  const isQuick = lowerContent.includes('rapide') || lowerContent.includes('vite') || lowerContent.includes('appel')
-  const isComplex = lowerContent.includes('projet') || lowerContent.includes('organiser') || lowerContent.includes('préparer')
-
-  switch (mood) {
-    case 'energetic':
-      if (isComplex) return '💪 Super ! Tu as l\'énergie pour t\'attaquer à cette grosse tâche maintenant.'
-      if (isQuick) return '💪 Parfait moment pour enchaîner plusieurs petites tâches rapidement !'
-      return '💪 Profite de ton énergie pour avancer sur cette tâche !'
-
-    case 'overwhelmed':
-      if (isUrgent) return '⚠️ C\'est urgent, mais prends une grande respiration avant de commencer.'
-      if (isComplex) return '⚠️ Cette tâche peut attendre. Concentre-toi d\'abord sur l\'essentiel.'
-      return '⚠️ Tu es débordé(e). Cette tâche peut-elle être reportée ou déléguée ?'
-
-    case 'tired':
-      if (isQuick) return '😴 Fatigue détectée. Cette tâche rapide peut se faire demain matin à tête reposée.'
-      if (isComplex) return '😴 Tu es fatigué(e). Planifie cette tâche pour demain quand tu seras en forme.'
-      return '😴 Repose-toi. Cette tâche attendra bien jusqu\'à demain !'
-
-    case 'calm':
-      if (isComplex) return '☕ Parfait moment pour les tâches qui demandent réflexion et concentration.'
-      return '☕ Tu es calme, idéal pour avancer sereinement sur cette tâche.'
-
-    default:
-      return ''
-  }
-}
-
 // ============================================
-// COMPOSANT
+// COMPOSANT PRINCIPAL
 // ============================================
 
 export function CaptureModal({
   content,
   captureResult,
   mood,
+  userId,
   onSave,
   onClose,
+  onSuccess,
   isEmbedded = false
 }: CaptureModalProps) {
   const hasAIQuota = !captureResult.quotaExceeded
 
-  const [selectedType, setSelectedType] = useState<ItemType>(
-    captureResult.suggestedType || 'task'
-  )
+  // État de la modal
+  const [currentStep, setCurrentStep] = useState<ModalStep>('organize')
+  const [selectedType, setSelectedType] = useState<ItemType>(captureResult.suggestedType || 'task')
+  const [savedItemId, setSavedItemId] = useState<string | null>(null)
+  const [showSuccessModal, setShowSuccessModal] = useState(false)
+  const [successData, setSuccessData] = useState<{ task: string; date: string } | null>(null)
+  const [isSaving, setIsSaving] = useState(false)
+
+  // Google Calendar status
+  const { isConnected: isCalendarConnected } = useGoogleCalendarStatus()
+
+  // Convertir mood pour le scheduling
+  const schedulingMood = mood === 'energetic' ? 'energetic' : mood === 'tired' ? 'tired' : 'neutral'
+
+  // Hook scheduling
+  const scheduling = useScheduling({
+    itemId: savedItemId || '',
+    taskContent: content,
+    mood: schedulingMood
+  })
+
+  // Charger les créneaux quand on passe à l'étape schedule
+  useEffect(() => {
+    if (currentStep === 'schedule' && savedItemId && isCalendarConnected) {
+      scheduling.loadSlots()
+    }
+  }, [currentStep, savedItemId, isCalendarConnected])
+
+  // ============================================
+  // HANDLERS
+  // ============================================
+
+  const handlePlanAction = async () => {
+    setIsSaving(true)
+    try {
+      // 1. Sauvegarder l'item en DB (state: 'active' pour l'instant)
+      const itemId = await saveItem({
+        userId,
+        type: 'task',
+        content,
+        state: 'active',
+        mood: convertMoodToItemMood(mood),
+        aiAnalysis: captureResult.aiAnalysis
+      })
+
+      setSavedItemId(itemId)
+
+      // 2. Passer à l'étape 'schedule'
+      setCurrentStep('schedule')
+    } catch (error) {
+      console.error('Erreur sauvegarde:', error)
+    } finally {
+      setIsSaving(false)
+    }
+  }
+
+  const handleBack = () => {
+    setCurrentStep('organize')
+  }
+
+  const handleSchedule = async () => {
+    if (!scheduling.selectedSlot) return
+
+    // Capturer le slot AVANT l'appel async
+    const slotToSchedule = scheduling.selectedSlot
+
+    try {
+      const success = await scheduling.scheduleTask()
+
+      if (success) {
+        const dateLabel = formatScheduledDate(`${slotToSchedule.date}T${slotToSchedule.startTime}:00`)
+        setSuccessData({ task: content, date: dateLabel })
+        setShowSuccessModal(true)
+      }
+    } catch (error) {
+      console.error('Erreur planification:', error)
+    }
+  }
+
+  const handleSuccessClose = () => {
+    setShowSuccessModal(false)
+    onSuccess?.()
+    onClose()
+  }
+
+  const handleConnectCalendar = () => {
+    window.location.href = '/onboarding/step4'
+  }
+
+  const handleAction = (type: ItemType, action: ActionType) => {
+    if (action === 'plan' && type === 'task') {
+      handlePlanAction()
+    } else {
+      onSave(type, action)
+    }
+  }
 
   const config = TYPE_CONFIG[selectedType]
 
-  // Contenu interne de la modal (réutilisable en mode embedded)
-  const ModalContent = () => (
+  // ============================================
+  // RENDER - ORGANIZE STEP
+  // ============================================
+
+  const OrganizeContent = () => (
     <div className="space-y-4">
       {/* Indicateur IA */}
       {captureResult.aiUsed && captureResult.suggestedType && (
@@ -175,31 +270,10 @@ export function CaptureModal({
         </div>
       )}
 
-      {/* Alerte quota épuisé */}
-      {captureResult.quotaExceeded && (
-        <div className="p-4 bg-amber-50 border border-amber-200 rounded-lg">
-          <p className="text-sm text-amber-800 font-medium mb-2">
-            Quota IA épuisé
-          </p>
-          <p className="text-sm text-amber-700">
-            Veuillez catégoriser manuellement. Les fonctions IA (Planifier, Développer) sont désactivées.
-          </p>
-        </div>
-      )}
-
       {/* Contenu capturé */}
       <div className="p-4 bg-mint rounded-xl border border-border">
         <p className="text-text-dark whitespace-pre-wrap">{content}</p>
       </div>
-
-      {/* Suggestion selon mood */}
-      {mood && selectedType === 'task' && getMoodSuggestion(mood, content, selectedType) && (
-        <div className="p-3 bg-blue-50 border border-blue-200 rounded-xl">
-          <p className="text-sm text-blue-800">
-            {getMoodSuggestion(mood, content, selectedType)}
-          </p>
-        </div>
-      )}
 
       {/* Types - Icônes seulement */}
       <div className="space-y-2">
@@ -229,15 +303,15 @@ export function CaptureModal({
         </div>
       </div>
 
-      {/* Actions - Une ligne horizontale */}
+      {/* Actions */}
       <div className="flex gap-2">
         {config.actions.map((actionConfig) => {
-          const isDisabled = actionConfig.requiresAI && !hasAIQuota
+          const isDisabled = (actionConfig.requiresAI && !hasAIQuota) || isSaving
 
           return (
             <button
               key={actionConfig.value}
-              onClick={() => !isDisabled && onSave(selectedType, actionConfig.value)}
+              onClick={() => !isDisabled && handleAction(selectedType, actionConfig.value)}
               disabled={isDisabled}
               className={`
                 flex-1 py-3 px-4 rounded-xl font-medium transition-all
@@ -245,16 +319,14 @@ export function CaptureModal({
                   ? 'bg-primary text-white hover:opacity-90'
                   : 'border-2 border-border text-text-dark hover:border-primary hover:text-primary'
                 }
-                ${isDisabled ? 'opacity-50 cursor-not-allowed bg-gray-light border-gray-light' : ''}
+                ${isDisabled ? 'opacity-50 cursor-not-allowed' : ''}
               `}
             >
-              {isDisabled && '🔒 '}
-              {actionConfig.label}
+              {isSaving && actionConfig.value === 'plan' ? 'Chargement...' : actionConfig.label}
             </button>
           )
         })}
 
-        {/* Bouton Supprimer - Icône poubelle */}
         <button
           onClick={() => onSave(selectedType, 'delete')}
           className="p-3 rounded-xl border-2 border-red-200 text-red-500 hover:bg-red-50 transition-all"
@@ -264,7 +336,6 @@ export function CaptureModal({
         </button>
       </div>
 
-      {/* Bouton Annuler (seulement si pas embedded) */}
       {!isEmbedded && (
         <button
           onClick={onClose}
@@ -276,12 +347,139 @@ export function CaptureModal({
     </div>
   )
 
-  // Mode embedded : pas de backdrop ni wrapper
+  // ============================================
+  // RENDER - SCHEDULE STEP
+  // ============================================
+
+  const ScheduleContent = () => (
+    <div className="space-y-6">
+      {/* Tâche (lecture seule) */}
+      <div className="bg-gray-50 rounded-lg p-4">
+        <p className="text-text-dark font-medium">"{content}"</p>
+      </div>
+
+      {/* Durée estimée */}
+      <DurationSelector
+        value={scheduling.estimatedDuration}
+        onChange={(duration) => {
+          scheduling.setDuration(duration as 15 | 30 | 60)
+          if (isCalendarConnected) {
+            scheduling.loadSlots()
+          }
+        }}
+        aiSuggested={scheduling.estimatedDuration}
+        disabled={scheduling.isLoading}
+      />
+
+      <div className="border-t border-border pt-6">
+        {/* Google Calendar non connecté ou session expirée */}
+        {(!isCalendarConnected || scheduling.error === 'calendar_session_expired' || scheduling.error === 'calendar_not_connected') && (
+          <div className="space-y-4">
+            {scheduling.error === 'calendar_session_expired' && (
+              <div className="bg-orange-50 border border-orange-200 rounded-lg p-3 mb-4">
+                <p className="text-orange-800 text-sm text-center">
+                  Ta session Google Calendar a expiré
+                </p>
+              </div>
+            )}
+            <GoogleCalendarCTA
+              onConnect={handleConnectCalendar}
+              isConnecting={false}
+            />
+          </div>
+        )}
+
+        {/* Chargement */}
+        {isCalendarConnected && scheduling.isLoading && !scheduling.error && (
+          <div className="text-center py-8">
+            <div className="inline-block w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin mb-3" />
+            <p className="text-text-muted">
+              Recherche des meilleurs créneaux...
+            </p>
+          </div>
+        )}
+
+        {/* Erreur (autres que calendar) */}
+        {scheduling.error && scheduling.error !== 'calendar_not_connected' && scheduling.error !== 'calendar_session_expired' && (
+          <div className="bg-red-50 border border-red-200 rounded-lg p-4 text-center">
+            <p className="text-red-800 text-sm">{scheduling.error}</p>
+          </div>
+        )}
+
+        {/* Créneaux */}
+        {isCalendarConnected && !scheduling.isLoading && scheduling.slots.length > 0 && !scheduling.error && (
+          <div className="space-y-3">
+            <h3 className="font-semibold text-text-dark mb-3">
+              Créneaux suggérés
+            </h3>
+
+            {scheduling.slots.map((slot, index) => (
+              <TimeSlotCard
+                key={`${slot.date}-${slot.startTime}`}
+                slot={slot}
+                rank={(index + 1) as 1 | 2 | 3}
+                isSelected={
+                  scheduling.selectedSlot?.date === slot.date &&
+                  scheduling.selectedSlot?.startTime === slot.startTime
+                }
+                onSelect={() => scheduling.selectSlot(slot)}
+              />
+            ))}
+          </div>
+        )}
+
+        {/* Aucun créneau */}
+        {isCalendarConnected && !scheduling.isLoading && scheduling.slots.length === 0 && !scheduling.error && (
+          <div className="bg-orange-50 border border-orange-200 rounded-lg p-4 text-center">
+            <p className="text-orange-800 text-sm">
+              Aucun créneau disponible sur les 7 prochains jours
+            </p>
+            <p className="text-orange-600 text-xs mt-2">
+              Essaie de modifier la durée ou tes contraintes horaires
+            </p>
+          </div>
+        )}
+      </div>
+
+      {/* Actions */}
+      <div className="flex gap-3 pt-4">
+        <button
+          onClick={handleBack}
+          className="flex-1 px-6 py-3 border-2 border-border rounded-lg font-medium text-text-dark hover:bg-gray-50 transition-colors"
+        >
+          Retour
+        </button>
+
+        <button
+          onClick={handleSchedule}
+          disabled={!scheduling.selectedSlot || scheduling.isLoading}
+          className="flex-1 px-6 py-3 bg-primary text-white rounded-lg font-medium hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          {scheduling.isLoading ? 'Planification...' : 'Planifier'}
+        </button>
+      </div>
+    </div>
+  )
+
+  // ============================================
+  // RENDER
+  // ============================================
+
   if (isEmbedded) {
-    return <ModalContent />
+    return currentStep === 'organize' ? <OrganizeContent /> : <ScheduleContent />
   }
 
-  // Mode normal avec backdrop
+  // Afficher la modal de succès après planification
+  if (successData) {
+    return (
+      <SuccessModal
+        taskContent={successData.task}
+        scheduledDate={successData.date}
+        onClose={handleSuccessClose}
+      />
+    )
+  }
+
   return (
     <>
       {/* Backdrop */}
@@ -290,25 +488,45 @@ export function CaptureModal({
         onClick={onClose}
       />
 
-      {/* Modal - positionné au-dessus du BottomNav (environ 80px de hauteur) */}
-      <div className="fixed inset-x-0 bottom-20 z-50 bg-white rounded-t-3xl shadow-2xl animate-slide-up max-w-2xl mx-auto mx-4">
-        {/* Header avec crédits et bouton fermer */}
-        <div className="flex items-center justify-end gap-3 px-6 pt-4">
-          {captureResult.creditsRemaining !== null && captureResult.creditsRemaining !== undefined && (
-            <span className="text-xs text-text-muted">
-              {captureResult.creditsRemaining} crédits restants
-            </span>
+      {/* Modal */}
+      <div className={`
+        fixed z-50 bg-white shadow-2xl animate-slide-up
+        ${currentStep === 'schedule'
+          ? 'inset-4 rounded-2xl overflow-hidden'
+          : 'inset-x-0 bottom-20 rounded-t-3xl max-w-2xl mx-auto'
+        }
+      `}>
+        {/* Header */}
+        <div className="flex items-center justify-between p-4 border-b border-border">
+          {currentStep === 'schedule' ? (
+            <button
+              onClick={handleBack}
+              className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+            >
+              <BackIcon />
+            </button>
+          ) : (
+            <div className="w-10" />
           )}
+
+          <h2 className="text-lg font-bold text-text-dark font-quicksand">
+            {currentStep === 'organize' ? 'Organiser' : 'Planifier la tâche'}
+          </h2>
+
           <button
             onClick={onClose}
-            className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-light transition-colors text-text-muted"
+            className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
           >
-            ✕
+            <CloseIcon />
           </button>
         </div>
 
-        <div className="px-6 pb-6 max-h-[70vh] overflow-y-auto">
-          <ModalContent />
+        {/* Content */}
+        <div className={`
+          p-6 overflow-y-auto
+          ${currentStep === 'schedule' ? 'max-h-[calc(100vh-8rem)]' : 'max-h-[70vh]'}
+        `}>
+          {currentStep === 'organize' ? OrganizeContent() : ScheduleContent()}
         </div>
       </div>
     </>

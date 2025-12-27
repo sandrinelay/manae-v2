@@ -1,3 +1,5 @@
+import type { Constraint } from '@/types'
+
 export interface GoogleCalendarEvent {
     id: string
     summary: string
