@@ -7,7 +7,6 @@
 interface DurationSelectorProps {
   value: number  // minutes
   onChange: (minutes: number) => void
-  aiSuggested?: number  // Pour highlight la suggestion IA
   disabled?: boolean
 }
 
@@ -24,19 +23,17 @@ const DURATIONS = [
 export function DurationSelector({
   value,
   onChange,
-  aiSuggested,
   disabled = false
 }: DurationSelectorProps) {
   return (
-    <div className="space-y-2">
-      <label className="text-sm font-medium text-text-dark">
-        Durée estimée
+    <div className="flex items-center gap-3">
+      <label className="text-sm font-medium text-text-dark whitespace-nowrap">
+        Durée :
       </label>
 
       <div className="flex gap-2">
         {DURATIONS.map(duration => {
           const isSelected = value === duration.value
-          const isAISuggested = aiSuggested === duration.value
 
           return (
             <button
@@ -44,8 +41,8 @@ export function DurationSelector({
               onClick={() => onChange(duration.value)}
               disabled={disabled}
               className={`
-                flex-1 px-4 py-3 rounded-lg border-2 transition-all font-medium
-                hover:shadow-sm active:scale-95
+                px-3 py-1.5 rounded-lg border transition-all text-sm font-medium
+                active:scale-95
                 ${disabled ? 'opacity-50 cursor-not-allowed' : ''}
                 ${isSelected
                   ? 'border-primary bg-primary/10 text-primary'
@@ -53,24 +50,11 @@ export function DurationSelector({
                 }
               `}
             >
-              <div className="flex items-center justify-center gap-1">
-                <span>{duration.label}</span>
-                {isAISuggested && !isSelected && (
-                  <span className="text-xs" title="Suggéré par l'IA">
-                    ✨
-                  </span>
-                )}
-              </div>
+              {duration.label}
             </button>
           )
         })}
       </div>
-
-      {aiSuggested && (
-        <p className="text-xs text-text-muted">
-          ✨ L'IA suggère {aiSuggested} min pour cette tâche
-        </p>
-      )}
     </div>
   )
 }

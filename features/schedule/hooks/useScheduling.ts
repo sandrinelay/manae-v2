@@ -66,6 +66,9 @@ export function useScheduling(params: UseSchedulingParams): UseSchedulingReturn 
     setEstimatedDuration(duration)
   }, [taskContent])
 
+  // Track si les slots ont déjà été chargés une fois
+  const [slotsLoaded, setSlotsLoaded] = useState(false)
+
   // ============================================
   // ACTIONS
   // ============================================
@@ -75,15 +78,26 @@ export function useScheduling(params: UseSchedulingParams): UseSchedulingReturn 
     setSelectedSlot(null) // Reset la sélection quand la durée change
   }, [])
 
+  // Recharger les slots automatiquement quand la durée change (après le premier chargement)
+  useEffect(() => {
+    if (slotsLoaded) {
+      // Utiliser un timeout pour laisser le state se mettre à jour
+      const timer = setTimeout(() => {
+        loadSlotsInternal()
+      }, 0)
+      return () => clearTimeout(timer)
+    }
+  }, [estimatedDuration])
+
   const selectSlot = useCallback((slot: TimeSlot | null) => {
     setSelectedSlot(slot)
     setError(null)
   }, [])
 
   /**
-   * Charge les créneaux disponibles
+   * Charge les créneaux disponibles (fonction interne)
    */
-  const loadSlots = useCallback(async () => {
+  const loadSlotsInternal = useCallback(async () => {
     setIsLoading(true)
     setError(null)
     setSlots([])
@@ -171,6 +185,14 @@ export function useScheduling(params: UseSchedulingParams): UseSchedulingReturn 
       setIsLoading(false)
     }
   }, [estimatedDuration, mood])
+
+  /**
+   * Charge les créneaux (fonction exposée)
+   */
+  const loadSlots = useCallback(async () => {
+    setSlotsLoaded(true)
+    await loadSlotsInternal()
+  }, [loadSlotsInternal])
 
   /**
    * Planifie la tâche dans le créneau sélectionné

@@ -361,13 +361,7 @@ export function CaptureModal({
       {/* Durée estimée */}
       <DurationSelector
         value={scheduling.estimatedDuration}
-        onChange={(duration) => {
-          scheduling.setDuration(duration as 15 | 30 | 60)
-          if (isCalendarConnected) {
-            scheduling.loadSlots()
-          }
-        }}
-        aiSuggested={scheduling.estimatedDuration}
+        onChange={(duration) => scheduling.setDuration(duration as 15 | 30 | 60)}
         disabled={scheduling.isLoading}
       />
 
@@ -441,23 +435,6 @@ export function CaptureModal({
         )}
       </div>
 
-      {/* Actions */}
-      <div className="flex gap-3 pt-4">
-        <button
-          onClick={handleBack}
-          className="flex-1 px-6 py-3 border-2 border-border rounded-lg font-medium text-text-dark hover:bg-gray-50 transition-colors"
-        >
-          Retour
-        </button>
-
-        <button
-          onClick={handleSchedule}
-          disabled={!scheduling.selectedSlot || scheduling.isLoading}
-          className="flex-1 px-6 py-3 bg-primary text-white rounded-lg font-medium hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-        >
-          {scheduling.isLoading ? 'Planification...' : 'Planifier'}
-        </button>
-      </div>
     </div>
   )
 
@@ -490,14 +467,14 @@ export function CaptureModal({
 
       {/* Modal */}
       <div className={`
-        fixed z-50 bg-white shadow-2xl animate-slide-up
+        fixed z-50 bg-white shadow-2xl animate-slide-up flex flex-col
         ${currentStep === 'schedule'
-          ? 'inset-4 rounded-2xl overflow-hidden'
+          ? 'inset-x-0 top-0 bottom-20 rounded-b-2xl'
           : 'inset-x-0 bottom-20 rounded-t-3xl max-w-2xl mx-auto'
         }
       `}>
         {/* Header */}
-        <div className="flex items-center justify-between p-4 border-b border-border">
+        <div className="flex items-center justify-between p-4 border-b border-border shrink-0">
           {currentStep === 'schedule' ? (
             <button
               onClick={handleBack}
@@ -522,12 +499,29 @@ export function CaptureModal({
         </div>
 
         {/* Content */}
-        <div className={`
-          p-6 overflow-y-auto
-          ${currentStep === 'schedule' ? 'max-h-[calc(100vh-8rem)]' : 'max-h-[70vh]'}
-        `}>
+        <div className="p-6 overflow-y-auto flex-1">
           {currentStep === 'organize' ? OrganizeContent() : ScheduleContent()}
         </div>
+
+        {/* Footer Actions - Schedule step only */}
+        {currentStep === 'schedule' && (
+          <div className="flex gap-3 p-4 border-t border-border bg-white shrink-0">
+            <button
+              onClick={handleBack}
+              className="flex-1 px-6 py-3 border-2 border-border rounded-lg font-medium text-text-dark hover:bg-gray-50 transition-colors"
+            >
+              Retour
+            </button>
+
+            <button
+              onClick={handleSchedule}
+              disabled={!scheduling.selectedSlot || scheduling.isLoading}
+              className="flex-1 px-6 py-3 bg-primary text-white rounded-lg font-medium hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {scheduling.isLoading ? 'Planification...' : 'Planifier'}
+            </button>
+          </div>
+        )}
       </div>
     </>
   )

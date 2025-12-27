@@ -53,50 +53,39 @@ export function TimeSlotCard({ slot, rank, isSelected, onSelect }: TimeSlotCardP
     <button
       onClick={onSelect}
       className={`
-        w-full p-4 rounded-xl border-2 transition-all text-left
+        w-full p-3 rounded-xl border-2 transition-all text-left
         hover:shadow-md active:scale-[0.98]
         ${isSelected
-          ? 'border-primary bg-primary/5 shadow-lg ring-2 ring-primary/20'
+          ? 'border-primary bg-primary/5 ring-2 ring-primary/20'
           : 'border-border hover:border-primary/50'
         }
       `}
     >
-      {/* Header avec médaille et score */}
-      <div className="flex items-start justify-between mb-3">
+      {/* Header avec médaille, horaires et score */}
+      <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <span className="text-2xl">{RANK_MEDALS[rank]}</span>
-          <div>
-            <div className="font-semibold text-text-dark capitalize">
+          <span className="text-xl">{RANK_MEDALS[rank]}</span>
+          <div className="flex items-baseline gap-2">
+            <span className="font-semibold text-text-dark capitalize">
               {dateLabel}
-            </div>
-            <div className="text-base text-text-muted font-medium">
-              {slot.startTime} → {slot.endTime}
-            </div>
+            </span>
+            <span className="text-sm text-text-muted">
+              {slot.startTime} - {slot.endTime}
+            </span>
           </div>
         </div>
 
-        <div className={`text-xs font-semibold px-2 py-1 rounded ${getScoreColor(slot.score)}`}>
-          {slot.score}%
-        </div>
-      </div>
-
-      {/* Raison */}
-      <div className="text-xs text-text-muted flex items-start gap-1.5">
-        <span>💡</span>
-        <span className="flex-1">{slot.reason}</span>
-      </div>
-
-      {/* Indicateur sélection */}
-      {isSelected && (
-        <div className="mt-3 pt-3 border-t border-primary/20">
-          <div className="flex items-center gap-2 text-primary text-sm font-medium">
-            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" className="text-primary">
+        <div className="flex items-center gap-2">
+          <div className={`text-xs font-semibold px-2 py-0.5 rounded ${getScoreColor(slot.score)}`}>
+            {slot.score}%
+          </div>
+          {isSelected && (
+            <svg width="18" height="18" viewBox="0 0 16 16" fill="none" className="text-primary">
               <path d="M13.5 4L6 11.5L2.5 8" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
             </svg>
-            <span>Créneau sélectionné</span>
-          </div>
+          )}
         </div>
-      )}
+      </div>
     </button>
   )
 }
