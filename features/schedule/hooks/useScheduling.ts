@@ -8,7 +8,7 @@ import { findAvailableSlots } from '@/features/schedule/services/slots.service'
 import { estimateTaskDuration } from '@/features/schedule/services/ai-duration.service'
 import { updateItem } from '@/services/supabase/items.service'
 import type { TimeSlot, GoogleCalendarEvent } from '../types/scheduling.types'
-import type { Mood } from '@/types/items'
+import type { Mood, TemporalConstraint } from '@/types/items'
 
 // ============================================
 // TYPES
@@ -20,6 +20,7 @@ export interface UseSchedulingParams {
   itemId: string
   taskContent: string
   mood?: Mood
+  temporalConstraint?: TemporalConstraint | null
 }
 
 export interface UseSchedulingReturn {
@@ -43,7 +44,7 @@ export interface UseSchedulingReturn {
 // ============================================
 
 export function useScheduling(params: UseSchedulingParams): UseSchedulingReturn {
-  const { itemId, taskContent, mood } = params
+  const { itemId, taskContent, mood, temporalConstraint } = params
 
   // ============================================
   // ÉTAT
@@ -144,6 +145,7 @@ export function useScheduling(params: UseSchedulingParams): UseSchedulingReturn 
       }
 
       // 4. Trouver les créneaux libres avec scoring intégré
+      // Passe temporalConstraint pour le filtrage HARD et l'ajustement du scoring
       const allSlots = await findAvailableSlots({
         durationMinutes: estimatedDuration,
         constraints,
@@ -151,7 +153,8 @@ export function useScheduling(params: UseSchedulingParams): UseSchedulingReturn 
         startDate,
         endDate,
         energyMoments,
-        mood: mood || 'neutral'
+        mood: mood || 'neutral',
+        temporalConstraint
       })
 
       // 5. Garder uniquement le TOP 3
@@ -184,7 +187,7 @@ export function useScheduling(params: UseSchedulingParams): UseSchedulingReturn 
     } finally {
       setIsLoading(false)
     }
-  }, [estimatedDuration, mood])
+  }, [estimatedDuration, mood, temporalConstraint])
 
   /**
    * Charge les créneaux (fonction exposée)

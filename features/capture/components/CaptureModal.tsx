@@ -168,11 +168,15 @@ export function CaptureModal({
   // Convertir mood pour le scheduling
   const schedulingMood = mood === 'energetic' ? 'energetic' : mood === 'tired' ? 'tired' : 'neutral'
 
+  // Récupérer la contrainte temporelle de l'analyse IA
+  const temporalConstraint = captureResult.aiAnalysis?.temporal_constraint || null
+
   // Hook scheduling
   const scheduling = useScheduling({
     itemId: savedItemId || '',
     taskContent: content,
-    mood: schedulingMood
+    mood: schedulingMood,
+    temporalConstraint
   })
 
   // Charger les créneaux quand on passe à l'étape schedule

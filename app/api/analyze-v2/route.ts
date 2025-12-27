@@ -124,6 +124,18 @@ export async function POST(request: NextRequest) {
           }
         }
 
+        // Transformer temporal_constraint (snake_case API → camelCase interne)
+        const temporalConstraint = item.temporal_constraint
+          ? {
+              type: item.temporal_constraint.type,
+              date: item.temporal_constraint.date,
+              startDate: item.temporal_constraint.start_date,
+              endDate: item.temporal_constraint.end_date,
+              urgency: item.temporal_constraint.urgency,
+              rawPattern: item.temporal_constraint.raw_pattern
+            }
+          : null
+
         return {
           content: item.content,
           type,
@@ -133,7 +145,8 @@ export async function POST(request: NextRequest) {
             type_suggestion: type,
             confidence: item.confidence || 0.8,
             extracted_data: item.extracted_data || {},
-            suggestions: item.suggestions || []
+            suggestions: item.suggestions || [],
+            temporal_constraint: temporalConstraint
           },
           metadata: item.reasoning ? { reasoning: item.reasoning } : {}
         }

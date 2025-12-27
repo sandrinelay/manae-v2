@@ -4,7 +4,10 @@ import type {
   ItemContext,
   AIAnalysis,
   AIAnalyzedItem,
-  AIAnalysisResult
+  AIAnalysisResult,
+  TemporalConstraint,
+  TemporalConstraintType,
+  TemporalUrgency
 } from '@/types/items'
 
 // ============================================
@@ -26,6 +29,14 @@ interface OpenAIAnalysisResponse {
     }
     suggestions?: string[]
     reasoning?: string
+    temporal_constraint?: {
+      type: TemporalConstraintType
+      date?: string
+      start_date?: string
+      end_date?: string
+      urgency: TemporalUrgency
+      raw_pattern?: string
+    } | null
   }>
 }
 
@@ -43,10 +54,18 @@ RÈGLES IMPORTANTES :
 Ne confonds JAMAIS type et state.`
 
 function buildAnalysisPrompt(rawText: string, historyContext?: string): string {
+  // Calculer la date actuelle pour le contexte temporel
+  const today = new Date()
+  const todayStr = today.toISOString().split('T')[0]
+  const dayOfWeek = today.toLocaleDateString('fr-FR', { weekday: 'long' })
+
   return `Analyse cette pensée capturée et découpe-la en items distincts si nécessaire.
 
 PENSÉE À ANALYSER :
 "${rawText}"
+
+CONTEXTE TEMPOREL :
+- Date actuelle : ${todayStr} (${dayOfWeek})
 
 ${historyContext || ''}
 
@@ -74,6 +93,29 @@ Pour chaque item détecté, détermine :
    - location : Si un lieu est mentionné
    - items : Si plusieurs articles détectés (pour list_item)
 
+5. TEMPORAL CONSTRAINT (contrainte temporelle - CRITIQUE pour la planification) :
+   Détecte les indicateurs de QUAND la tâche doit être faite.
+
+   TYPES DE CONTRAINTES :
+   - "deadline" : Date limite ("avant lundi", "au plus tard vendredi", "d'ici mardi")
+   - "fixed_date" : Jour précis ("lundi", "mardi prochain", "le 15 janvier")
+   - "start_date" : Date de début ("à partir de mardi", "après le 10", "dès lundi")
+   - "time_range" : Période ("cette semaine", "ce mois-ci", "cette semaine")
+   - "asap" : Urgent ("urgent", "dès que possible", "asap", "au plus vite", "rapidement")
+
+   URGENCE :
+   - "critical" : urgent/asap/au plus vite
+   - "high" : deadline proche (< 3 jours)
+   - "medium" : contrainte normale
+   - "low" : contrainte souple
+
+   EXEMPLES DE DÉTECTION :
+   - "Appeler le pédiatre avant lundi" → deadline, date: lundi prochain, urgency: high
+   - "Urgent envoyer devis client" → asap, urgency: critical
+   - "Réunion mardi 14h" → fixed_date, date: mardi prochain, urgency: medium
+   - "À partir de lundi, relancer le dossier" → start_date, start_date: lundi, urgency: medium
+   - "Finir le rapport cette semaine" → time_range, end_date: dimanche, urgency: medium
+
 RÈGLES CRITIQUES :
 - Si c'est une envie future sans action claire → type: "idea", state: "captured"
 - Si c'est actionnable maintenant → type: "task", state: "active"
@@ -81,13 +123,14 @@ RÈGLES CRITIQUES :
 - Si ce sont des courses/achats → type: "list_item", state: "active"
 - Si "lait pain œufs" ou liste séparée par espaces/virgules → DÉCOUPER en plusieurs list_item
 - confidence : 0.0 à 1.0 (certitude de la classification)
+- temporal_constraint : null si aucune contrainte temporelle détectée
 
 EXEMPLES :
-- "Aller au ski en février 2027" → type: "idea", state: "captured"
-- "Acheter du lait" → type: "task", state: "active" OU type: "list_item" si contexte courses
-- "Lena aime les chats" → type: "note", state: "active"
-- "Pain lait œufs" → 3 items type: "list_item", state: "active"
-- "Appeler le plombier demain" → type: "task", state: "active"
+- "Aller au ski en février 2027" → type: "idea", state: "captured", temporal_constraint: null
+- "Acheter du lait" → type: "list_item", state: "active", temporal_constraint: null
+- "Pain lait œufs" → 3 items type: "list_item"
+- "Appeler le plombier demain" → type: "task", temporal_constraint: { type: "fixed_date", date: demain, urgency: "medium" }
+- "Urgent: rappeler client" → type: "task", temporal_constraint: { type: "asap", urgency: "critical" }
 
 Réponds UNIQUEMENT en JSON valide, sans markdown :
 {
@@ -104,6 +147,14 @@ Réponds UNIQUEMENT en JSON valide, sans markdown :
         "location": "string" ou null,
         "items": ["item1", "item2"] ou null
       },
+      "temporal_constraint": {
+        "type": "deadline" | "fixed_date" | "start_date" | "time_range" | "asap",
+        "date": "ISO 8601" ou null,
+        "start_date": "ISO 8601" ou null,
+        "end_date": "ISO 8601" ou null,
+        "urgency": "critical" | "high" | "medium" | "low",
+        "raw_pattern": "expression originale détectée"
+      } ou null,
       "suggestions": ["suggestion1", "suggestion2"],
       "reasoning": "explication courte du choix"
     }

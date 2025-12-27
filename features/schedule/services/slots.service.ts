@@ -2,6 +2,7 @@
 
 import type { GoogleCalendarEvent, TimeSlot } from '../types/scheduling.types'
 import type { Constraint } from '@/types'
+import type { TemporalConstraint, TemporalUrgency } from '@/types/items'
 
 // ============================================
 // TYPES INTERNES
@@ -38,6 +39,15 @@ const DAY_MAP: Record<string, number> = {
   thursday: 4,
   friday: 5,
   saturday: 6
+}
+
+// Pondération du scoring selon l'urgence
+// Plus l'urgence est élevée, moins on optimise les préférences
+const URGENCY_WEIGHTS: Record<TemporalUrgency, { energy: number; mood: number }> = {
+  critical: { energy: 0.1, mood: 0.1 },  // On prend ce qui est dispo
+  high: { energy: 0.3, mood: 0.2 },
+  medium: { energy: 0.6, mood: 0.5 },
+  low: { energy: 1.0, mood: 1.0 }        // Optimisation maximale
 }
 
 // ============================================
@@ -234,10 +244,12 @@ function findFreeBlocks(
 interface ScoringContext {
   energyMoments: string[]
   mood: string
+  urgency?: TemporalUrgency
 }
 
 /**
  * Calcule un score pour un créneau selon les préférences utilisateur
+ * Le score est pondéré par l'urgence : plus c'est urgent, moins on optimise
  */
 function scoreSlot(
   startTime: string,
@@ -249,6 +261,10 @@ function scoreSlot(
 
   const startMinutes = timeToMinutes(startTime)
   const hour = Math.floor(startMinutes / 60)
+
+  // Récupérer les poids selon l'urgence
+  const urgency = context.urgency || 'low'
+  const weights = URGENCY_WEIGHTS[urgency]
 
   // Déterminer le moment de la journée
   let moment: string
@@ -262,51 +278,133 @@ function scoreSlot(
     moment = 'evening'
   }
 
-  // Bonus si le créneau correspond aux moments d'énergie préférés
+  // Bonus si le créneau correspond aux moments d'énergie préférés (pondéré)
   if (context.energyMoments.length === 0 || context.energyMoments.includes(moment)) {
-    score += 20
-    reasons.push('Moment d\'énergie favorable')
+    const bonus = Math.round(20 * weights.energy)
+    score += bonus
+    if (bonus > 5) reasons.push('Moment d\'énergie favorable')
   }
 
-  // Bonus/malus selon le mood
+  // Bonus/malus selon le mood (pondéré)
+  const moodBonus = Math.round(15 * weights.mood)
   switch (context.mood) {
     case 'energetic':
-      // Préférer les créneaux du matin
       if (hour >= 8 && hour < 12) {
-        score += 15
-        reasons.push('Matin idéal pour énergie')
+        score += moodBonus
+        if (moodBonus > 5) reasons.push('Matin idéal')
       }
       break
     case 'calm':
-      // Préférer l'après-midi
       if (hour >= 14 && hour < 18) {
-        score += 15
-        reasons.push('Après-midi propice au calme')
+        score += moodBonus
+        if (moodBonus > 5) reasons.push('Après-midi propice')
       }
       break
     case 'tired':
-      // Préférer les créneaux courts et pas trop tôt
       if (hour >= 10 && hour < 16) {
-        score += 10
-        reasons.push('Créneau adapté à la fatigue')
+        score += Math.round(10 * weights.mood)
+        if (weights.mood > 0.5) reasons.push('Adapté à la fatigue')
       }
       break
     case 'overwhelmed':
-      // Préférer des créneaux avec du temps avant/après
-      score += 5
-      reasons.push('Créneau flexible')
+      score += Math.round(5 * weights.mood)
       break
   }
 
   // Bonus pour les créneaux en dehors des heures de repas
   if ((hour < 12 || hour >= 14) && (hour < 19 || hour >= 20)) {
     score += 5
-    reasons.push('Hors heures de repas')
+  }
+
+  // Pour les urgences critiques, ajouter un message spécifique
+  if (urgency === 'critical') {
+    reasons.unshift('Premier créneau disponible')
+  } else if (urgency === 'high') {
+    reasons.unshift('Avant la deadline')
   }
 
   return {
     score: Math.min(100, Math.max(0, score)),
     reason: reasons.length > 0 ? reasons.join(', ') : 'Créneau disponible'
+  }
+}
+
+// ============================================
+// FILTRAGE CONTRAINTES TEMPORELLES (HARD)
+// ============================================
+
+/**
+ * Filtre les créneaux selon les contraintes temporelles HARD
+ * Ces contraintes sont non-négociables (deadline, fixed_date, etc.)
+ */
+function filterSlotsByTemporalConstraint(
+  slots: TimeSlot[],
+  constraint: TemporalConstraint | null | undefined
+): TimeSlot[] {
+  if (!constraint) return slots
+
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+
+  switch (constraint.type) {
+    case 'deadline': {
+      // Garder UNIQUEMENT les créneaux AVANT la deadline
+      if (!constraint.date) return slots
+      const deadline = new Date(constraint.date)
+      deadline.setHours(23, 59, 59, 999)
+
+      return slots.filter(slot => {
+        const slotDate = new Date(slot.date)
+        return slotDate <= deadline
+      })
+    }
+
+    case 'fixed_date': {
+      // Garder UNIQUEMENT les créneaux du jour spécifié
+      if (!constraint.date) return slots
+      const targetDate = constraint.date
+
+      return slots.filter(slot => slot.date === targetDate)
+    }
+
+    case 'start_date': {
+      // Garder UNIQUEMENT les créneaux APRÈS la date de début
+      if (!constraint.startDate) return slots
+      const startDate = new Date(constraint.startDate)
+      startDate.setHours(0, 0, 0, 0)
+
+      return slots.filter(slot => {
+        const slotDate = new Date(slot.date)
+        return slotDate >= startDate
+      })
+    }
+
+    case 'time_range': {
+      // Garder les créneaux dans la plage
+      const rangeStart = constraint.startDate ? new Date(constraint.startDate) : today
+      const rangeEnd = constraint.endDate ? new Date(constraint.endDate) : new Date(today.getTime() + 7 * 24 * 60 * 60 * 1000)
+      rangeStart.setHours(0, 0, 0, 0)
+      rangeEnd.setHours(23, 59, 59, 999)
+
+      return slots.filter(slot => {
+        const slotDate = new Date(slot.date)
+        return slotDate >= rangeStart && slotDate <= rangeEnd
+      })
+    }
+
+    case 'asap': {
+      // Pour les urgences, prendre les 3-5 premiers créneaux disponibles
+      // Tri par date/heure croissante (le plus tôt possible)
+      const sorted = [...slots].sort((a, b) => {
+        const dateCompare = a.date.localeCompare(b.date)
+        if (dateCompare !== 0) return dateCompare
+        return a.startTime.localeCompare(b.startTime)
+      })
+      return sorted.slice(0, 5)
+    }
+
+    default:
+      return slots
   }
 }
 
@@ -323,11 +421,16 @@ export interface FindSlotsParams {
   energyMoments?: string[]
   mood?: string
   dayBounds?: DayBounds
+  temporalConstraint?: TemporalConstraint | null
 }
 
 /**
  * Trouve tous les créneaux disponibles sur une période
  * en tenant compte des contraintes et événements calendrier
+ *
+ * Architecture à 2 niveaux :
+ * 1. HARD constraints : filtrage des créneaux impossibles (temporalConstraint, calendar, availability)
+ * 2. SOFT preferences : scoring des créneaux restants (energy, mood, cognitive)
  */
 export async function findAvailableSlots(params: FindSlotsParams): Promise<TimeSlot[]> {
   const {
@@ -338,8 +441,12 @@ export async function findAvailableSlots(params: FindSlotsParams): Promise<TimeS
     endDate,
     energyMoments = [],
     mood = 'calm',
-    dayBounds = DEFAULT_DAY_BOUNDS
+    dayBounds = DEFAULT_DAY_BOUNDS,
+    temporalConstraint = null
   } = params
+
+  // Récupérer l'urgence pour le scoring
+  const urgency = temporalConstraint?.urgency || 'low'
 
   const slots: TimeSlot[] = []
   const currentDate = new Date(startDate)
@@ -348,11 +455,11 @@ export async function findAvailableSlots(params: FindSlotsParams): Promise<TimeS
   while (currentDate <= endDate) {
     const dateStr = formatDate(currentDate)
 
-    // 1. Récupérer les contraintes du jour
+    // 1. Récupérer les contraintes du jour (HARD)
     const dayConstraints = getConstraintsForDay(constraints, currentDate)
     const constraintBlocks = constraintsToBlocks(dayConstraints)
 
-    // 2. Récupérer les événements du jour
+    // 2. Récupérer les événements du jour (HARD)
     const dayEvents = getEventsForDay(calendarEvents, currentDate)
     const eventBlocks = eventsToBlocks(dayEvents)
 
@@ -378,10 +485,11 @@ export async function findAvailableSlots(params: FindSlotsParams): Promise<TimeS
           const startTime = minutesToTime(slotStart)
           const endTime = minutesToTime(slotEnd)
 
-          // Scorer le créneau
+          // Scorer le créneau (SOFT - pondéré par urgence)
           const { score, reason } = scoreSlot(startTime, endTime, {
             energyMoments,
-            mood
+            mood,
+            urgency
           })
 
           slots.push({
@@ -402,8 +510,16 @@ export async function findAvailableSlots(params: FindSlotsParams): Promise<TimeS
     currentDate.setDate(currentDate.getDate() + 1)
   }
 
-  // Trier par score décroissant
-  return slots.sort((a, b) => b.score - a.score)
+  // 6. Appliquer le filtrage HARD des contraintes temporelles
+  const filteredSlots = filterSlotsByTemporalConstraint(slots, temporalConstraint)
+
+  // 7. Trier par score décroissant (sauf pour ASAP qui trie par date)
+  if (temporalConstraint?.type === 'asap') {
+    // Pour ASAP, déjà trié par date dans filterSlotsByTemporalConstraint
+    return filteredSlots
+  }
+
+  return filteredSlots.sort((a, b) => b.score - a.score)
 }
 
 /**

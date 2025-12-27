@@ -42,6 +42,47 @@ export type ItemContext = 'personal' | 'family' | 'work' | 'health'
  */
 export type Mood = 'energetic' | 'neutral' | 'overwhelmed' | 'tired'
 
+// ============================================
+// CONTRAINTES TEMPORELLES
+// ============================================
+
+/**
+ * Type de contrainte temporelle détectée dans la pensée
+ * - deadline : "avant lundi", "au plus tard vendredi"
+ * - fixed_date : "lundi", "le 15 janvier"
+ * - start_date : "à partir de mardi", "après le 10"
+ * - time_range : "cette semaine", "ce mois-ci"
+ * - asap : "urgent", "dès que possible"
+ */
+export type TemporalConstraintType =
+  | 'deadline'
+  | 'fixed_date'
+  | 'start_date'
+  | 'time_range'
+  | 'asap'
+
+/**
+ * Niveau d'urgence de la contrainte
+ * - critical : urgent/asap → prendre premier créneau dispo
+ * - high : deadline proche → réduire poids des préférences
+ * - medium : contrainte souple → optimiser normalement
+ * - low : pas de contrainte → optimisation maximale
+ */
+export type TemporalUrgency = 'critical' | 'high' | 'medium' | 'low'
+
+/**
+ * Contrainte temporelle extraite de la pensée
+ * Utilisée pour filtrer les créneaux AVANT le scoring
+ */
+export interface TemporalConstraint {
+  type: TemporalConstraintType
+  date?: string        // ISO date pour deadline/fixed_date
+  startDate?: string   // ISO date pour start_date/time_range
+  endDate?: string     // ISO date pour time_range
+  urgency: TemporalUrgency
+  rawPattern?: string  // Pattern original détecté ("avant lundi")
+}
+
 /**
  * Structure retournée par l'IA lors de l'analyse
  */
@@ -58,6 +99,7 @@ export interface AIAnalysis {
     category?: string
   }
   suggestions: string[]
+  temporal_constraint?: TemporalConstraint | null
 }
 
 /**
