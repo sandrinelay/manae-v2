@@ -244,7 +244,18 @@ export function CaptureModal({
   }
 
   const handleConnectCalendar = () => {
-    window.location.href = '/onboarding/step4'
+    // Sauvegarder le contexte de planification pour y revenir après connexion
+    const planningContext = {
+      itemId: savedItemId,
+      content,
+      mood,
+      captureResult,
+      returnTo: 'schedule'
+    }
+    localStorage.setItem('manae_pending_planning', JSON.stringify(planningContext))
+
+    // Rediriger vers step4 avec indication de retour
+    window.location.href = '/onboarding/step4?returnTo=planning'
   }
 
   const handleAction = (type: ItemType, action: ActionType) => {
@@ -442,8 +453,29 @@ export function CaptureModal({
           </div>
         )}
 
-        {/* Erreur (autres que calendar et network) */}
-        {scheduling.error && !['network_error', 'calendar_not_connected', 'calendar_session_expired'].includes(scheduling.error) && (
+        {/* Erreur service fermé (médecin, banque, etc.) */}
+        {scheduling.error === 'service_closed' && scheduling.serviceFilterInfo && (
+          <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 text-center mb-4">
+            <div className="text-2xl mb-2">🏥</div>
+            <p className="text-amber-800 font-medium">
+              {scheduling.serviceFilterInfo.type === 'medical' && 'Les créneaux chez le médecin sont limités'}
+              {scheduling.serviceFilterInfo.type === 'administrative' && 'Les services administratifs ont des horaires restreints'}
+              {scheduling.serviceFilterInfo.type === 'commercial' && 'Les commerces ont des horaires d\'ouverture'}
+            </p>
+            <p className="text-amber-700 text-sm mt-2">
+              {scheduling.serviceFilterInfo.reason}
+            </p>
+            <button
+              onClick={() => scheduling.loadSlots(true)}
+              className="mt-3 px-4 py-2 bg-amber-600 text-white rounded-lg text-sm hover:bg-amber-700 transition-colors"
+            >
+              Voir tous les créneaux quand même
+            </button>
+          </div>
+        )}
+
+        {/* Erreur (autres que calendar, network et service_closed) */}
+        {scheduling.error && !['network_error', 'calendar_not_connected', 'calendar_session_expired', 'service_closed'].includes(scheduling.error) && (
           <div className="bg-red-50 border border-red-200 rounded-lg p-4 text-center">
             <p className="text-red-800 text-sm">{scheduling.error}</p>
           </div>
@@ -452,6 +484,16 @@ export function CaptureModal({
         {/* Créneaux */}
         {isCalendarConnected && !scheduling.isLoading && scheduling.bestSlot && !scheduling.error && (
           <div className="space-y-3">
+            {/* Indicateur mode forcé */}
+            {scheduling.isForceMode && scheduling.serviceFilterInfo && (
+              <div className="bg-amber-50 border border-amber-200 rounded-lg p-2 flex items-center gap-2 text-sm">
+                <span>⚠️</span>
+                <span className="text-amber-700">
+                  Créneaux affichés sans filtrage horaire ({scheduling.serviceFilterInfo.type === 'medical' ? 'médecin' : scheduling.serviceFilterInfo.type === 'administrative' ? 'administration' : 'commerce'})
+                </span>
+              </div>
+            )}
+
             <h3 className="font-semibold text-text-dark mb-3">
               {scheduling.showAlternatives ? 'Créneaux suggérés' : 'Meilleur moment suggéré'}
             </h3>

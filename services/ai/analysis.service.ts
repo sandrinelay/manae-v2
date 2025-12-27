@@ -123,26 +123,29 @@ Pour chaque item détecté, détermine :
    - "low" : contrainte souple
 
    FORMAT DATE AVEC HEURE OU MOMENT DE LA JOURNÉE :
-   ⚠️ CRITIQUE : Si une HEURE ou un MOMENT est mentionné, tu DOIS l'inclure dans "date" au format ISO complet : "YYYY-MM-DDTHH:MM:00"
+   ⚠️ RÈGLE ABSOLUE : Si une HEURE ou un MOMENT DE JOURNÉE est mentionné, tu DOIS OBLIGATOIREMENT l'inclure dans "date" au format ISO complet avec l'heure : "YYYY-MM-DDTHH:MM:00"
+
+   NE JAMAIS retourner "date": "2025-12-30" si l'utilisateur a dit "lundi après-midi" !
+   Tu DOIS retourner "date": "2025-12-30T14:00:00" avec le T et l'heure !
 
    Heures explicites :
    - "avant demain 11h" → date: "2025-12-28T11:00:00"
-   - "réunion mardi 14h" → date: "2025-12-31T14:00:00"
+   - "réunion mardi 14h" → date: "2025-12-30T14:00:00"
 
-   Moments de la journée (CONVERTIR en heures) :
-   - "matin" → T09:00:00
-   - "fin de matinée" → T11:00:00
-   - "midi" → T12:00:00
-   - "après-midi" → T14:00:00
-   - "fin d'après-midi" → T17:00:00
-   - "soir" → T19:00:00
+   MOMENTS DE LA JOURNÉE → TOUJOURS CONVERTIR EN HEURE DANS LE CHAMP DATE :
+   - "matin" → ajoute T09:00:00 à la date
+   - "fin de matinée" → ajoute T11:00:00 à la date
+   - "midi" → ajoute T12:00:00 à la date
+   - "après-midi" → ajoute T14:00:00 à la date (OBLIGATOIRE !)
+   - "fin d'après-midi" → ajoute T17:00:00 à la date
+   - "soir" → ajoute T19:00:00 à la date
 
-   Exemples concrets :
-   - "aller à la pharmacie lundi après-midi" → fixed_date, date: "[lundi]T14:00:00"
-   - "mardi après-midi" → fixed_date, date: "[mardi]T14:00:00"
-   - "jeudi matin" → fixed_date, date: "[jeudi]T09:00:00"
-   - "demain soir" → fixed_date, date: "[demain]T19:00:00"
-   - "avant lundi" (sans moment) → deadline, date: "[lundi]" (date simple OK)
+   EXEMPLES CONCRETS (utilise les dates exactes du CONTEXTE TEMPOREL) :
+   - "aller à la pharmacie lundi après-midi" → fixed_date, date: "2025-12-30T14:00:00", raw_pattern: "lundi après-midi"
+   - "mardi après-midi" → fixed_date, date: "2025-12-30T14:00:00", raw_pattern: "mardi après-midi"
+   - "jeudi matin" → fixed_date, date: "2026-01-01T09:00:00", raw_pattern: "jeudi matin"
+   - "demain soir" → fixed_date, date: "2025-12-28T19:00:00", raw_pattern: "demain soir"
+   - "avant lundi" (SANS moment de journée) → deadline, date: "2025-12-30" (date simple OK ici seulement)
 
    EXEMPLES DE DÉTECTION (utilise les dates du CONTEXTE TEMPOREL ci-dessus) :
    - "Appeler le pédiatre avant lundi" → deadline, date: [date du lundi], urgency: high

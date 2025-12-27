@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useRef, useEffect } from 'react'
+import { useSearchParams } from 'next/navigation'
 import { CaptureModal } from './CaptureModal'
 import { MultiCaptureModal } from './MultiCaptureModal'
 import { MoodSelector, type Mood } from './MoodSelector'
@@ -42,6 +43,7 @@ interface CaptureFlowProps {
 
 export function CaptureFlow({ userId, onSuccess }: CaptureFlowProps) {
   const textareaRef = useRef<HTMLTextAreaElement>(null)
+  const searchParams = useSearchParams()
 
   const [content, setContent] = useState('')
   const [selectedMood, setSelectedMood] = useState<Mood | null>(null)
@@ -49,6 +51,43 @@ export function CaptureFlow({ userId, onSuccess }: CaptureFlowProps) {
   const [captureResult, setCaptureResult] = useState<CaptureResult | null>(null)
   const [multiItems, setMultiItems] = useState<MultiThoughtItem[] | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [resumedPlanning, setResumedPlanning] = useState(false)
+
+  // Restaurer le contexte de planification après connexion Google Calendar
+  useEffect(() => {
+    const resumePlanning = searchParams.get('resumePlanning')
+
+    if (resumePlanning === 'true' && !resumedPlanning) {
+      const savedContext = localStorage.getItem('manae_pending_planning')
+
+      if (savedContext) {
+        try {
+          const context = JSON.parse(savedContext)
+
+          // Restaurer le contexte
+          if (context.content) setContent(context.content)
+          if (context.mood) setSelectedMood(context.mood)
+          if (context.captureResult) setCaptureResult(context.captureResult)
+
+          // Marquer comme restauré pour éviter les boucles
+          setResumedPlanning(true)
+
+          // Nettoyer le localStorage
+          localStorage.removeItem('manae_pending_planning')
+
+          // Nettoyer l'URL (enlever le paramètre)
+          const url = new URL(window.location.href)
+          url.searchParams.delete('resumePlanning')
+          window.history.replaceState({}, '', url.pathname)
+
+          console.log('[CaptureFlow] Contexte de planification restauré:', context)
+        } catch (e) {
+          console.error('[CaptureFlow] Erreur restauration contexte:', e)
+          localStorage.removeItem('manae_pending_planning')
+        }
+      }
+    }
+  }, [searchParams, resumedPlanning])
 
   useEffect(() => {
     textareaRef.current?.focus()

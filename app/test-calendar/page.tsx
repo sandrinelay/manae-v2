@@ -147,7 +147,7 @@ export default function TestCalendarPage() {
       addLog(`   Durée tâche: 60 minutes`)
       addLog(`   Période: ${startDate.toLocaleDateString()} → ${endDate.toLocaleDateString()}`)
       
-      const slots = await findAvailableSlots({
+      const result = await findAvailableSlots({
         durationMinutes: 60,
         constraints,
         calendarEvents: events,
@@ -156,6 +156,7 @@ export default function TestCalendarPage() {
         energyMoments,
         mood
       })
+      const slots = result.slots
 
       addLog(`\n✅ ${slots.length} créneau(x) trouvé(s) et scoré(s)\n`)
 

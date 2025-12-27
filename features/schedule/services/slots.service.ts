@@ -334,6 +334,38 @@ function scoreSlot(
 // ============================================
 
 /**
+ * Détecte le moment de journée depuis rawPattern ou le contenu
+ * Retourne les bornes horaires correspondantes (en minutes)
+ */
+function detectTimeOfDayFromPattern(rawPattern?: string): { start: number; end: number } | null {
+  if (!rawPattern) return null
+
+  const pattern = rawPattern.toLowerCase()
+
+  // Détection des moments de journée
+  if (pattern.includes('après-midi') || pattern.includes('apres-midi') || pattern.includes('aprèm')) {
+    return { start: 12 * 60, end: 18 * 60 }  // 12h-18h
+  }
+  if (pattern.includes('matin') && !pattern.includes('fin de matin')) {
+    return { start: 8 * 60, end: 12 * 60 }   // 8h-12h
+  }
+  if (pattern.includes('fin de matin')) {
+    return { start: 10 * 60, end: 12 * 60 }  // 10h-12h
+  }
+  if (pattern.includes('midi')) {
+    return { start: 11 * 60 + 30, end: 14 * 60 }  // 11h30-14h
+  }
+  if (pattern.includes('soir')) {
+    return { start: 18 * 60, end: 22 * 60 }  // 18h-22h
+  }
+  if (pattern.includes('fin d\'après-midi') || pattern.includes('fin après-midi')) {
+    return { start: 16 * 60, end: 19 * 60 }  // 16h-19h
+  }
+
+  return null
+}
+
+/**
  * Filtre les créneaux selon les contraintes temporelles HARD
  * Ces contraintes sont non-négociables (deadline, fixed_date, etc.)
  */
@@ -413,8 +445,21 @@ function filterSlotsByTemporalConstraint(
         })
       }
 
-      // Sans heure, garder tous les créneaux du jour
+      // Sans heure dans la date ISO, essayer de détecter le moment depuis rawPattern
       const targetDate = constraint.date.split('T')[0]
+      const timeOfDayRange = detectTimeOfDayFromPattern(constraint.rawPattern)
+
+      if (timeOfDayRange) {
+        console.log('[slots.service] Fallback: moment détecté depuis rawPattern:', constraint.rawPattern, '→', timeOfDayRange)
+        return slots.filter(slot => {
+          if (slot.date !== targetDate) return false
+          const slotStart = timeToMinutes(slot.startTime)
+          const slotEnd = timeToMinutes(slot.endTime)
+          return slotStart >= timeOfDayRange.start && slotEnd <= timeOfDayRange.end
+        })
+      }
+
+      // Vraiment sans indication horaire, garder tous les créneaux du jour
       return slots.filter(slot => slot.date === targetDate)
     }
 
@@ -474,6 +519,17 @@ export interface FindSlotsParams {
   dayBounds?: DayBounds
   temporalConstraint?: TemporalConstraint | null
   taskContent?: string  // Pour détecter les contraintes de service
+  ignoreServiceConstraints?: boolean  // Pour forcer l'affichage sans filtrage service
+}
+
+// Résultat enrichi avec métadonnées
+export interface FindSlotsResult {
+  slots: TimeSlot[]
+  serviceConstraint?: {
+    type: 'medical' | 'administrative' | 'commercial'
+    filteredCount: number  // Nombre de créneaux filtrés par le service
+    reason: string  // Message explicatif
+  }
 }
 
 /**
@@ -484,7 +540,7 @@ export interface FindSlotsParams {
  * 1. HARD constraints : filtrage des créneaux impossibles (temporalConstraint, calendar, availability)
  * 2. SOFT preferences : scoring des créneaux restants (energy, mood, cognitive)
  */
-export async function findAvailableSlots(params: FindSlotsParams): Promise<TimeSlot[]> {
+export async function findAvailableSlots(params: FindSlotsParams): Promise<FindSlotsResult> {
   const {
     durationMinutes,
     constraints,
@@ -495,7 +551,8 @@ export async function findAvailableSlots(params: FindSlotsParams): Promise<TimeS
     mood = 'calm',
     dayBounds = DEFAULT_DAY_BOUNDS,
     temporalConstraint = null,
-    taskContent = ''
+    taskContent = '',
+    ignoreServiceConstraints = false
   } = params
 
   // Détecter les contraintes de service depuis le contenu de la tâche
@@ -596,28 +653,55 @@ export async function findAvailableSlots(params: FindSlotsParams): Promise<TimeS
   let filteredSlots = filterSlotsByTemporalConstraint(futureSlots, temporalConstraint)
   console.log('[slots.service] Après filtrage temporel:', filteredSlots.length, 'créneaux')
 
-  // 7. Appliquer le filtrage HARD des contraintes de service
-  filteredSlots = filterSlotsByServiceConstraints(filteredSlots, serviceConstraints)
+  // 8. Appliquer le filtrage HARD des contraintes de service (sauf si ignoré)
+  let serviceConstraintInfo: FindSlotsResult['serviceConstraint'] = undefined
+  const slotsBeforeServiceFilter = filteredSlots.length
 
-  if (serviceConstraints && filteredSlots.length < slots.length) {
-    console.log(`[slots.service] Filtrage service ${serviceConstraints.type}: ${slots.length} → ${filteredSlots.length} créneaux`)
+  if (serviceConstraints && !ignoreServiceConstraints) {
+    filteredSlots = filterSlotsByServiceConstraints(filteredSlots, serviceConstraints)
+
+    const filteredCount = slotsBeforeServiceFilter - filteredSlots.length
+
+    if (filteredCount > 0) {
+      console.log(`[slots.service] Filtrage service ${serviceConstraints.type}: ${slotsBeforeServiceFilter} → ${filteredSlots.length} créneaux`)
+
+      // Générer le message explicatif
+      const serviceNames: Record<string, string> = {
+        medical: 'cabinet médical',
+        administrative: 'service administratif',
+        commercial: 'commerce'
+      }
+      const serviceName = serviceNames[serviceConstraints.type] || 'service'
+
+      serviceConstraintInfo = {
+        type: serviceConstraints.type,
+        filteredCount,
+        reason: `${filteredCount} créneaux exclus (${serviceName} fermé le week-end ou hors horaires)`
+      }
+    }
   }
 
-  // 8. Trier par score décroissant (sauf pour ASAP qui trie par date)
+  // 9. Trier par score décroissant (sauf pour ASAP qui trie par date)
+  let sortedSlots: TimeSlot[]
   if (temporalConstraint?.type === 'asap') {
     // Pour ASAP, déjà trié par date dans filterSlotsByTemporalConstraint
-    return filteredSlots
+    sortedSlots = filteredSlots
+  } else {
+    sortedSlots = filteredSlots.sort((a, b) => b.score - a.score)
   }
 
-  return filteredSlots.sort((a, b) => b.score - a.score)
+  return {
+    slots: sortedSlots,
+    serviceConstraint: serviceConstraintInfo
+  }
 }
 
 /**
  * Trouve le meilleur créneau disponible
  */
 export async function findBestSlot(params: FindSlotsParams): Promise<TimeSlot | null> {
-  const slots = await findAvailableSlots(params)
-  return slots.length > 0 ? slots[0] : null
+  const result = await findAvailableSlots(params)
+  return result.slots.length > 0 ? result.slots[0] : null
 }
 
 // ============================================

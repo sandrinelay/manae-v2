@@ -23,6 +23,13 @@ export interface UseSchedulingParams {
   temporalConstraint?: TemporalConstraint | null
 }
 
+// Info sur le filtrage service
+export interface ServiceFilterInfo {
+  type: 'medical' | 'administrative' | 'commercial'
+  filteredCount: number
+  reason: string
+}
+
 export interface UseSchedulingReturn {
   // État
   isLoading: boolean
@@ -33,12 +40,14 @@ export interface UseSchedulingReturn {
   estimatedDuration: DurationOption
   selectedSlot: TimeSlot | null
   isCalendarConnected: boolean
+  serviceFilterInfo: ServiceFilterInfo | null  // Info sur le filtrage service
+  isForceMode: boolean               // Mode forcé (ignore filtrage service)
 
   // Actions
   setDuration: (duration: DurationOption) => void
   selectSlot: (slot: TimeSlot | null) => void
   toggleAlternatives: () => void     // Afficher/masquer les 2 autres
-  loadSlots: () => Promise<void>
+  loadSlots: (forceIgnoreService?: boolean) => Promise<void>  // Optionnellement ignorer le service
   scheduleTask: () => Promise<boolean>
 }
 
@@ -61,6 +70,8 @@ export function useScheduling(params: UseSchedulingParams): UseSchedulingReturn 
   const [estimatedDuration, setEstimatedDuration] = useState<DurationOption>(30)
   const [selectedSlot, setSelectedSlot] = useState<TimeSlot | null>(null)
   const [isCalendarConnected, setIsCalendarConnected] = useState(true)
+  const [serviceFilterInfo, setServiceFilterInfo] = useState<ServiceFilterInfo | null>(null)
+  const [isForceMode, setIsForceMode] = useState(false)
 
   // ============================================
   // ESTIMATION INITIALE
@@ -107,14 +118,17 @@ export function useScheduling(params: UseSchedulingParams): UseSchedulingReturn 
 
   /**
    * Charge les créneaux disponibles (fonction interne)
+   * @param forceIgnoreService - Si true, ignore le filtrage par contrainte de service
    */
-  const loadSlotsInternal = useCallback(async () => {
+  const loadSlotsInternal = useCallback(async (forceIgnoreService = false) => {
     setIsLoading(true)
     setError(null)
     setBestSlot(null)
     setAlternativeSlots([])
     setSelectedSlot(null)
     setShowAlternatives(false)
+    setServiceFilterInfo(null)
+    setIsForceMode(forceIgnoreService)
 
     try {
       // Vérifier si Google Calendar est connecté
@@ -160,7 +174,9 @@ export function useScheduling(params: UseSchedulingParams): UseSchedulingReturn 
       // Passe temporalConstraint pour le filtrage HARD et l'ajustement du scoring
       // Passe taskContent pour détecter les contraintes de service (médecin, banque, etc.)
       console.log('[useScheduling] temporalConstraint reçu:', JSON.stringify(temporalConstraint, null, 2))
-      const allSlots = await findAvailableSlots({
+      console.log('[useScheduling] forceIgnoreService:', forceIgnoreService)
+
+      const result = await findAvailableSlots({
         durationMinutes: estimatedDuration,
         constraints,
         calendarEvents,
@@ -169,11 +185,17 @@ export function useScheduling(params: UseSchedulingParams): UseSchedulingReturn 
         energyMoments,
         mood: mood || 'neutral',
         temporalConstraint,
-        taskContent
+        taskContent,
+        ignoreServiceConstraints: forceIgnoreService
       })
 
+      // Stocker les infos sur le filtrage service
+      if (result.serviceConstraint) {
+        setServiceFilterInfo(result.serviceConstraint)
+      }
+
       // 5. Sélectionner les 3 meilleurs créneaux diversifiés
-      const top3 = selectTop3Diversified(allSlots)
+      const top3 = selectTop3Diversified(result.slots)
 
       console.log('[useScheduling] Top 3 diversifiés:', top3)
 
@@ -183,7 +205,12 @@ export function useScheduling(params: UseSchedulingParams): UseSchedulingReturn 
       }
 
       if (top3.length === 0) {
-        setError('Aucun créneau disponible sur les 7 prochains jours')
+        // Message d'erreur plus explicite si c'est à cause du filtrage service
+        if (result.serviceConstraint && result.serviceConstraint.filteredCount > 0) {
+          setError('service_closed')
+        } else {
+          setError('Aucun créneau disponible sur les 7 prochains jours')
+        }
       }
 
     } catch (err) {
@@ -218,10 +245,11 @@ export function useScheduling(params: UseSchedulingParams): UseSchedulingReturn 
 
   /**
    * Charge les créneaux (fonction exposée)
+   * @param forceIgnoreService - Si true, ignore le filtrage par contrainte de service
    */
-  const loadSlots = useCallback(async () => {
+  const loadSlots = useCallback(async (forceIgnoreService = false) => {
     setSlotsLoaded(true)
-    await loadSlotsInternal()
+    await loadSlotsInternal(forceIgnoreService)
   }, [loadSlotsInternal])
 
   /**
@@ -305,6 +333,8 @@ export function useScheduling(params: UseSchedulingParams): UseSchedulingReturn 
     estimatedDuration,
     selectedSlot,
     isCalendarConnected,
+    serviceFilterInfo,
+    isForceMode,
     setDuration,
     selectSlot,
     toggleAlternatives,
