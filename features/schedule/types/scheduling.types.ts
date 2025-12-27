@@ -21,6 +21,7 @@ export interface GoogleCalendarEvent {
     durationMinutes: number
     score: number          // 0-100
     reason: string         // Explication du score
+    label?: string         // Label de diversification (Meilleur moment, Alternative, etc.)
   }
   
   export interface SchedulingContext {

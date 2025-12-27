@@ -4,7 +4,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { getOrCreateUserProfile, getConstraints } from '@/services/supabaseService'
 import { getCalendarEvents, createCalendarEvent } from '@/features/schedule/services/calendar.service'
-import { findAvailableSlots } from '@/features/schedule/services/slots.service'
+import { findAvailableSlots, selectTop3Diversified } from '@/features/schedule/services/slots.service'
 import { estimateTaskDuration } from '@/features/schedule/services/ai-duration.service'
 import { updateItem } from '@/services/supabase/items.service'
 import type { TimeSlot, GoogleCalendarEvent } from '../types/scheduling.types'
@@ -27,7 +27,9 @@ export interface UseSchedulingReturn {
   // État
   isLoading: boolean
   error: string | null
-  slots: TimeSlot[]
+  bestSlot: TimeSlot | null          // Le meilleur créneau
+  alternativeSlots: TimeSlot[]       // Les 2 autres créneaux diversifiés
+  showAlternatives: boolean          // Flag "voir plus"
   estimatedDuration: DurationOption
   selectedSlot: TimeSlot | null
   isCalendarConnected: boolean
@@ -35,6 +37,7 @@ export interface UseSchedulingReturn {
   // Actions
   setDuration: (duration: DurationOption) => void
   selectSlot: (slot: TimeSlot | null) => void
+  toggleAlternatives: () => void     // Afficher/masquer les 2 autres
   loadSlots: () => Promise<void>
   scheduleTask: () => Promise<boolean>
 }
@@ -52,7 +55,9 @@ export function useScheduling(params: UseSchedulingParams): UseSchedulingReturn 
 
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [slots, setSlots] = useState<TimeSlot[]>([])
+  const [bestSlot, setBestSlot] = useState<TimeSlot | null>(null)
+  const [alternativeSlots, setAlternativeSlots] = useState<TimeSlot[]>([])
+  const [showAlternatives, setShowAlternatives] = useState(false)
   const [estimatedDuration, setEstimatedDuration] = useState<DurationOption>(30)
   const [selectedSlot, setSelectedSlot] = useState<TimeSlot | null>(null)
   const [isCalendarConnected, setIsCalendarConnected] = useState(true)
@@ -77,6 +82,11 @@ export function useScheduling(params: UseSchedulingParams): UseSchedulingReturn 
   const setDuration = useCallback((duration: DurationOption) => {
     setEstimatedDuration(duration)
     setSelectedSlot(null) // Reset la sélection quand la durée change
+    setShowAlternatives(false) // Reset au changement de durée
+  }, [])
+
+  const toggleAlternatives = useCallback(() => {
+    setShowAlternatives(prev => !prev)
   }, [])
 
   // Recharger les slots automatiquement quand la durée change (après le premier chargement)
@@ -101,8 +111,10 @@ export function useScheduling(params: UseSchedulingParams): UseSchedulingReturn 
   const loadSlotsInternal = useCallback(async () => {
     setIsLoading(true)
     setError(null)
-    setSlots([])
+    setBestSlot(null)
+    setAlternativeSlots([])
     setSelectedSlot(null)
+    setShowAlternatives(false)
 
     try {
       // Vérifier si Google Calendar est connecté
@@ -159,11 +171,15 @@ export function useScheduling(params: UseSchedulingParams): UseSchedulingReturn 
         taskContent
       })
 
-      // 5. Garder uniquement le TOP 3
-      const top3 = allSlots.slice(0, 3)
-      setSlots(top3)
+      // 5. Sélectionner les 3 meilleurs créneaux diversifiés
+      const top3 = selectTop3Diversified(allSlots)
 
-      console.log('[useScheduling] Top 3 créneaux:', top3)
+      console.log('[useScheduling] Top 3 diversifiés:', top3)
+
+      if (top3.length > 0) {
+        setBestSlot(top3[0])
+        setAlternativeSlots(top3.slice(1)) // Les 2 autres (ou 1 si seulement 2 dispo)
+      }
 
       if (top3.length === 0) {
         setError('Aucun créneau disponible sur les 7 prochains jours')
@@ -185,7 +201,8 @@ export function useScheduling(params: UseSchedulingParams): UseSchedulingReturn 
         setError('Erreur lors de la recherche de créneaux')
       }
 
-      setSlots([])
+      setBestSlot(null)
+      setAlternativeSlots([])
     } finally {
       setIsLoading(false)
     }
@@ -263,12 +280,15 @@ export function useScheduling(params: UseSchedulingParams): UseSchedulingReturn 
   return {
     isLoading,
     error,
-    slots,
+    bestSlot,
+    alternativeSlots,
+    showAlternatives,
     estimatedDuration,
     selectedSlot,
     isCalendarConnected,
     setDuration,
     selectSlot,
+    toggleAlternatives,
     loadSlots,
     scheduleTask
   }

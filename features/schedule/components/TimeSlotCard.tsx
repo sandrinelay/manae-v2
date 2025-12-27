@@ -8,12 +8,12 @@ import type { TimeSlot } from '../types/scheduling.types'
 
 interface TimeSlotCardProps {
   slot: TimeSlot
-  rank: 1 | 2 | 3
+  rank?: 1 | 2 | 3  // Optionnel maintenant
   isSelected: boolean
   onSelect: () => void
 }
 
-const RANK_MEDALS = {
+const RANK_MEDALS: Record<number, string> = {
   1: '🥇',
   2: '🥈',
   3: '🥉'
@@ -61,10 +61,17 @@ export function TimeSlotCard({ slot, rank, isSelected, onSelect }: TimeSlotCardP
         }
       `}
     >
-      {/* Header avec médaille, horaires et score */}
+      {/* Header avec médaille/label, horaires et score */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <span className="text-xl">{RANK_MEDALS[rank]}</span>
+          {/* Médaille si rank, sinon label de diversification */}
+          {rank ? (
+            <span className="text-xl">{RANK_MEDALS[rank]}</span>
+          ) : slot.label ? (
+            <span className="text-xs font-medium text-primary bg-primary/10 px-2 py-0.5 rounded-full">
+              {slot.label}
+            </span>
+          ) : null}
           <div className="flex items-baseline gap-2">
             <span className="font-semibold text-text-dark capitalize">
               {dateLabel}

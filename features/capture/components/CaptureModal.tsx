@@ -406,17 +406,28 @@ export function CaptureModal({
         )}
 
         {/* Créneaux */}
-        {isCalendarConnected && !scheduling.isLoading && scheduling.slots.length > 0 && !scheduling.error && (
+        {isCalendarConnected && !scheduling.isLoading && scheduling.bestSlot && !scheduling.error && (
           <div className="space-y-3">
             <h3 className="font-semibold text-text-dark mb-3">
-              Créneaux suggérés
+              {scheduling.showAlternatives ? 'Créneaux suggérés' : 'Meilleur moment suggéré'}
             </h3>
 
-            {scheduling.slots.map((slot, index) => (
+            {/* Meilleur créneau (toujours visible) */}
+            <TimeSlotCard
+              slot={scheduling.bestSlot}
+              rank={!scheduling.showAlternatives ? 1 : undefined}
+              isSelected={
+                scheduling.selectedSlot?.date === scheduling.bestSlot.date &&
+                scheduling.selectedSlot?.startTime === scheduling.bestSlot.startTime
+              }
+              onSelect={() => scheduling.selectSlot(scheduling.bestSlot)}
+            />
+
+            {/* Créneaux alternatifs (visibles si showAlternatives) */}
+            {scheduling.showAlternatives && scheduling.alternativeSlots.map((slot) => (
               <TimeSlotCard
                 key={`${slot.date}-${slot.startTime}`}
                 slot={slot}
-                rank={(index + 1) as 1 | 2 | 3}
                 isSelected={
                   scheduling.selectedSlot?.date === slot.date &&
                   scheduling.selectedSlot?.startTime === slot.startTime
@@ -424,11 +435,25 @@ export function CaptureModal({
                 onSelect={() => scheduling.selectSlot(slot)}
               />
             ))}
+
+            {/* Bouton "Voir plus" / "Voir moins" */}
+            {scheduling.alternativeSlots.length > 0 && (
+              <button
+                onClick={scheduling.toggleAlternatives}
+                className="w-full py-2.5 text-sm font-medium text-primary hover:bg-primary/5 rounded-lg transition-colors border border-transparent hover:border-primary/20"
+              >
+                {scheduling.showAlternatives ? (
+                  '← Voir uniquement le meilleur'
+                ) : (
+                  `Voir d'autres créneaux (${scheduling.alternativeSlots.length} ${scheduling.alternativeSlots.length === 1 ? 'disponible' : 'disponibles'})`
+                )}
+              </button>
+            )}
           </div>
         )}
 
         {/* Aucun créneau */}
-        {isCalendarConnected && !scheduling.isLoading && scheduling.slots.length === 0 && !scheduling.error && (
+        {isCalendarConnected && !scheduling.isLoading && !scheduling.bestSlot && !scheduling.error && (
           <div className="bg-orange-50 border border-orange-200 rounded-lg p-4 text-center">
             <p className="text-orange-800 text-sm">
               Aucun créneau disponible sur les 7 prochains jours

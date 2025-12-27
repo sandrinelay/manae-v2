@@ -639,3 +639,102 @@ function filterSlotsByServiceConstraints(
     return slotStart >= serviceStart && slotEnd <= serviceEnd
   })
 }
+
+// ============================================
+// DIVERSIFICATION DES CRÉNEAUX
+// ============================================
+
+/**
+ * Sélectionne 3 créneaux diversifiés :
+ * - Le meilleur score
+ * - Un 2ème avec au moins 2h d'écart OU autre jour
+ * - Un 3ème sur un jour différent si possible
+ */
+export function selectTop3Diversified(allSlots: TimeSlot[]): TimeSlot[] {
+  if (allSlots.length === 0) return []
+  if (allSlots.length === 1) {
+    return [{ ...allSlots[0], label: 'Meilleur moment' }]
+  }
+  if (allSlots.length === 2) {
+    return [
+      { ...allSlots[0], label: 'Meilleur moment' },
+      { ...allSlots[1], label: allSlots[1].date !== allSlots[0].date ? 'Autre jour' : 'Alternative' }
+    ]
+  }
+
+  const selected: TimeSlot[] = []
+
+  // 1️⃣ MEILLEUR créneau (score le plus élevé)
+  selected.push({ ...allSlots[0], label: 'Meilleur moment' })
+
+  // 2️⃣ DEUXIÈME créneau : même jour +2h OU autre jour
+  const slot1Date = allSlots[0].date
+  const slot1Minutes = timeToMinutes(allSlots[0].startTime)
+
+  // Chercher d'abord un créneau le même jour avec 2h+ d'écart
+  const sameDayAlternative = allSlots.find((slot, index) => {
+    if (index === 0) return false // Skip le premier
+    if (slot.date !== slot1Date) return false
+
+    const slotMinutes = timeToMinutes(slot.startTime)
+    const gap = Math.abs(slotMinutes - slot1Minutes)
+
+    return gap >= 120 // 2h minimum
+  })
+
+  if (sameDayAlternative) {
+    selected.push({ ...sameDayAlternative, label: 'Alternative même jour' })
+  } else {
+    // Sinon, prendre le meilleur créneau d'un autre jour
+    const otherDay = allSlots.find((slot, index) => {
+      if (index === 0) return false
+      return slot.date !== slot1Date
+    })
+
+    if (otherDay) {
+      selected.push({ ...otherDay, label: 'Lendemain' })
+    } else {
+      // Fallback : prendre le 2ème meilleur score même s'il est proche
+      selected.push({ ...allSlots[1], label: 'Alternative' })
+    }
+  }
+
+  // 3️⃣ TROISIÈME créneau : jour différent des 2 premiers
+  const usedDates = selected.map(s => s.date)
+
+  const thirdSlot = allSlots.find(slot => {
+    if (selected.some(s => s.date === slot.date && s.startTime === slot.startTime)) return false
+    return !usedDates.includes(slot.date)
+  })
+
+  if (thirdSlot) {
+    selected.push({ ...thirdSlot, label: 'Autre jour' })
+  } else {
+    // Fallback : prendre le meilleur score restant avec gap minimum
+    const remaining = allSlots.filter(slot =>
+      !selected.some(s => s.date === slot.date && s.startTime === slot.startTime)
+    )
+
+    const withGap = remaining.find(slot => {
+      const slotMinutes = timeToMinutes(slot.startTime)
+
+      // Vérifier qu'il y a au moins 1h d'écart avec tous les slots déjà sélectionnés
+      return selected.every(s => {
+        if (s.date !== slot.date) return true // Autre jour = OK
+
+        const sMinutes = timeToMinutes(s.startTime)
+        const gap = Math.abs(slotMinutes - sMinutes)
+        return gap >= 60 // 1h minimum
+      })
+    })
+
+    if (withGap) {
+      selected.push({ ...withGap, label: 'Alternative' })
+    } else if (remaining.length > 0) {
+      // Dernier fallback : prendre ce qui reste
+      selected.push({ ...remaining[0], label: 'Alternative' })
+    }
+  }
+
+  return selected
+}
