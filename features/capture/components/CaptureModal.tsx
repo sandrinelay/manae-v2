@@ -111,7 +111,7 @@ const TYPE_CONFIG: Record<ItemType, {
     label: 'Tâche',
     actions: [
       { label: 'Enregistrer', value: 'save', variant: 'primary' },
-      { label: 'Planifier', value: 'plan', variant: 'secondary' }
+      { label: 'Planifier', value: 'plan', variant: 'secondary', requiresAI: true }
     ]
   },
   note: {
@@ -263,14 +263,41 @@ export function CaptureModal({
 
   const OrganizeContent = () => (
     <div className="space-y-4">
-      {/* Indicateur IA */}
+      {/* Message quota IA dépassé */}
+      {captureResult.quotaExceeded && (
+        <div className="bg-amber-50 border border-amber-200 rounded-lg p-3">
+          <div className="flex items-start gap-2">
+            <svg className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+            </svg>
+            <div className="text-sm">
+              <p className="font-medium text-amber-800">Quota IA épuisé cette semaine</p>
+              <p className="text-amber-700 mt-1">
+                Catégorise manuellement ou{' '}
+                <a href="/settings/subscription" className="text-primary underline font-medium hover:text-primary/80">
+                  passe au forfait supérieur
+                </a>
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Indicateur IA + crédits restants */}
       {captureResult.aiUsed && captureResult.suggestedType && (
-        <div className="flex items-center gap-2 text-sm">
-          <span className="text-primary">IA suggère :</span>
-          <span className="font-medium text-primary flex items-center gap-1">
-            <span className="w-5 h-5">{TYPE_CONFIG[captureResult.suggestedType].icon}</span>
-            {TYPE_CONFIG[captureResult.suggestedType].label}
-          </span>
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2 text-sm">
+            <span className="text-primary">IA suggère :</span>
+            <span className="font-medium text-primary flex items-center gap-1">
+              <span className="w-5 h-5">{TYPE_CONFIG[captureResult.suggestedType].icon}</span>
+              {TYPE_CONFIG[captureResult.suggestedType].label}
+            </span>
+          </div>
+          {captureResult.creditsRemaining !== undefined && captureResult.creditsRemaining !== null && (
+            <span className="text-xs text-text-muted">
+              {captureResult.creditsRemaining} crédit{captureResult.creditsRemaining !== 1 ? 's' : ''} IA restant{captureResult.creditsRemaining !== 1 ? 's' : ''}
+            </span>
+          )}
         </div>
       )}
 
