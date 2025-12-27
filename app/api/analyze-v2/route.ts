@@ -125,6 +125,7 @@ export async function POST(request: NextRequest) {
         }
 
         // Transformer temporal_constraint (snake_case API → camelCase interne)
+        console.log('[analyze-v2] Item temporal_constraint brut:', JSON.stringify(item.temporal_constraint, null, 2))
         const temporalConstraint = item.temporal_constraint
           ? {
               type: item.temporal_constraint.type,
@@ -135,6 +136,7 @@ export async function POST(request: NextRequest) {
               rawPattern: item.temporal_constraint.raw_pattern
             }
           : null
+        console.log('[analyze-v2] temporalConstraint transformé:', JSON.stringify(temporalConstraint, null, 2))
 
         return {
           content: item.content,

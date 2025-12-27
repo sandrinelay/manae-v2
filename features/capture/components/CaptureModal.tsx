@@ -425,8 +425,25 @@ export function CaptureModal({
           </div>
         )}
 
-        {/* Erreur (autres que calendar) */}
-        {scheduling.error && scheduling.error !== 'calendar_not_connected' && scheduling.error !== 'calendar_session_expired' && (
+        {/* Erreur réseau */}
+        {scheduling.error === 'network_error' && (
+          <div className="bg-red-50 border border-red-200 rounded-xl p-4 text-center mb-4">
+            <div className="text-2xl mb-2">📡</div>
+            <p className="text-red-800 font-medium">Problème de connexion</p>
+            <p className="text-red-600 text-sm mt-1">
+              Vérifie ta connexion internet et réessaye.
+            </p>
+            <button
+              onClick={() => scheduling.loadSlots()}
+              className="mt-3 px-4 py-2 bg-red-600 text-white rounded-lg text-sm hover:bg-red-700 transition-colors"
+            >
+              Réessayer
+            </button>
+          </div>
+        )}
+
+        {/* Erreur (autres que calendar et network) */}
+        {scheduling.error && !['network_error', 'calendar_not_connected', 'calendar_session_expired'].includes(scheduling.error) && (
           <div className="bg-red-50 border border-red-200 rounded-lg p-4 text-center">
             <p className="text-red-800 text-sm">{scheduling.error}</p>
           </div>

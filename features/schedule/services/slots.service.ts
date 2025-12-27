@@ -350,20 +350,71 @@ function filterSlotsByTemporalConstraint(
     case 'deadline': {
       // Garder UNIQUEMENT les créneaux AVANT la deadline
       if (!constraint.date) return slots
+
+      // Vérifier si l'heure est incluse dans la date ISO (ex: "2025-12-28T11:00:00")
+      const hasTime = constraint.date.includes('T')
       const deadline = new Date(constraint.date)
-      deadline.setHours(23, 59, 59, 999)
+
+      if (!hasTime) {
+        // Si pas d'heure spécifiée, prendre fin de journée
+        deadline.setHours(23, 59, 59, 999)
+      }
 
       return slots.filter(slot => {
-        const slotDate = new Date(slot.date)
-        return slotDate <= deadline
+        // Construire la date/heure complète du créneau (fin du créneau doit être avant deadline)
+        const slotDateTime = new Date(`${slot.date}T${slot.endTime}:00`)
+        return slotDateTime <= deadline
       })
     }
 
     case 'fixed_date': {
       // Garder UNIQUEMENT les créneaux du jour spécifié
       if (!constraint.date) return slots
-      const targetDate = constraint.date
 
+      // Vérifier si l'heure est incluse (ex: "2025-12-28T14:00:00")
+      const hasTime = constraint.date.includes('T')
+
+      if (hasTime) {
+        const targetDateTime = new Date(constraint.date)
+        const targetDateStr = constraint.date.split('T')[0]
+        const targetHour = targetDateTime.getHours()
+        const targetMinutes = targetHour * 60 + targetDateTime.getMinutes()
+
+        // Déterminer si c'est un "moment de journée" (plage large) ou une heure précise
+        // Heures typiques de moments : 9h (matin), 11h (fin matinée), 12h (midi),
+        // 14h (après-midi), 17h (fin après-midi), 19h (soir)
+        const isTimeOfDay = [9, 11, 12, 14, 17, 19].includes(targetHour) &&
+                           targetDateTime.getMinutes() === 0
+
+        // Définir les plages horaires pour chaque moment
+        const timeRanges: Record<number, { start: number; end: number }> = {
+          9: { start: 8 * 60, end: 12 * 60 },      // matin: 8h-12h
+          11: { start: 10 * 60, end: 12 * 60 },    // fin matinée: 10h-12h
+          12: { start: 11 * 60 + 30, end: 14 * 60 }, // midi: 11h30-14h
+          14: { start: 12 * 60, end: 18 * 60 },    // après-midi: 12h-18h
+          17: { start: 16 * 60, end: 19 * 60 },    // fin après-midi: 16h-19h
+          19: { start: 18 * 60, end: 22 * 60 }     // soir: 18h-22h
+        }
+
+        return slots.filter(slot => {
+          if (slot.date !== targetDateStr) return false
+          const slotStart = timeToMinutes(slot.startTime)
+          const slotEnd = timeToMinutes(slot.endTime)
+
+          if (isTimeOfDay && timeRanges[targetHour]) {
+            // Plage large pour les moments de journée
+            const range = timeRanges[targetHour]
+            return slotStart >= range.start && slotEnd <= range.end
+          } else {
+            // Heure précise : le créneau doit inclure ou être proche de l'heure cible
+            return (slotStart <= targetMinutes && targetMinutes <= slotEnd) ||
+                   Math.abs(slotStart - targetMinutes) <= 30
+          }
+        })
+      }
+
+      // Sans heure, garder tous les créneaux du jour
+      const targetDate = constraint.date.split('T')[0]
       return slots.filter(slot => slot.date === targetDate)
     }
 
@@ -519,8 +570,31 @@ export async function findAvailableSlots(params: FindSlotsParams): Promise<TimeS
     currentDate.setDate(currentDate.getDate() + 1)
   }
 
-  // 6. Appliquer le filtrage HARD des contraintes temporelles
-  let filteredSlots = filterSlotsByTemporalConstraint(slots, temporalConstraint)
+  // 6. FILTRAGE HARD : Exclure les créneaux dans le passé (+ marge de 15 min)
+  const now = new Date()
+  const nowDateStr = formatDate(now)
+  const nowMinutes = now.getHours() * 60 + now.getMinutes()
+  const MIN_ADVANCE_MINUTES = 15 // Pas de créneau dans moins de 15 minutes
+
+  const futureSlots = slots.filter(slot => {
+    // Si le créneau est un jour futur → OK
+    if (slot.date > nowDateStr) return true
+
+    // Si le créneau est aujourd'hui → vérifier l'heure
+    if (slot.date === nowDateStr) {
+      const slotStartMinutes = timeToMinutes(slot.startTime)
+      return slotStartMinutes > nowMinutes + MIN_ADVANCE_MINUTES
+    }
+
+    // Créneau dans le passé → Exclure
+    return false
+  })
+
+  // 7. Appliquer le filtrage HARD des contraintes temporelles
+  console.log('[slots.service] Avant filtrage temporel:', futureSlots.length, 'créneaux')
+  console.log('[slots.service] temporalConstraint:', JSON.stringify(temporalConstraint, null, 2))
+  let filteredSlots = filterSlotsByTemporalConstraint(futureSlots, temporalConstraint)
+  console.log('[slots.service] Après filtrage temporel:', filteredSlots.length, 'créneaux')
 
   // 7. Appliquer le filtrage HARD des contraintes de service
   filteredSlots = filterSlotsByServiceConstraints(filteredSlots, serviceConstraints)
@@ -644,11 +718,13 @@ function filterSlotsByServiceConstraints(
 // DIVERSIFICATION DES CRÉNEAUX
 // ============================================
 
+const MIN_GAP_HOURS = 3 // 3h minimum d'écart entre créneaux le même jour
+
 /**
- * Sélectionne 3 créneaux diversifiés :
- * - Le meilleur score
- * - Un 2ème avec au moins 2h d'écart OU autre jour
- * - Un 3ème sur un jour différent si possible
+ * Sélectionne 3 créneaux diversifiés avec règles STRICTES :
+ * - Slot 1 : Meilleur score
+ * - Slot 2 : PRIORITÉ à un autre jour, sinon même jour avec +3h d'écart
+ * - Slot 3 : OBLIGATOIREMENT un autre jour différent des 2 premiers
  */
 export function selectTop3Diversified(allSlots: TimeSlot[]): TimeSlot[] {
   if (allSlots.length === 0) return []
@@ -663,76 +739,75 @@ export function selectTop3Diversified(allSlots: TimeSlot[]): TimeSlot[] {
   }
 
   const selected: TimeSlot[] = []
+  const slot1 = allSlots[0]
+  const slot1Date = slot1.date
+  const slot1Minutes = timeToMinutes(slot1.startTime)
 
   // 1️⃣ MEILLEUR créneau (score le plus élevé)
-  selected.push({ ...allSlots[0], label: 'Meilleur moment' })
+  selected.push({ ...slot1, label: 'Meilleur moment' })
 
-  // 2️⃣ DEUXIÈME créneau : même jour +2h OU autre jour
-  const slot1Date = allSlots[0].date
-  const slot1Minutes = timeToMinutes(allSlots[0].startTime)
+  // 2️⃣ DEUXIÈME créneau : PRIORITÉ à un autre jour
+  const otherDaySlot = allSlots.find((slot, i) => i > 0 && slot.date !== slot1Date)
 
-  // Chercher d'abord un créneau le même jour avec 2h+ d'écart
-  const sameDayAlternative = allSlots.find((slot, index) => {
-    if (index === 0) return false // Skip le premier
-    if (slot.date !== slot1Date) return false
-
-    const slotMinutes = timeToMinutes(slot.startTime)
-    const gap = Math.abs(slotMinutes - slot1Minutes)
-
-    return gap >= 120 // 2h minimum
-  })
-
-  if (sameDayAlternative) {
-    selected.push({ ...sameDayAlternative, label: 'Alternative même jour' })
+  if (otherDaySlot) {
+    selected.push({ ...otherDaySlot, label: 'Autre jour' })
   } else {
-    // Sinon, prendre le meilleur créneau d'un autre jour
-    const otherDay = allSlots.find((slot, index) => {
-      if (index === 0) return false
-      return slot.date !== slot1Date
+    // Sinon même jour avec gap minimum 3h
+    const sameDayWithGap = allSlots.find((slot, i) => {
+      if (i === 0) return false
+      if (slot.date !== slot1Date) return false
+      const gap = Math.abs(timeToMinutes(slot.startTime) - slot1Minutes)
+      return gap >= MIN_GAP_HOURS * 60
     })
 
-    if (otherDay) {
-      selected.push({ ...otherDay, label: 'Lendemain' })
+    if (sameDayWithGap) {
+      selected.push({ ...sameDayWithGap, label: 'Alternative (+3h)' })
     } else {
-      // Fallback : prendre le 2ème meilleur score même s'il est proche
-      selected.push({ ...allSlots[1], label: 'Alternative' })
+      // Fallback : prendre le plus éloigné temporellement
+      const sorted = allSlots.slice(1).sort((a, b) => {
+        const gapA = Math.abs(timeToMinutes(a.startTime) - slot1Minutes)
+        const gapB = Math.abs(timeToMinutes(b.startTime) - slot1Minutes)
+        return gapB - gapA // Plus grand écart en premier
+      })
+      if (sorted.length > 0) {
+        selected.push({ ...sorted[0], label: 'Alternative' })
+      }
     }
   }
 
-  // 3️⃣ TROISIÈME créneau : jour différent des 2 premiers
-  const usedDates = selected.map(s => s.date)
+  // 3️⃣ TROISIÈME créneau : OBLIGATOIREMENT un autre jour différent
+  const usedDates = [...new Set(selected.map(s => s.date))]
 
-  const thirdSlot = allSlots.find(slot => {
+  const differentDaySlot = allSlots.find(slot => {
+    // Ne pas reprendre un slot déjà sélectionné
     if (selected.some(s => s.date === slot.date && s.startTime === slot.startTime)) return false
+    // Doit être sur un jour non utilisé
     return !usedDates.includes(slot.date)
   })
 
-  if (thirdSlot) {
-    selected.push({ ...thirdSlot, label: 'Autre jour' })
+  if (differentDaySlot) {
+    selected.push({ ...differentDaySlot, label: 'Autre jour' })
   } else {
-    // Fallback : prendre le meilleur score restant avec gap minimum
+    // Pas d'autre jour disponible → prendre le créneau le plus éloigné des 2 premiers
     const remaining = allSlots.filter(slot =>
       !selected.some(s => s.date === slot.date && s.startTime === slot.startTime)
     )
 
-    const withGap = remaining.find(slot => {
-      const slotMinutes = timeToMinutes(slot.startTime)
-
-      // Vérifier qu'il y a au moins 1h d'écart avec tous les slots déjà sélectionnés
-      return selected.every(s => {
-        if (s.date !== slot.date) return true // Autre jour = OK
-
-        const sMinutes = timeToMinutes(s.startTime)
-        const gap = Math.abs(slotMinutes - sMinutes)
-        return gap >= 60 // 1h minimum
+    if (remaining.length > 0) {
+      // Calculer l'écart minimum avec tous les slots déjà sélectionnés
+      const withMaxGap = remaining.sort((a, b) => {
+        const minGapA = Math.min(...selected.map(s => {
+          if (s.date !== a.date) return Infinity
+          return Math.abs(timeToMinutes(a.startTime) - timeToMinutes(s.startTime))
+        }))
+        const minGapB = Math.min(...selected.map(s => {
+          if (s.date !== b.date) return Infinity
+          return Math.abs(timeToMinutes(b.startTime) - timeToMinutes(s.startTime))
+        }))
+        return minGapB - minGapA // Plus grand écart en premier
       })
-    })
 
-    if (withGap) {
-      selected.push({ ...withGap, label: 'Alternative' })
-    } else if (remaining.length > 0) {
-      // Dernier fallback : prendre ce qui reste
-      selected.push({ ...remaining[0], label: 'Alternative' })
+      selected.push({ ...withMaxGap[0], label: 'Alternative' })
     }
   }
 

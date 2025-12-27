@@ -109,12 +109,8 @@ export function CaptureFlow({ userId, onSuccess }: CaptureFlowProps) {
         content: pensée.content,
         state,
         mood: convertMoodToItemMood(selectedMood),
-        aiAnalysis: {
-          type_suggestion: pensée.type_suggestion,
-          confidence: pensée.confidence,
-          extracted_data: pensée.extracted_data,
-          suggestions: pensée.suggestions
-        }
+        context: pensée.context,
+        aiAnalysis: pensée.ai_analysis
       })
 
       onSuccess?.()

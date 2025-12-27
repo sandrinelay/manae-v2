@@ -159,6 +159,7 @@ export function useScheduling(params: UseSchedulingParams): UseSchedulingReturn 
       // 4. Trouver les créneaux libres avec scoring intégré
       // Passe temporalConstraint pour le filtrage HARD et l'ajustement du scoring
       // Passe taskContent pour détecter les contraintes de service (médecin, banque, etc.)
+      console.log('[useScheduling] temporalConstraint reçu:', JSON.stringify(temporalConstraint, null, 2))
       const allSlots = await findAvailableSlots({
         durationMinutes: estimatedDuration,
         constraints,
@@ -190,7 +191,14 @@ export function useScheduling(params: UseSchedulingParams): UseSchedulingReturn 
 
       // Gestion erreurs spécifiques
       if (err instanceof Error) {
-        if (err.message.includes('Google Calendar non connecté')) {
+        // Détecter les erreurs réseau
+        if (err.message.includes('Failed to fetch') ||
+            err.message.includes('Network') ||
+            err.message.includes('fetch') ||
+            err.message.includes('network') ||
+            err.name === 'TypeError') {
+          setError('network_error')
+        } else if (err.message.includes('Google Calendar non connecté')) {
           setError('calendar_not_connected')
         } else if (err.message.includes('Session Google expirée')) {
           setError('calendar_session_expired')
@@ -262,7 +270,18 @@ export function useScheduling(params: UseSchedulingParams): UseSchedulingReturn 
       console.error('[useScheduling] Erreur scheduleTask:', err)
 
       if (err instanceof Error) {
-        setError(err.message)
+        // Détecter les erreurs réseau
+        if (err.message.includes('Failed to fetch') ||
+            err.message.includes('Network') ||
+            err.message.includes('fetch') ||
+            err.message.includes('network') ||
+            err.name === 'TypeError') {
+          setError('network_error')
+        } else if (err.message.includes('401') || err.message.includes('auth') || err.message.includes('Session')) {
+          setError('calendar_session_expired')
+        } else {
+          setError(err.message)
+        }
       } else {
         setError('Erreur lors de la planification')
       }

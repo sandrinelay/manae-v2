@@ -8,20 +8,13 @@ import type { ItemType, ItemState, AIAnalysis } from '@/types/items'
 // TYPES
 // ============================================
 
-// Item multi-pensée retourné par l'API
+// Item multi-pensée retourné par l'API v2
 export interface MultiThoughtItem {
   content: string
-  type_suggestion: ItemType
-  confidence: number
-  extracted_data: {
-    context?: 'personal' | 'family' | 'work' | 'health' | 'other'
-    date?: string
-    time?: string
-    duration?: number
-    items?: string[]
-    category?: string
-  }
-  suggestions: string[]
+  type: ItemType
+  state: ItemState
+  context?: 'personal' | 'family' | 'work' | 'health' | 'other'
+  ai_analysis: AIAnalysis
 }
 
 export interface CaptureResult {
@@ -67,15 +60,15 @@ export async function captureThought(
     const quota = await checkAIQuota(userId)
     console.log('🔍 [captureThought] Quota result:', quota)
 
-    // 2. Si quota OK → Analyser avec IA
+    // 2. Si quota OK → Analyser avec IA (API v2 avec temporal_constraint)
     if (quota.canUse) {
-      console.log('🔍 [captureThought] Quota OK, calling /api/analyze...')
+      console.log('🔍 [captureThought] Quota OK, calling /api/analyze-v2...')
       try {
-        // Appel API d'analyse
-        const response = await fetch('/api/analyze', {
+        // Appel API d'analyse v2
+        const response = await fetch('/api/analyze-v2', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ content })
+          body: JSON.stringify({ rawText: content })
         })
 
         console.log('🔍 [captureThought] API response status:', response.status)
@@ -84,35 +77,44 @@ export async function captureThought(
           throw new Error('API analyze failed')
         }
 
-        const analysis = await response.json()
-        console.log('🔍 [captureThought] Analysis result:', analysis)
+        const analysisResult = await response.json()
+        console.log('🔍 [captureThought] Analysis result:', analysisResult)
 
         // Tracker l'usage (incrémenter compteur)
         await trackAIUsage(userId, 'analyze')
 
-        // Gérer multi-pensées
-        if (analysis.multiple && Array.isArray(analysis.items)) {
-          const multiResult: CaptureResult = {
+        // Gérer multi-pensées (API v2 retourne toujours { items: [...] })
+        if (analysisResult.items && Array.isArray(analysisResult.items)) {
+          const items = analysisResult.items as MultiThoughtItem[]
+
+          if (items.length > 1) {
+            // Multi-pensées
+            const multiResult: CaptureResult = {
+              success: true,
+              aiUsed: true,
+              multiple: true,
+              items: items,
+              creditsRemaining: quota.creditsRemaining ? quota.creditsRemaining - 1 : null
+            }
+            console.log('🔍 [captureThought] Returning MULTI-THOUGHTS:', multiResult)
+            return multiResult
+          }
+
+          // Pensée unique
+          const firstItem = items[0]
+          const result: CaptureResult = {
             success: true,
             aiUsed: true,
-            multiple: true,
-            items: analysis.items,
+            suggestedType: firstItem.type,
+            aiAnalysis: firstItem.ai_analysis,
             creditsRemaining: quota.creditsRemaining ? quota.creditsRemaining - 1 : null
           }
-          console.log('🔍 [captureThought] Returning MULTI-THOUGHTS:', multiResult)
-          return multiResult
+          console.log('🔍 [captureThought] Returning SUCCESS with AI:', result)
+          return result
         }
 
-        // Pensée simple
-        const result: CaptureResult = {
-          success: true,
-          aiUsed: true,
-          suggestedType: analysis.type_suggestion,
-          aiAnalysis: analysis,
-          creditsRemaining: quota.creditsRemaining ? quota.creditsRemaining - 1 : null
-        }
-        console.log('🔍 [captureThought] Returning SUCCESS with AI:', result)
-        return result
+        // Fallback si pas d'items
+        throw new Error('Invalid API response: no items')
       } catch (error) {
         console.error('🔍 [captureThought] Error analyzing thought:', error)
 

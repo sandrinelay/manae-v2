@@ -59,13 +59,26 @@ function buildAnalysisPrompt(rawText: string, historyContext?: string): string {
   const todayStr = today.toISOString().split('T')[0]
   const dayOfWeek = today.toLocaleDateString('fr-FR', { weekday: 'long' })
 
+  // Calculer les prochains jours de la semaine
+  const weekDays: string[] = []
+  for (let i = 0; i < 7; i++) {
+    const d = new Date(today)
+    d.setDate(d.getDate() + i)
+    const dayName = d.toLocaleDateString('fr-FR', { weekday: 'long' })
+    const dateStr = d.toISOString().split('T')[0]
+    weekDays.push(`${dayName} = ${dateStr}`)
+  }
+
   return `Analyse cette pensée capturée et découpe-la en items distincts si nécessaire.
 
 PENSÉE À ANALYSER :
 "${rawText}"
 
 CONTEXTE TEMPOREL :
-- Date actuelle : ${todayStr} (${dayOfWeek})
+- Aujourd'hui : ${todayStr} (${dayOfWeek})
+- Demain : ${new Date(today.getTime() + 24 * 60 * 60 * 1000).toISOString().split('T')[0]}
+- Jours de la semaine :
+  ${weekDays.join('\n  ')}
 
 ${historyContext || ''}
 
@@ -97,10 +110,10 @@ Pour chaque item détecté, détermine :
    Détecte les indicateurs de QUAND la tâche doit être faite.
 
    TYPES DE CONTRAINTES :
-   - "deadline" : Date limite ("avant lundi", "au plus tard vendredi", "d'ici mardi")
-   - "fixed_date" : Jour précis ("lundi", "mardi prochain", "le 15 janvier")
-   - "start_date" : Date de début ("à partir de mardi", "après le 10", "dès lundi")
-   - "time_range" : Période ("cette semaine", "ce mois-ci", "cette semaine")
+   - "deadline" : Date limite → utilise "date" ("avant lundi", "au plus tard vendredi", "d'ici mardi", "avant demain 11h")
+   - "fixed_date" : Jour précis → utilise "date" ("lundi", "mardi prochain", "le 15 janvier", "réunion mardi 14h", "jeudi à 10h")
+   - "start_date" : Date de début → utilise "start_date" ("à partir de mardi", "après le 10", "dès lundi")
+   - "time_range" : Période avec début ET fin → utilise "start_date" ET "end_date" ("entre lundi et mercredi", "cette semaine", "du 5 au 10")
    - "asap" : Urgent ("urgent", "dès que possible", "asap", "au plus vite", "rapidement")
 
    URGENCE :
@@ -109,12 +122,38 @@ Pour chaque item détecté, détermine :
    - "medium" : contrainte normale
    - "low" : contrainte souple
 
-   EXEMPLES DE DÉTECTION :
-   - "Appeler le pédiatre avant lundi" → deadline, date: lundi prochain, urgency: high
+   FORMAT DATE AVEC HEURE OU MOMENT DE LA JOURNÉE :
+   ⚠️ CRITIQUE : Si une HEURE ou un MOMENT est mentionné, tu DOIS l'inclure dans "date" au format ISO complet : "YYYY-MM-DDTHH:MM:00"
+
+   Heures explicites :
+   - "avant demain 11h" → date: "2025-12-28T11:00:00"
+   - "réunion mardi 14h" → date: "2025-12-31T14:00:00"
+
+   Moments de la journée (CONVERTIR en heures) :
+   - "matin" → T09:00:00
+   - "fin de matinée" → T11:00:00
+   - "midi" → T12:00:00
+   - "après-midi" → T14:00:00
+   - "fin d'après-midi" → T17:00:00
+   - "soir" → T19:00:00
+
+   Exemples concrets :
+   - "aller à la pharmacie lundi après-midi" → fixed_date, date: "[lundi]T14:00:00"
+   - "mardi après-midi" → fixed_date, date: "[mardi]T14:00:00"
+   - "jeudi matin" → fixed_date, date: "[jeudi]T09:00:00"
+   - "demain soir" → fixed_date, date: "[demain]T19:00:00"
+   - "avant lundi" (sans moment) → deadline, date: "[lundi]" (date simple OK)
+
+   EXEMPLES DE DÉTECTION (utilise les dates du CONTEXTE TEMPOREL ci-dessus) :
+   - "Appeler le pédiatre avant lundi" → deadline, date: [date du lundi], urgency: high
+   - "Appeler tati avant demain 11h" → deadline, date: "[demain]T11:00:00", urgency: high
    - "Urgent envoyer devis client" → asap, urgency: critical
-   - "Réunion mardi 14h" → fixed_date, date: mardi prochain, urgency: medium
-   - "À partir de lundi, relancer le dossier" → start_date, start_date: lundi, urgency: medium
-   - "Finir le rapport cette semaine" → time_range, end_date: dimanche, urgency: medium
+   - "Réunion mardi 14h" → fixed_date, date: "[mardi]T14:00:00", urgency: medium
+   - "Réunion jeudi à 10h" → fixed_date, date: "[jeudi]T10:00:00", urgency: medium
+   - "RDV pédiatre jeudi" → fixed_date, date: "[jeudi]", urgency: medium
+   - "À partir de lundi, relancer le dossier" → start_date, start_date: "[lundi]", urgency: medium
+   - "Entre lundi et mercredi" → time_range, start_date: "[lundi]", end_date: "[mercredi]", urgency: medium
+   - "Finir le rapport cette semaine" → time_range, start_date: "[aujourd'hui]", end_date: "[dimanche]", urgency: medium
 
 RÈGLES CRITIQUES :
 - Si c'est une envie future sans action claire → type: "idea", state: "captured"
@@ -136,7 +175,7 @@ Réponds UNIQUEMENT en JSON valide, sans markdown :
 {
   "items": [
     {
-      "content": "texte reformulé si nécessaire",
+      "content": "texte ORIGINAL COMPLET (ne jamais tronquer ni supprimer les infos temporelles)",
       "type": "task" | "note" | "idea" | "list_item",
       "state": "captured" | "active",
       "context": "personal" | "family" | "work" | "health",

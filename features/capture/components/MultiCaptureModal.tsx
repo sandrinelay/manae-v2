@@ -230,13 +230,8 @@ export function MultiCaptureModal({
             captureResult={{
               success: true,
               aiUsed: true,
-              suggestedType: currentPensée.type_suggestion,
-              aiAnalysis: {
-                type_suggestion: currentPensée.type_suggestion,
-                confidence: currentPensée.confidence,
-                extracted_data: currentPensée.extracted_data,
-                suggestions: currentPensée.suggestions
-              },
+              suggestedType: currentPensée.type,
+              aiAnalysis: currentPensée.ai_analysis,
               creditsRemaining
             }}
             mood={mood}
@@ -250,7 +245,7 @@ export function MultiCaptureModal({
         {/* Footer - Contexte de la pensée */}
         <div className="px-6 py-3 border-t border-border bg-mint shrink-0">
           <p className="text-xs text-text-muted text-center">
-            Contexte détecté : <span className="font-medium text-primary">{currentPensée.extracted_data.context || 'other'}</span>
+            Contexte détecté : <span className="font-medium text-primary">{currentPensée.context || currentPensée.ai_analysis?.extracted_data?.context || 'other'}</span>
           </p>
         </div>
       </div>
