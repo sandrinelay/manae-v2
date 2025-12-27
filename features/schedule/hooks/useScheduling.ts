@@ -146,6 +146,7 @@ export function useScheduling(params: UseSchedulingParams): UseSchedulingReturn 
 
       // 4. Trouver les créneaux libres avec scoring intégré
       // Passe temporalConstraint pour le filtrage HARD et l'ajustement du scoring
+      // Passe taskContent pour détecter les contraintes de service (médecin, banque, etc.)
       const allSlots = await findAvailableSlots({
         durationMinutes: estimatedDuration,
         constraints,
@@ -154,7 +155,8 @@ export function useScheduling(params: UseSchedulingParams): UseSchedulingReturn 
         endDate,
         energyMoments,
         mood: mood || 'neutral',
-        temporalConstraint
+        temporalConstraint,
+        taskContent
       })
 
       // 5. Garder uniquement le TOP 3
@@ -187,7 +189,7 @@ export function useScheduling(params: UseSchedulingParams): UseSchedulingReturn 
     } finally {
       setIsLoading(false)
     }
-  }, [estimatedDuration, mood, temporalConstraint])
+  }, [estimatedDuration, mood, temporalConstraint, taskContent])
 
   /**
    * Charge les créneaux (fonction exposée)

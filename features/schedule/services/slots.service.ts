@@ -422,6 +422,7 @@ export interface FindSlotsParams {
   mood?: string
   dayBounds?: DayBounds
   temporalConstraint?: TemporalConstraint | null
+  taskContent?: string  // Pour détecter les contraintes de service
 }
 
 /**
@@ -442,8 +443,16 @@ export async function findAvailableSlots(params: FindSlotsParams): Promise<TimeS
     energyMoments = [],
     mood = 'calm',
     dayBounds = DEFAULT_DAY_BOUNDS,
-    temporalConstraint = null
+    temporalConstraint = null,
+    taskContent = ''
   } = params
+
+  // Détecter les contraintes de service depuis le contenu de la tâche
+  const serviceConstraints = taskContent ? detectServiceConstraints(taskContent) : null
+
+  if (serviceConstraints) {
+    console.log('[slots.service] Contraintes de service détectées:', serviceConstraints.type)
+  }
 
   // Récupérer l'urgence pour le scoring
   const urgency = temporalConstraint?.urgency || 'low'
@@ -511,9 +520,16 @@ export async function findAvailableSlots(params: FindSlotsParams): Promise<TimeS
   }
 
   // 6. Appliquer le filtrage HARD des contraintes temporelles
-  const filteredSlots = filterSlotsByTemporalConstraint(slots, temporalConstraint)
+  let filteredSlots = filterSlotsByTemporalConstraint(slots, temporalConstraint)
 
-  // 7. Trier par score décroissant (sauf pour ASAP qui trie par date)
+  // 7. Appliquer le filtrage HARD des contraintes de service
+  filteredSlots = filterSlotsByServiceConstraints(filteredSlots, serviceConstraints)
+
+  if (serviceConstraints && filteredSlots.length < slots.length) {
+    console.log(`[slots.service] Filtrage service ${serviceConstraints.type}: ${slots.length} → ${filteredSlots.length} créneaux`)
+  }
+
+  // 8. Trier par score décroissant (sauf pour ASAP qui trie par date)
   if (temporalConstraint?.type === 'asap') {
     // Pour ASAP, déjà trié par date dans filterSlotsByTemporalConstraint
     return filteredSlots
@@ -528,4 +544,98 @@ export async function findAvailableSlots(params: FindSlotsParams): Promise<TimeS
 export async function findBestSlot(params: FindSlotsParams): Promise<TimeSlot | null> {
   const slots = await findAvailableSlots(params)
   return slots.length > 0 ? slots[0] : null
+}
+
+// ============================================
+// CONTRAINTES DE SERVICE
+// ============================================
+
+// Type pour les contraintes de service
+interface ServiceConstraints {
+  type: 'medical' | 'administrative' | 'commercial'
+  openDays: string[]
+  openHours: { start: string; end: string }
+}
+
+/**
+ * Détecte le type de service et ses contraintes horaires
+ */
+function detectServiceConstraints(taskContent: string): ServiceConstraints | null {
+  const content = taskContent.toLowerCase()
+  
+  // Services médicaux (fermés week-end, 9h-18h)
+  const medicalKeywords = [
+    'médecin', 'dentiste', 'pédiatre', 'docteur', 'rdv médical',
+    'clinique', 'hôpital', 'cabinet', 'ophtalmo', 'dermato',
+    'kiné', 'ostéo', 'radiologue', 'labo', 'laboratoire'
+  ]
+  
+  if (medicalKeywords.some(k => content.includes(k))) {
+    return {
+      type: 'medical',
+      openDays: ['monday', 'tuesday', 'wednesday', 'thursday', 'friday'],
+      openHours: { start: '09:00', end: '18:00' }
+    }
+  }
+  
+  // Services administratifs (fermés week-end, 9h-17h)
+  const adminKeywords = [
+    'mairie', 'préfecture', 'caf', 'pôle emploi', 'sécurité sociale',
+    'banque', 'notaire', 'avocat', 'assurance', 'impôts'
+  ]
+  
+  if (adminKeywords.some(k => content.includes(k))) {
+    return {
+      type: 'administrative',
+      openDays: ['monday', 'tuesday', 'wednesday', 'thursday', 'friday'],
+      openHours: { start: '09:00', end: '17:00' }
+    }
+  }
+  
+  // Commerces (fermés dimanche, certains samedi)
+  const commercialKeywords = [
+    'magasin', 'boutique', 'acheter', 'courses', 'supermarché',
+    'boulangerie', 'pharmacie', 'pressing', 'coiffeur'
+  ]
+  
+  if (commercialKeywords.some(k => content.includes(k))) {
+    return {
+      type: 'commercial',
+      openDays: ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'],
+      openHours: { start: '09:00', end: '19:00' }
+    }
+  }
+  
+  // Pas de contrainte détectée
+  return null
+}
+
+/**
+ * Filtre les créneaux selon les contraintes de service (HARD)
+ * Élimine les créneaux où le service est fermé
+ */
+function filterSlotsByServiceConstraints(
+  slots: TimeSlot[],
+  serviceConstraints: ServiceConstraints | null
+): TimeSlot[] {
+  if (!serviceConstraints) return slots
+
+  return slots.filter(slot => {
+    // Vérifier que c'est un jour d'ouverture
+    const slotDate = new Date(slot.date)
+    const dayName = getDayName(slotDate)
+
+    if (!serviceConstraints.openDays.includes(dayName)) {
+      return false // Service fermé ce jour
+    }
+
+    // Vérifier que c'est dans les heures d'ouverture
+    const slotStart = timeToMinutes(slot.startTime)
+    const slotEnd = timeToMinutes(slot.endTime)
+    const serviceStart = timeToMinutes(serviceConstraints.openHours.start)
+    const serviceEnd = timeToMinutes(serviceConstraints.openHours.end)
+
+    // Le créneau doit être entièrement dans les heures d'ouverture
+    return slotStart >= serviceStart && slotEnd <= serviceEnd
+  })
 }
