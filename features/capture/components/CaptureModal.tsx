@@ -354,8 +354,9 @@ export function CaptureModal({
   const ScheduleContent = () => (
     <div className="space-y-6">
       {/* Tâche (lecture seule) */}
-      <div className="bg-gray-50 rounded-lg p-4">
-        <p className="text-text-dark font-medium">"{content}"</p>
+
+      <div className="p-4 bg-mint rounded-xl border border-border">
+        <p className="text-text-dark whitespace-pre-wrap">{content}</p>
       </div>
 
       {/* Durée estimée */}
@@ -469,7 +470,7 @@ export function CaptureModal({
       <div className={`
         fixed z-50 bg-white shadow-2xl animate-slide-up flex flex-col
         ${currentStep === 'schedule'
-          ? 'inset-x-0 top-0 bottom-20 rounded-b-2xl'
+          ? 'inset-x-0 bottom-20 max-h-[80%] rounded-t-3xl'
           : 'inset-x-0 bottom-20 rounded-t-3xl max-w-2xl mx-auto'
         }
       `}>
