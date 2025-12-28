@@ -89,7 +89,7 @@ export function MoodSelector({ selectedMood, onSelectMood, disabled }: MoodSelec
   return (
     <div className="space-y-3">
       <p className="text-xs font-semibold text-text-dark uppercase tracking-wide">
-        Comment te sens-tu ? (facultatif)
+        Comment te sens-tu ? (optionnel)
       </p>
       <div className="flex gap-3">
         {MOODS.map((mood) => {

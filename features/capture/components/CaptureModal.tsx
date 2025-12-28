@@ -11,6 +11,7 @@ import GoogleCalendarCTA from '@/components/capture/GoogleCalendarCTA'
 import { useGoogleCalendarStatus } from '@/hooks/useGoogleCalendarStatus'
 import { saveItem } from '@/services/capture'
 import type { Mood as ItemMood } from '@/types/items'
+import { IdeaDevelopPanel } from '@/features/ideas/components/IdeaDevelopPanel'
 
 // ============================================
 // TYPES
@@ -161,6 +162,7 @@ export function CaptureModal({
   const [showSuccessModal, setShowSuccessModal] = useState(false)
   const [successData, setSuccessData] = useState<{ task: string; date: string } | null>(null)
   const [isSaving, setIsSaving] = useState(false)
+  const [showDevelopPanel, setShowDevelopPanel] = useState(false)
 
   // Google Calendar status
   const { isConnected: isCalendarConnected } = useGoogleCalendarStatus()
@@ -214,6 +216,40 @@ export function CaptureModal({
     }
   }
 
+  const handleDevelopAction = async () => {
+    setIsSaving(true)
+    try {
+      // 1. Sauvegarder l'idée en DB (state: 'captured')
+      const itemId = await saveItem({
+        userId,
+        type: 'idea',
+        content,
+        state: 'captured',
+        mood: convertMoodToItemMood(mood),
+        aiAnalysis: captureResult.aiAnalysis
+      })
+
+      setSavedItemId(itemId)
+
+      // 2. Afficher le panel de développement
+      setShowDevelopPanel(true)
+    } catch (error) {
+      console.error('Erreur sauvegarde idée:', error)
+    } finally {
+      setIsSaving(false)
+    }
+  }
+
+  const handleDevelopSuccess = () => {
+    // Appelé quand le développement est terminé avec succès
+    onSuccess?.()
+  }
+
+  const handleDevelopClose = () => {
+    setShowDevelopPanel(false)
+    onClose()
+  }
+
   const handleBack = () => {
     setCurrentStep('organize')
   }
@@ -261,6 +297,8 @@ export function CaptureModal({
   const handleAction = (type: ItemType, action: ActionType) => {
     if (action === 'plan' && type === 'task') {
       handlePlanAction()
+    } else if (action === 'develop' && type === 'idea') {
+      handleDevelopAction()
     } else {
       onSave(type, action)
     }
@@ -378,7 +416,17 @@ export function CaptureModal({
         </button>
       </div>
 
-      {!isEmbedded && (
+      {/* Panel de développement d'idée (inline) */}
+      {showDevelopPanel && savedItemId && selectedType === 'idea' && (
+        <IdeaDevelopPanel
+          itemId={savedItemId}
+          itemContent={content}
+          onClose={handleDevelopClose}
+          onDeveloped={handleDevelopSuccess}
+        />
+      )}
+
+      {!isEmbedded && !showDevelopPanel && (
         <button
           onClick={onClose}
           className="w-full py-2 text-text-muted hover:text-text-dark font-medium"
