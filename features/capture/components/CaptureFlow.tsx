@@ -7,7 +7,7 @@ import { MultiCaptureModal } from './MultiCaptureModal'
 import { MoodSelector, type Mood } from './MoodSelector'
 import { captureThought, saveItem, saveMultipleListItems, extractMultipleItems } from '@/services/capture'
 import type { CaptureResult, MultiThoughtItem } from '@/services/capture'
-import type { ItemType, Mood as ItemMood } from '@/types/items'
+import type { ItemType, ItemContext, Mood as ItemMood } from '@/types/items'
 import type { ActionType } from './CaptureModal'
 import { useAIQuota } from '@/hooks/useAIQuota'
 
@@ -140,7 +140,7 @@ export function CaptureFlow({ userId, onSuccess }: CaptureFlowProps) {
     }
   }
 
-  const handleSaveMultiPensée = async (index: number, type: ItemType, action: ActionType) => {
+  const handleSaveMultiPensée = async (index: number, type: ItemType, action: ActionType, context?: ItemContext) => {
     if (!multiItems) return
 
     const pensée = multiItems[index]
@@ -157,7 +157,7 @@ export function CaptureFlow({ userId, onSuccess }: CaptureFlowProps) {
         content: pensée.content,
         state,
         mood: convertMoodToItemMood(selectedMood),
-        context: pensée.context,
+        context: context || pensée.context,
         aiAnalysis: pensée.ai_analysis
       })
 
@@ -168,7 +168,7 @@ export function CaptureFlow({ userId, onSuccess }: CaptureFlowProps) {
     }
   }
 
-  const handleSave = async (type: ItemType, action: ActionType) => {
+  const handleSave = async (type: ItemType, action: ActionType, context?: ItemContext) => {
     if (action === 'delete') {
       handleReset()
       return
@@ -191,6 +191,7 @@ export function CaptureFlow({ userId, onSuccess }: CaptureFlowProps) {
             content: items[0] || content,
             state,
             mood: convertMoodToItemMood(selectedMood),
+            context,
             aiAnalysis: captureResult?.aiAnalysis
           })
         }
@@ -206,6 +207,7 @@ export function CaptureFlow({ userId, onSuccess }: CaptureFlowProps) {
         content,
         state,
         mood: convertMoodToItemMood(selectedMood),
+        context,
         aiAnalysis: captureResult?.aiAnalysis
       })
 

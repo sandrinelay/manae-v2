@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { CaptureModal, type ActionType } from './CaptureModal'
-import type { ItemType } from '@/types/items'
+import type { ItemType, ItemContext } from '@/types/items'
 import type { MultiThoughtItem } from '@/services/capture'
 
 // ============================================
@@ -21,7 +21,7 @@ interface MultiCaptureModalProps {
   mood: Mood | null
   userId: string
   creditsRemaining?: number | null
-  onSave: (index: number, type: ItemType, action: ActionType) => Promise<void>
+  onSave: (index: number, type: ItemType, action: ActionType, context?: ItemContext) => Promise<void>
   onClose: () => void
 }
 
@@ -47,7 +47,7 @@ export function MultiCaptureModal({
   const totalPensées = pensées.length
   const remainingPensées = pensées.filter(p => !p.saved && !p.deleted).length
 
-  const handleSave = async (type: ItemType, action: ActionType) => {
+  const handleSave = async (type: ItemType, action: ActionType, context?: ItemContext) => {
     if (isSaving) return
     setIsSaving(true)
 
@@ -64,7 +64,7 @@ export function MultiCaptureModal({
       }
 
       // Sauvegarder
-      await onSave(currentIndex, type, action)
+      await onSave(currentIndex, type, action, context)
 
       // Marquer comme sauvegardée
       const updated = [...pensées]

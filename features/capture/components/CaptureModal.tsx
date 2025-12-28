@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, type ReactNode } from 'react'
-import type { ItemType } from '@/types/items'
+import type { ItemType, ItemContext } from '@/types/items'
 import type { CaptureResult } from '@/services/capture'
 import { useScheduling } from '@/features/schedule/hooks/useScheduling'
 import { DurationSelector } from '@/features/schedule/components/DurationSelector'
@@ -37,7 +37,7 @@ interface CaptureModalProps {
   captureResult: CaptureResult
   mood: Mood | null
   userId: string
-  onSave: (type: ItemType, action: ActionType) => void
+  onSave: (type: ItemType, action: ActionType, context?: ItemContext) => void
   onClose: () => void
   onSuccess?: () => void
   isEmbedded?: boolean
@@ -98,6 +98,37 @@ const CloseIcon = () => (
   </svg>
 )
 
+// Icônes contexte (même style que les types)
+const PersonalIcon = () => (
+  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+    <path strokeLinecap="round" strokeLinejoin="round" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
+  </svg>
+)
+
+const FamilyIcon = () => (
+  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+    <path strokeLinecap="round" strokeLinejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+  </svg>
+)
+
+const WorkIcon = () => (
+  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+    <path strokeLinecap="round" strokeLinejoin="round" d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+  </svg>
+)
+
+const HealthIcon = () => (
+  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+    <path strokeLinecap="round" strokeLinejoin="round" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
+  </svg>
+)
+
+const OtherIcon = () => (
+  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+    <path strokeLinecap="round" strokeLinejoin="round" d="M5 12h.01M12 12h.01M19 12h.01M6 12a1 1 0 11-2 0 1 1 0 012 0zm7 0a1 1 0 11-2 0 1 1 0 012 0zm7 0a1 1 0 11-2 0 1 1 0 012 0z" />
+  </svg>
+)
+
 // ============================================
 // CONFIGURATION
 // ============================================
@@ -139,6 +170,14 @@ const TYPE_CONFIG: Record<ItemType, {
   }
 }
 
+const CONTEXT_CONFIG: Record<ItemContext, { icon: ReactNode; label: string }> = {
+  personal: { icon: <PersonalIcon />, label: 'Perso' },
+  family: { icon: <FamilyIcon />, label: 'Famille' },
+  work: { icon: <WorkIcon />, label: 'Travail' },
+  health: { icon: <HealthIcon />, label: 'Santé' },
+  other: { icon: <OtherIcon />, label: 'Autre' }
+}
+
 // ============================================
 // COMPOSANT PRINCIPAL
 // ============================================
@@ -155,9 +194,13 @@ export function CaptureModal({
 }: CaptureModalProps) {
   const hasAIQuota = !captureResult.quotaExceeded
 
+  // Contexte suggéré par l'IA
+  const suggestedContext = (captureResult.aiAnalysis?.extracted_data?.context as ItemContext) || 'personal'
+
   // État de la modal
   const [currentStep, setCurrentStep] = useState<ModalStep>('organize')
   const [selectedType, setSelectedType] = useState<ItemType>(captureResult.suggestedType || 'task')
+  const [selectedContext, setSelectedContext] = useState<ItemContext>(suggestedContext)
   const [savedItemId, setSavedItemId] = useState<string | null>(null)
   const [showSuccessModal, setShowSuccessModal] = useState(false)
   const [successData, setSuccessData] = useState<{ task: string; date: string } | null>(null)
@@ -202,6 +245,7 @@ export function CaptureModal({
         content,
         state: 'active',
         mood: convertMoodToItemMood(mood),
+        context: selectedContext,
         aiAnalysis: captureResult.aiAnalysis
       })
 
@@ -226,6 +270,7 @@ export function CaptureModal({
         content,
         state: 'captured',
         mood: convertMoodToItemMood(mood),
+        context: selectedContext,
         aiAnalysis: captureResult.aiAnalysis
       })
 
@@ -300,7 +345,7 @@ export function CaptureModal({
     } else if (action === 'develop' && type === 'idea') {
       handleDevelopAction()
     } else {
-      onSave(type, action)
+      onSave(type, action, selectedContext)
     }
   }
 
@@ -383,6 +428,36 @@ export function CaptureModal({
         </div>
       </div>
 
+      {/* Contexte (pas pour les courses) */}
+      {selectedType !== 'list_item' && (
+        <div className="space-y-2">
+          <p className="text-sm font-medium text-text-dark">Contexte :</p>
+          <div className="flex gap-2">
+            {(Object.keys(CONTEXT_CONFIG) as ItemContext[]).map((ctx) => {
+              const ctxConfig = CONTEXT_CONFIG[ctx]
+              const isSelected = selectedContext === ctx
+
+              return (
+                <button
+                  key={ctx}
+                  onClick={() => setSelectedContext(ctx)}
+                  className={`
+                    flex items-center justify-center p-3 rounded-xl transition-all
+                    ${isSelected
+                      ? 'bg-primary text-white shadow-lg scale-105'
+                      : 'bg-gray-light text-text-muted hover:bg-border'
+                    }
+                  `}
+                  title={ctxConfig.label}
+                >
+                  {ctxConfig.icon}
+                </button>
+              )
+            })}
+          </div>
+        </div>
+      )}
+
       {/* Actions */}
       <div className="flex gap-2">
         {config.actions.map((actionConfig) => {
@@ -408,7 +483,7 @@ export function CaptureModal({
         })}
 
         <button
-          onClick={() => onSave(selectedType, 'delete')}
+          onClick={() => onSave(selectedType, 'delete', selectedContext)}
           className="p-3 rounded-xl border-2 border-red-200 text-red-500 hover:bg-red-50 transition-all"
           title="Supprimer"
         >
