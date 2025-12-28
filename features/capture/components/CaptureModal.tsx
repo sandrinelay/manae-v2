@@ -632,10 +632,8 @@ export function CaptureModal({
       {/* Modal */}
       <div className={`
         fixed z-50 bg-white shadow-2xl animate-slide-up flex flex-col
-        ${currentStep === 'schedule'
-          ? 'inset-x-0 bottom-20 max-h-[80%] rounded-t-3xl'
-          : 'inset-x-0 bottom-20 rounded-t-3xl max-w-2xl mx-auto'
-        }
+        inset-x-0 bottom-20 rounded-t-3xl
+        ${currentStep === 'schedule' ? 'max-h-[80%]' : ''}
       `}>
         {/* Header */}
         <div className="flex items-center justify-between p-4 border-b border-border shrink-0">

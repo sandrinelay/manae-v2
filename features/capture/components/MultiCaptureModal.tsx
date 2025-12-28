@@ -159,7 +159,7 @@ export function MultiCaptureModal({
       />
 
       {/* Modal Container - positionné au-dessus du BottomNav */}
-      <div className="fixed inset-x-4 bottom-20 z-50 bg-white rounded-3xl shadow-2xl animate-slide-up max-w-2xl mx-auto max-h-[75vh] overflow-hidden flex flex-col">
+      <div className="fixed inset-x-0 bottom-20 z-50 bg-white rounded-t-3xl shadow-2xl animate-slide-up max-h-[75vh] overflow-hidden flex flex-col">
 
         {/* Header - Compteur de pensées */}
         <div className="px-6 py-4 border-b border-border flex items-center justify-between shrink-0">
@@ -242,12 +242,6 @@ export function MultiCaptureModal({
           />
         </div>
 
-        {/* Footer - Contexte de la pensée */}
-        <div className="px-6 py-3 border-t border-border bg-mint shrink-0">
-          <p className="text-xs text-text-muted text-center">
-            Contexte détecté : <span className="font-medium text-primary">{currentPensée.context || currentPensée.ai_analysis?.extracted_data?.context || 'other'}</span>
-          </p>
-        </div>
       </div>
     </>
   )
