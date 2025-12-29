@@ -230,13 +230,7 @@ export function CaptureFlow({ userId, onSuccess }: CaptureFlowProps) {
 
   return (
     <div className="flex-1 pb-32">
-      {/* Barre décorative fixe sur toute la largeur */}
-      <div
-        className="h-1 w-full mb-4"
-        style={{ background: 'linear-gradient(90deg, #4A7488, #BEE5D3)' }}
-      />
-
-      <div className="px-4">
+      <div className="px-4 pt-4">
 
       {/* Card principale */}
       <div className="bg-white rounded-3xl p-5 shadow-sm mb-6">

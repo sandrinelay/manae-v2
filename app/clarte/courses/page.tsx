@@ -1,0 +1,217 @@
+'use client'
+
+import { useState, useEffect, useCallback } from 'react'
+import { useRouter } from 'next/navigation'
+import { createClient } from '@/lib/supabase/client'
+import { ChevronLeft, Plus, Trash2, Calendar, Edit2 } from 'lucide-react'
+import BottomNav from '@/components/layout/BottomNav'
+import type { Item } from '@/types/items'
+import type { ShoppingList } from '@/types/shopping-lists'
+
+export default function CoursesPage() {
+  const router = useRouter()
+  const [list, setList] = useState<ShoppingList | null>(null)
+  const [items, setItems] = useState<Item[]>([])
+  const [isLoading, setIsLoading] = useState(true)
+  const [newItemText, setNewItemText] = useState('')
+  const [isAdding, setIsAdding] = useState(false)
+
+  const fetchData = useCallback(async () => {
+    setIsLoading(true)
+    const supabase = createClient()
+    const { data: { user } } = await supabase.auth.getUser()
+
+    if (!user) return
+
+    // Récupérer la liste active
+    const { data: activeList } = await supabase
+      .from('shopping_lists')
+      .select('*')
+      .eq('user_id', user.id)
+      .eq('status', 'active')
+      .order('updated_at', { ascending: false })
+      .limit(1)
+      .single()
+
+    if (activeList) {
+      setList(activeList)
+
+      // Récupérer les items actifs
+      const { data: listItems } = await supabase
+        .from('items')
+        .select('*')
+        .eq('user_id', user.id)
+        .eq('type', 'list_item')
+        .eq('list_id', activeList.id)
+        .eq('state', 'active')
+        .order('created_at', { ascending: true })
+
+      setItems(listItems || [])
+    }
+
+    setIsLoading(false)
+  }, [])
+
+  useEffect(() => {
+    fetchData()
+  }, [fetchData])
+
+  const handleAddItem = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!newItemText.trim() || !list || isAdding) return
+
+    setIsAdding(true)
+    const supabase = createClient()
+    const { data: { user } } = await supabase.auth.getUser()
+
+    if (!user) return
+
+    await supabase.from('items').insert({
+      user_id: user.id,
+      type: 'list_item',
+      state: 'active',
+      content: newItemText.trim(),
+      list_id: list.id
+    })
+
+    setNewItemText('')
+    setIsAdding(false)
+    fetchData()
+  }
+
+  const handleToggleItem = async (id: string) => {
+    const supabase = createClient()
+    // Marquer comme completed = disparaît de la liste
+    await supabase
+      .from('items')
+      .update({ state: 'completed', updated_at: new Date().toISOString() })
+      .eq('id', id)
+    fetchData()
+  }
+
+  const handleDeleteItem = async (id: string) => {
+    const supabase = createClient()
+    await supabase.from('items').delete().eq('id', id)
+    fetchData()
+  }
+
+  const handlePlanShopping = () => {
+    // TODO: Ouvrir flow Plan Task avec description de la liste
+    console.log('Plan shopping with items:', items.map(i => i.content).join(', '))
+  }
+
+  const handleRenameList = async () => {
+    if (!list) return
+    const newName = prompt('Nouveau nom de la liste:', list.name)
+    if (!newName || newName === list.name) return
+
+    const supabase = createClient()
+    await supabase
+      .from('shopping_lists')
+      .update({ name: newName, updated_at: new Date().toISOString() })
+      .eq('id', list.id)
+    fetchData()
+  }
+
+  return (
+    <div className="min-h-screen bg-mint pb-24">
+      <div className="max-w-2xl mx-auto">
+        {/* Header */}
+        <header className="sticky top-0 z-10 bg-mint px-4 py-4 border-b border-border">
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => router.push('/clarte')}
+              className="p-2 -ml-2 hover:bg-gray-100 rounded-full transition-colors"
+            >
+              <ChevronLeft className="w-5 h-5" />
+            </button>
+            <h1 className="text-xl font-semibold text-text-dark">Courses</h1>
+          </div>
+
+          {/* Nom de la liste */}
+          {list && (
+            <button
+              onClick={handleRenameList}
+              className="flex items-center gap-2 mt-3 text-text-muted hover:text-text-dark transition-colors"
+            >
+              <span className="text-sm">{list.name}</span>
+              <Edit2 className="w-3.5 h-3.5" />
+            </button>
+          )}
+        </header>
+
+        {/* Contenu */}
+        <div className="px-4 py-4">
+          {isLoading ? (
+            <div className="text-center py-12 text-text-muted">Chargement...</div>
+          ) : (
+            <div className="space-y-4">
+              {/* Input ajout */}
+              <form onSubmit={handleAddItem} className="flex gap-2">
+                <div className="flex-1 relative">
+                  <Plus className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-text-muted" />
+                  <input
+                    type="text"
+                    value={newItemText}
+                    onChange={(e) => setNewItemText(e.target.value)}
+                    placeholder="Ajouter un article..."
+                    className="w-full pl-10 pr-4 py-3 bg-white border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary"
+                  />
+                </div>
+                <button
+                  type="submit"
+                  disabled={!newItemText.trim() || isAdding}
+                  className="px-4 py-3 bg-primary text-white rounded-xl font-medium disabled:opacity-50 disabled:cursor-not-allowed hover:bg-primary-dark transition-colors"
+                >
+                  Ajouter
+                </button>
+              </form>
+
+              {/* Liste des items */}
+              {items.length === 0 ? (
+                <div className="text-center py-12 text-text-muted">
+                  Aucun article dans la liste
+                </div>
+              ) : (
+                <div className="bg-white rounded-xl border border-border divide-y divide-border">
+                  {items.map(item => (
+                    <div
+                      key={item.id}
+                      className="flex items-center gap-3 p-4 hover:bg-gray-50 transition-colors"
+                    >
+                      <button
+                        onClick={() => handleToggleItem(item.id)}
+                        className="w-6 h-6 rounded-full border-2 border-gray-300 hover:border-primary hover:bg-primary/10 transition-colors flex items-center justify-center"
+                      >
+                        {/* Checkbox vide */}
+                      </button>
+                      <span className="flex-1 text-text-dark">{item.content}</span>
+                      <button
+                        onClick={() => handleDeleteItem(item.id)}
+                        className="p-2 text-text-muted hover:text-red-500 hover:bg-red-50 rounded-full transition-colors"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* Bouton planifier */}
+              {items.length > 0 && (
+                <button
+                  onClick={handlePlanShopping}
+                  className="w-full py-3 px-4 bg-primary text-white rounded-xl font-medium flex items-center justify-center gap-2 hover:bg-primary-dark transition-colors"
+                >
+                  <Calendar className="w-5 h-5" />
+                  Planifier les courses
+                </button>
+              )}
+            </div>
+          )}
+        </div>
+      </div>
+      <BottomNav />
+    </div>
+  )
+}

@@ -8,7 +8,7 @@ export default function BottomNav() {
 
   const navItems = [
     { href: '/capture', label: 'Capturer', icon: <CaptureIcon /> },
-    { href: '/ma-liste', label: 'Ma Liste', icon: <ListIcon /> },
+    { href: '/clarte', label: 'Clarté', icon: <ListIcon /> },
     { href: '/profil', label: 'Profil', icon: <ProfileIcon /> },
   ]
 
