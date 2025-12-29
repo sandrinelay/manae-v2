@@ -2,10 +2,12 @@
 
 import { SearchBar } from '@/components/ui/SearchBar'
 import { FilterTabs } from '@/components/ui/FilterTabs'
+import { ContextFilterTabs, type ContextFilterType } from '@/components/ui/ContextFilterTabs'
 import type { FilterType } from '@/config/filters'
 
 interface ClarteHeaderProps {
   activeFilter: FilterType
+  activeContext: ContextFilterType
   counts?: {
     tasks: number
     notes: number
@@ -13,14 +15,17 @@ interface ClarteHeaderProps {
     shopping: number
   }
   onFilterChange: (filter: FilterType) => void
+  onContextChange: (context: ContextFilterType) => void
   onSearch: (query: string) => void
   onClearSearch: () => void
 }
 
 export function ClarteHeader({
   activeFilter,
+  activeContext,
   counts,
   onFilterChange,
+  onContextChange,
   onSearch,
   onClearSearch
 }: ClarteHeaderProps) {
@@ -38,11 +43,23 @@ export function ClarteHeader({
         activeFilter={activeFilter}
         counts={counts}
         onFilterChange={onFilterChange}
-        className="mt-4"
+        className="mt-3"
       />
+
+      {/* Filtres par contexte (uniquement pour les notes) */}
+      {activeFilter === 'notes' && (
+        <>
+          <div className="h-px bg-gray-200/50 mt-3" />
+          <ContextFilterTabs
+            activeContext={activeContext}
+            onContextChange={onContextChange}
+            className="mt-2"
+          />
+        </>
+      )}
     </header>
   )
 }
 
-// Re-export du type pour la page
-export type { FilterType }
+// Re-export des types pour la page
+export type { FilterType, ContextFilterType }

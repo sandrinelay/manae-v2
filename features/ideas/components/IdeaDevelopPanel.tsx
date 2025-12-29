@@ -1,5 +1,6 @@
 'use client'
 
+import { useRef, useEffect } from 'react'
 import { useIdeaDevelop } from '../hooks/useIdeaDevelop'
 import { BLOCKER_CONFIG } from '../types'
 import type { IdeaBlocker } from '../types'
@@ -25,6 +26,8 @@ export function IdeaDevelopPanel({
   onClose,
   onDeveloped
 }: IdeaDevelopPanelProps) {
+  const contentRef = useRef<HTMLDivElement>(null)
+
   const {
     currentStep,
     ideaAge,
@@ -41,11 +44,25 @@ export function IdeaDevelopPanel({
     onSuccess: onDeveloped
   })
 
+  // Scroll doux vers le contenu quand on passe à l'étape blockers ou result
+  useEffect(() => {
+    if (currentStep === 'blockers' || currentStep === 'result') {
+      // Petit délai pour laisser le temps au contenu de s'afficher
+      const timer = setTimeout(() => {
+        contentRef.current?.scrollIntoView({
+          behavior: 'smooth',
+          block: 'nearest'
+        })
+      }, 150)
+      return () => clearTimeout(timer)
+    }
+  }, [currentStep])
+
   // Peut-on lancer le développement ?
   const canDevelop = ideaAge !== null
 
   return (
-    <div className="mt-4 pt-4 border-t border-border space-y-4 animate-fade-in">
+    <div ref={contentRef} className="mt-4 pt-4 border-t border-border space-y-4 animate-fade-in">
 
       {/* ========================================
           ÉTAPE 1 : Âge de l'idée

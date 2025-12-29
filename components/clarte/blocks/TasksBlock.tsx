@@ -1,60 +1,81 @@
 'use client'
 
-import { useRouter } from 'next/navigation'
+import { useState } from 'react'
 import { Item } from '@/types/items'
 import { TaskCard } from '../cards/TaskCard'
-import { ChevronRightIcon } from '@/components/ui/icons/ItemTypeIcons'
+import { EmptyState } from '../EmptyState'
+
+// Configuration
+const INITIAL_VISIBLE_COUNT = 4
 
 interface TasksBlockProps {
   tasks: Item[]
   totalCount: number
-  onMarkDone: (id: string) => void
-  onPlan: (id: string) => void
-  onPostpone: (id: string) => void
+  onMarkDone?: (id: string) => void
+  onPlan?: (id: string) => void
+  onDelete?: (id: string) => void
 }
 
-export function TasksBlock({ tasks, totalCount, onMarkDone, onPlan, onPostpone }: TasksBlockProps) {
-  const router = useRouter()
+export function TasksBlock({
+  tasks,
+  totalCount,
+  onMarkDone,
+  onPlan,
+  onDelete
+}: TasksBlockProps) {
+  const [isExpanded, setIsExpanded] = useState(false)
 
-  if (tasks.length === 0) {
-    return (
-      <section className="bg-white rounded-2xl p-4 shadow-sm">
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-lg font-semibold text-text-dark">Tâches</h2>
-        </div>
-        <p className="text-text-muted text-center py-8">
-          Aucune tâche pour le moment
-        </p>
-      </section>
-    )
-  }
+  // Nombre de tâches visibles
+  const visibleTasks = isExpanded ? tasks : tasks.slice(0, INITIAL_VISIBLE_COUNT)
+  const hiddenCount = tasks.length - INITIAL_VISIBLE_COUNT
+  const hasMoreTasks = hiddenCount > 0
 
   return (
-    <section className="bg-white rounded-2xl p-4 shadow-sm">
+    <section>
       {/* Header */}
-      <button
-        onClick={() => router.push('/clarte/taches')}
-        className="w-full flex items-center justify-between mb-4 group"
-      >
-        <h2 className="text-lg font-semibold text-text-dark">Tâches</h2>
-        <span className="flex items-center gap-1 text-sm text-primary group-hover:underline">
-          Voir tout ({totalCount})
-          <ChevronRightIcon className="w-4 h-4" />
-        </span>
-      </button>
-
-      {/* Grille de cartes 2x2 */}
-      <div className="grid grid-cols-2 gap-3">
-        {tasks.map(task => (
-          <TaskCard
-            key={task.id}
-            item={task}
-            onMarkDone={onMarkDone}
-            onPlan={onPlan}
-            onPostpone={onPostpone}
-          />
-        ))}
+      <div className="flex items-center justify-between mb-3">
+        <h2 className="text-xs font-semibold text-primary uppercase tracking-wider">
+          Priorités
+        </h2>
+        {totalCount > 0 && (
+          <span className="text-xs text-text-muted">
+            {totalCount} pensée{totalCount > 1 ? 's' : ''}
+          </span>
+        )}
       </div>
+
+      {/* État vide */}
+      {tasks.length === 0 ? (
+        <EmptyState message="Aucune tâche pour le moment" />
+      ) : (
+        <>
+          {/* Liste des tâches */}
+          <div className="space-y-3">
+            {visibleTasks.map(task => (
+              <TaskCard
+                key={task.id}
+                item={task}
+                onMarkDone={onMarkDone}
+                onPlan={onPlan}
+                onDelete={onDelete}
+              />
+            ))}
+          </div>
+
+          {/* Bouton dépliant */}
+          {hasMoreTasks && (
+            <button
+              onClick={() => setIsExpanded(!isExpanded)}
+              className="w-full mt-4 py-3 text-sm font-medium text-text-muted hover:text-text-dark transition-colors border-t border-gray-100"
+            >
+              {isExpanded
+                ? '− Réduire'
+                : `+ Voir les ${hiddenCount} autre${hiddenCount > 1 ? 's' : ''} pensée${hiddenCount > 1 ? 's' : ''}`
+              }
+            </button>
+          )}
+        </>
+      )}
     </section>
   )
 }

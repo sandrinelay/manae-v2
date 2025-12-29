@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '@/hooks/useAuth'
 import { AppHeader } from '@/components/layout'
@@ -15,6 +15,7 @@ import { useClarteData } from '@/hooks/useClarteData'
 import { createClient } from '@/lib/supabase/client'
 import type { Item } from '@/types/items'
 import type { FilterType } from '@/config/filters'
+import type { ContextFilterType } from '@/components/ui/ContextFilterTabs'
 
 export default function ClartePage() {
   const router = useRouter()
@@ -22,6 +23,7 @@ export default function ClartePage() {
   const { data, isLoading: dataLoading, refetch } = useClarteData()
 
   const [activeFilter, setActiveFilter] = useState<FilterType>('all')
+  const [activeContext, setActiveContext] = useState<ContextFilterType>('all')
   const [searchQuery, setSearchQuery] = useState<string | null>(null)
   const [selectedNote, setSelectedNote] = useState<Item | null>(null)
 
@@ -40,10 +42,14 @@ export default function ClartePage() {
     console.log('Plan:', id)
   }, [])
 
-  const handlePostpone = useCallback((id: string) => {
-    // TODO: Ouvrir modal Report
-    console.log('Postpone:', id)
-  }, [])
+  const handleDeleteTask = useCallback(async (id: string) => {
+    const supabase = createClient()
+    await supabase
+      .from('items')
+      .delete()
+      .eq('id', id)
+    await refetch()
+  }, [refetch])
 
   const handleTapNote = useCallback((id: string) => {
     const note = data?.notes.find(n => n.id === id)
@@ -114,6 +120,13 @@ export default function ClartePage() {
     await refetch()
   }, [refetch])
 
+  // Filtrer les notes par contexte (uniquement pour les notes)
+  const filteredNotes = useMemo(() => {
+    if (!data?.notes) return []
+    if (activeContext === 'all') return data.notes
+    return data.notes.filter(item => item.context === activeContext)
+  }, [data?.notes, activeContext])
+
   const isLoading = authLoading || dataLoading
 
   if (isLoading) {
@@ -145,7 +158,7 @@ export default function ClartePage() {
     )
   }
 
-  // Déterminer quels blocs afficher selon le filtre
+  // Déterminer quels blocs afficher selon le filtre type
   const showTasks = activeFilter === 'all' || activeFilter === 'tasks'
   const showNotes = activeFilter === 'all' || activeFilter === 'notes'
   const showIdeas = activeFilter === 'all' || activeFilter === 'ideas'
@@ -158,12 +171,14 @@ export default function ClartePage() {
         <div className="max-w-2xl mx-auto px-4">
           {/* Header sticky avec recherche et filtres */}
           <ClarteHeader
-          activeFilter={activeFilter}
-          counts={data.counts}
-          onFilterChange={setActiveFilter}
-          onSearch={handleSearch}
-          onClearSearch={handleClearSearch}
-        />
+            activeFilter={activeFilter}
+            activeContext={activeContext}
+            counts={data.counts}
+            onFilterChange={setActiveFilter}
+            onContextChange={setActiveContext}
+            onSearch={handleSearch}
+            onClearSearch={handleClearSearch}
+          />
 
         {/* TODO: Afficher SearchResults si searchQuery existe */}
 
@@ -175,14 +190,14 @@ export default function ClartePage() {
               totalCount={data.counts.tasks}
               onMarkDone={handleMarkDone}
               onPlan={handlePlan}
-              onPostpone={handlePostpone}
+              onDelete={handleDeleteTask}
             />
           )}
 
           {showNotes && (
             <NotesBlock
-              notes={data.notes}
-              totalCount={data.counts.notes}
+              notes={filteredNotes}
+              totalCount={filteredNotes.length}
               onTapNote={handleTapNote}
             />
           )}

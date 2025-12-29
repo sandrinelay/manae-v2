@@ -704,8 +704,8 @@ export function CaptureModal({
         onClick={onClose}
       />
 
-      {/* Modal */}
-      <div className="fixed z-50 bg-white shadow-2xl animate-slide-up flex flex-col inset-x-0 bottom-20 rounded-t-3xl rounded-b-none" style={{ maxHeight: 'calc(100vh - 160px)' }}>
+      {/* Modal - positionné au-dessus du BottomNav */}
+      <div className="fixed z-50 bg-white shadow-2xl animate-slide-up flex flex-col inset-x-0 bottom-[80px] rounded-t-3xl" style={{ maxHeight: 'calc(100vh - 140px)' }}>
         {/* Header */}
         <div className="flex items-center justify-between p-4 border-b border-border shrink-0">
           {currentStep === 'schedule' ? (

@@ -1,7 +1,9 @@
 const DAYS_SHORT = ['dim.', 'lun.', 'mar.', 'mer.', 'jeu.', 'ven.', 'sam.']
 
 export function formatScheduledDate(dateStr: string): string {
-  const date = new Date(dateStr)
+  // Normaliser le format de date Supabase (remplace l'espace par T pour ISO)
+  const normalizedDateStr = dateStr.replace(' ', 'T')
+  const date = new Date(normalizedDateStr)
   const now = new Date()
 
   // Reset time for date comparison
@@ -33,7 +35,9 @@ export function formatScheduledDate(dateStr: string): string {
 }
 
 export function formatRelativeTime(dateStr: string): string {
-  const date = new Date(dateStr)
+  // Normaliser le format de date Supabase (remplace l'espace par T pour ISO)
+  const normalizedDateStr = dateStr.replace(' ', 'T')
+  const date = new Date(normalizedDateStr)
   const now = new Date()
   const diffMs = now.getTime() - date.getTime()
   const diffMinutes = Math.floor(diffMs / 60000)
