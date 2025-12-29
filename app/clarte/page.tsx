@@ -14,7 +14,7 @@ import { NoteDetailModal } from '@/components/clarte/modals/NoteDetailModal'
 import { useClarteData } from '@/hooks/useClarteData'
 import { createClient } from '@/lib/supabase/client'
 import type { Item } from '@/types/items'
-import type { FilterType } from '@/components/clarte/FilterChips'
+import type { FilterType } from '@/config/filters'
 
 export default function ClartePage() {
   const router = useRouter()

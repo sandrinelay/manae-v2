@@ -1,11 +1,12 @@
 'use client'
 
-import { SearchInput } from './SearchInput'
-import { FilterChips, type FilterType } from './FilterChips'
+import { SearchBar } from '@/components/ui/SearchBar'
+import { FilterTabs } from '@/components/ui/FilterTabs'
+import type { FilterType } from '@/config/filters'
 
 interface ClarteHeaderProps {
   activeFilter: FilterType
-  counts: {
+  counts?: {
     tasks: number
     notes: number
     ideas: number
@@ -24,15 +25,24 @@ export function ClarteHeader({
   onClearSearch
 }: ClarteHeaderProps) {
   return (
-    <header className="sticky top-0 z-10 bg-mint pt-4 pb-2 px-4 -mx-4">
-      <SearchInput onSearch={onSearch} onClear={onClearSearch} />
-      <div className="mt-3">
-        <FilterChips
-          activeFilter={activeFilter}
-          counts={counts}
-          onFilterChange={onFilterChange}
-        />
-      </div>
+    <header className="sticky top-0 z-10 bg-mint pt-4 pb-2">
+      {/* Barre de recherche */}
+      <SearchBar
+        placeholder="Rechercher une pensée..."
+        onSearch={onSearch}
+        onClear={onClearSearch}
+      />
+
+      {/* Filtres par type */}
+      <FilterTabs
+        activeFilter={activeFilter}
+        counts={counts}
+        onFilterChange={onFilterChange}
+        className="mt-4"
+      />
     </header>
   )
 }
+
+// Re-export du type pour la page
+export type { FilterType }
