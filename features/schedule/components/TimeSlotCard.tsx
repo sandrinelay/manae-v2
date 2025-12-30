@@ -1,6 +1,7 @@
 'use client'
 
 import type { TimeSlot } from '../types/scheduling.types'
+import { CheckIcon } from '@/components/ui/icons'
 
 // ============================================
 // TYPES
@@ -87,9 +88,7 @@ export function TimeSlotCard({ slot, rank, isSelected, onSelect }: TimeSlotCardP
             {slot.score}%
           </div>
           {isSelected && (
-            <svg width="18" height="18" viewBox="0 0 16 16" fill="none" className="text-primary">
-              <path d="M13.5 4L6 11.5L2.5 8" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-            </svg>
+            <CheckIcon className="w-[18px] h-[18px] text-primary" />
           )}
         </div>
       </div>

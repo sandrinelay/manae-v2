@@ -2,7 +2,7 @@
 
 import { Item } from '@/types/items'
 import { CONTEXT_CONFIG } from '@/config/contexts'
-import { NoteIcon } from '@/components/ui/icons/ItemTypeIcons'
+import { NoteIcon } from '@/components/ui/icons'
 import { formatRelativeTime } from '@/lib/date-utils'
 
 interface NoteRowProps {

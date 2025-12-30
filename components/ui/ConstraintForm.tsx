@@ -11,7 +11,7 @@ import {
     ActivityIcon,
     UsersIcon,
     PinIcon
-} from '@/components/ui/icons/CategoryIcons';
+} from '@/components/ui/icons';
 
 interface ConstraintFormProps {
     constraint?: Constraint;

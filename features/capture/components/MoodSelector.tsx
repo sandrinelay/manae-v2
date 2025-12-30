@@ -1,6 +1,7 @@
 'use client'
 
 import type { ReactNode } from 'react'
+import { EnergeticIcon, CalmIcon, OverwhelmedIcon, TiredIcon } from '@/components/ui/icons'
 
 type Mood = 'energetic' | 'calm' | 'overwhelmed' | 'tired'
 
@@ -9,34 +10,6 @@ interface MoodSelectorProps {
   onSelectMood: (mood: Mood | null) => void
   disabled?: boolean
 }
-
-// Icônes SVG style maquette
-const EnergeticIcon = () => (
-  <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-    <path strokeLinecap="round" strokeLinejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" />
-  </svg>
-)
-
-const CalmIcon = () => (
-  <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-    <path strokeLinecap="round" strokeLinejoin="round" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707" />
-    <circle cx="12" cy="12" r="4" />
-  </svg>
-)
-
-const OverwhelmedIcon = () => (
-  <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-    <circle cx="12" cy="12" r="9" />
-    <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4m0 4h.01" />
-  </svg>
-)
-
-const TiredIcon = () => (
-  <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-    <rect x="4" y="4" width="16" height="16" rx="2" />
-    <path strokeLinecap="round" strokeLinejoin="round" d="M9 9h.01M15 9h.01M9 15h6" />
-  </svg>
-)
 
 interface MoodConfig {
   value: Mood
@@ -49,28 +22,28 @@ interface MoodConfig {
 const MOODS: MoodConfig[] = [
   {
     value: 'energetic',
-    icon: <EnergeticIcon />,
+    icon: <EnergeticIcon className="w-6 h-6" />,
     label: 'Énergique',
     bgSelected: 'bg-[#E89B6C]', // Orange pastel - énergie, vitalité, enthousiasme
     iconColorSelected: 'text-white'
   },
   {
     value: 'calm',
-    icon: <CalmIcon />,
+    icon: <CalmIcon className="w-6 h-6" />,
     label: 'Calme',
     bgSelected: 'bg-[#7EB89E]', // Vert pastel - sérénité, équilibre, harmonie
     iconColorSelected: 'text-white'
   },
   {
     value: 'overwhelmed',
-    icon: <OverwhelmedIcon />,
+    icon: <OverwhelmedIcon className="w-6 h-6" />,
     label: 'Débordé(e)',
     bgSelected: 'bg-[#E07B7B]', // Corail saturé pastel - stress, urgence, tension
     iconColorSelected: 'text-white'
   },
   {
     value: 'tired',
-    icon: <TiredIcon />,
+    icon: <TiredIcon className="w-6 h-6" />,
     label: 'Fatigué(e)',
     bgSelected: 'bg-[#8E9AAF]', // Gris pastel bleuté - fatigue, repos, calme
     iconColorSelected: 'text-white'

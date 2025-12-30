@@ -1,6 +1,6 @@
 'use client'
 
-import { TaskIcon, NoteIcon, IdeaIcon, ShoppingIcon } from '@/components/ui/icons/ItemTypeIcons'
+import { TaskIcon, NoteIcon, IdeaIcon, ShoppingIcon } from '@/components/ui/icons'
 
 export type FilterType = 'all' | 'tasks' | 'notes' | 'ideas' | 'shopping'
 

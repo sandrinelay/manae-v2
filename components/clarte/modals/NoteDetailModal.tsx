@@ -2,7 +2,9 @@
 
 import { Item } from '@/types/items'
 import { CONTEXT_CONFIG } from '@/config/contexts'
-import { NoteIcon, XIcon, EditIcon, ArchiveIcon, TrashIcon } from '@/components/ui/icons/ItemTypeIcons'
+import { NoteIcon, XIcon, EditIcon, ArchiveIcon, TrashIcon } from '@/components/ui/icons'
+import { IconButton } from '@/components/ui/IconButton'
+import { ActionButton } from '@/components/ui/ActionButton'
 import { formatRelativeTime } from '@/lib/date-utils'
 
 interface NoteDetailModalProps {
@@ -56,26 +58,27 @@ export function NoteDetailModal({ note, onClose, onEdit, onArchive, onDelete }: 
 
         {/* Actions */}
         <div className="flex gap-2 p-4 border-t border-border">
-          <button
+          <ActionButton
+            label="Modifier"
+            icon={<EditIcon />}
+            variant="secondary"
             onClick={() => onEdit(note.id)}
-            className="flex-1 py-2.5 px-4 flex items-center justify-center gap-2 rounded-xl border border-border hover:bg-gray-50 transition-colors"
-          >
-            <EditIcon className="w-4 h-4" />
-            <span>Modifier</span>
-          </button>
-          <button
+            className="flex-1"
+          />
+          <ActionButton
+            label="Archiver"
+            icon={<ArchiveIcon />}
+            variant="archive"
             onClick={() => onArchive(note.id)}
-            className="flex-1 py-2.5 px-4 flex items-center justify-center gap-2 rounded-xl border border-border hover:bg-gray-50 transition-colors"
-          >
-            <ArchiveIcon className="w-4 h-4" />
-            <span>Archiver</span>
-          </button>
-          <button
+            className="flex-1"
+          />
+          <IconButton
+            icon={<TrashIcon />}
+            label="Supprimer"
+            variant="danger"
+            size="md"
             onClick={() => onDelete(note.id)}
-            className="py-2.5 px-4 flex items-center justify-center rounded-xl border border-red-200 text-red-500 hover:bg-red-50 transition-colors"
-          >
-            <TrashIcon className="w-4 h-4" />
-          </button>
+          />
         </div>
       </div>
     </>

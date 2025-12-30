@@ -10,7 +10,8 @@ import {
   TrashIcon,
   CheckCircleFilledIcon,
   DashedCircleIcon
-} from '@/components/ui/icons/ItemTypeIcons'
+} from '@/components/ui/icons'
+import { ActionButton } from '@/components/ui/ActionButton'
 import { formatRelativeTime } from '@/lib/date-utils'
 
 type TaskMode = 'done' | 'stored'
@@ -87,18 +88,18 @@ export function TaskDetailModal({
               Cette action est irréversible.
             </p>
             <div className="flex gap-3 pt-2">
-              <button
+              <ActionButton
+                label="Annuler"
+                variant="secondary"
                 onClick={() => setShowDeleteConfirm(false)}
-                className="flex-1 py-2.5 px-4 rounded-xl border border-border hover:bg-gray-50 transition-colors text-text-dark"
-              >
-                Annuler
-              </button>
-              <button
+                className="flex-1"
+              />
+              <ActionButton
+                label="Supprimer"
+                variant="delete"
                 onClick={handleDelete}
-                className="flex-1 py-2.5 px-4 rounded-xl bg-red-500 text-white hover:bg-red-600 transition-colors"
-              >
-                Supprimer
-              </button>
+                className="flex-1"
+              />
             </div>
           </div>
         ) : (
@@ -132,39 +133,39 @@ export function TaskDetailModal({
             {/* Actions */}
             <div className="flex gap-2 p-4 border-t border-border">
               {/* Réactiver (toujours présent) */}
-              <button
+              <ActionButton
+                label="Réactiver"
+                icon={<UndoIcon />}
+                variant="secondary"
                 onClick={() => {
                   onReactivate(task.id)
                   onClose()
                 }}
-                className="flex-1 py-2.5 px-4 flex items-center justify-center gap-2 rounded-xl border border-border hover:bg-gray-50 transition-colors"
-              >
-                <UndoIcon className="w-4 h-4" />
-                <span>Réactiver</span>
-              </button>
+                className="flex-1"
+              />
 
               {/* Ranger (mode done) ou Supprimer (mode stored) */}
               {mode === 'done' && onStore && (
-                <button
+                <ActionButton
+                  label="Ranger"
+                  icon={<ArchiveIcon />}
+                  variant="archive"
                   onClick={() => {
                     onStore(task.id)
                     onClose()
                   }}
-                  className="flex-1 py-2.5 px-4 flex items-center justify-center gap-2 rounded-xl border border-border hover:bg-gray-50 transition-colors"
-                >
-                  <ArchiveIcon className="w-4 h-4" />
-                  <span>Ranger</span>
-                </button>
+                  className="flex-1"
+                />
               )}
 
               {mode === 'stored' && onDelete && (
-                <button
+                <ActionButton
+                  label="Supprimer"
+                  icon={<TrashIcon />}
+                  variant="delete"
                   onClick={() => setShowDeleteConfirm(true)}
-                  className="flex-1 py-2.5 px-4 flex items-center justify-center gap-2 rounded-xl border border-red-200 text-red-500 hover:bg-red-50 transition-colors"
-                >
-                  <TrashIcon className="w-4 h-4" />
-                  <span>Supprimer</span>
-                </button>
+                  className="flex-1"
+                />
               )}
             </div>
           </>

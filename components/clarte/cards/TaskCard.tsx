@@ -2,7 +2,8 @@
 
 import { Item, ItemState } from '@/types/items'
 import { CONTEXT_CONFIG } from '@/config/contexts'
-import { CalendarIcon, CheckIcon } from '@/components/ui/icons/ItemTypeIcons'
+import { CalendarIcon, CheckIcon } from '@/components/ui/icons'
+import { IconButton } from '@/components/ui/IconButton'
 import { formatScheduledDate, formatRelativeTime } from '@/lib/date-utils'
 
 // Mode d'affichage de la carte
@@ -16,19 +17,6 @@ interface TaskCardProps {
   onTap?: (id: string) => void // Pour ouvrir la modal de détail
 }
 
-// Couleurs pour les boutons d'action
-const ACTION_COLORS = {
-  done: {
-    bg: 'bg-green-50',
-    text: 'text-green-500',
-    hover: 'hover:bg-green-100'
-  },
-  calendar: {
-    bg: 'bg-teal-50',
-    text: 'text-teal-500',
-    hover: 'hover:bg-teal-100'
-  }
-}
 
 // Configuration des statuts selon l'état de l'item
 const STATUS_CONFIG: Record<ItemState, { label: string; className: string; dotColor: string }> = {
@@ -178,36 +166,30 @@ export function TaskCard({ item, mode = 'active', onMarkDone, onPlan, onTap }: T
           <div className="flex items-center gap-2 shrink-0">
             {/* Bouton Fait */}
             {onMarkDone && (
-              <button
+              <IconButton
+                icon={<CheckIcon />}
+                label="Marquer comme fait"
+                variant="success"
+                size="sm"
                 onClick={(e) => {
                   e.stopPropagation()
                   onMarkDone(item.id)
                 }}
-                className={`
-                  p-2 rounded-xl transition-colors
-                  ${ACTION_COLORS.done.bg} ${ACTION_COLORS.done.text} ${ACTION_COLORS.done.hover}
-                `}
-                aria-label="Marquer comme fait"
-              >
-                <CheckIcon className="w-5 h-5" />
-              </button>
+              />
             )}
 
             {/* Bouton Caler / Décaler */}
             {onPlan && (
-              <button
+              <IconButton
+                icon={<CalendarIcon />}
+                label={planButtonLabel}
+                variant="teal"
+                size="sm"
                 onClick={(e) => {
                   e.stopPropagation()
                   onPlan(item.id)
                 }}
-                className={`
-                  p-2 rounded-xl transition-colors
-                  ${ACTION_COLORS.calendar.bg} ${ACTION_COLORS.calendar.text} ${ACTION_COLORS.calendar.hover}
-                `}
-                aria-label={planButtonLabel}
-              >
-                <CalendarIcon className="w-5 h-5" />
-              </button>
+              />
             )}
           </div>
         )}

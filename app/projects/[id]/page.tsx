@@ -5,6 +5,7 @@ import { useParams, useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { useAuth } from '@/hooks/useAuth'
 import type { Item, ItemState } from '@/types/items'
+import { ArrowLeftIcon, CheckIcon, CircleIcon } from '@/components/ui/icons'
 
 // ============================================
 // TYPES
@@ -13,28 +14,6 @@ import type { Item, ItemState } from '@/types/items'
 interface ProjectWithSteps extends Item {
   steps: Item[]
 }
-
-// ============================================
-// ICONES
-// ============================================
-
-const BackIcon = () => (
-  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
-    <path strokeLinecap="round" strokeLinejoin="round" d="M19 12H5M5 12L12 19M5 12L12 5" />
-  </svg>
-)
-
-const CheckIcon = () => (
-  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
-    <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-  </svg>
-)
-
-const CircleIcon = () => (
-  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
-    <circle cx="12" cy="12" r="10" />
-  </svg>
-)
 
 // ============================================
 // COMPOSANT
@@ -172,7 +151,7 @@ export default function ProjectPage() {
           onClick={() => router.back()}
           className="flex items-center gap-2 text-text-muted hover:text-text-dark mb-6"
         >
-          <BackIcon />
+          <ArrowLeftIcon className="w-6 h-6" />
           <span>Retour</span>
         </button>
         <div className="bg-red-50 border border-red-200 rounded-xl p-6 text-center">
@@ -201,7 +180,7 @@ export default function ProjectPage() {
           onClick={() => router.back()}
           className="flex items-center gap-2 text-text-muted hover:text-text-dark"
         >
-          <BackIcon />
+          <ArrowLeftIcon className="w-6 h-6" />
           <span>Retour</span>
         </button>
       </header>
@@ -298,7 +277,7 @@ export default function ProjectPage() {
                         }
                       `}
                     >
-                      {isCompleted ? <CheckIcon /> : <CircleIcon />}
+                      {isCompleted ? <CheckIcon className="w-5 h-5" /> : <CircleIcon className="w-5 h-5" />}
                     </button>
 
                     <div className="flex-1 min-w-0">

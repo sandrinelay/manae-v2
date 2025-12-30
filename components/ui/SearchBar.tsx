@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useRef, useCallback } from 'react'
-import { SearchIcon, XIcon } from '@/components/ui/icons/ItemTypeIcons'
+import { SearchIcon, XIcon } from '@/components/ui/icons'
 
 /**
  * Normalise une chaîne: minuscules + sans accents

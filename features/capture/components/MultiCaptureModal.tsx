@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { CaptureModal, type ActionType } from './CaptureModal'
 import type { ItemType, ItemContext } from '@/types/items'
 import type { MultiThoughtItem } from '@/services/capture'
+import { ChevronLeftIcon, ChevronRightIcon, XIcon } from '@/components/ui/icons'
 
 // ============================================
 // TYPES
@@ -180,9 +181,7 @@ export function MultiCaptureModal({
               className="p-2 rounded-lg border border-border hover:bg-gray-light disabled:opacity-30 disabled:cursor-not-allowed transition-all"
               title="Précédent"
             >
-              <svg className="w-5 h-5 text-text-dark" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-              </svg>
+              <ChevronLeftIcon className="w-5 h-5 text-text-dark" />
             </button>
             <button
               onClick={handleNext}
@@ -190,9 +189,7 @@ export function MultiCaptureModal({
               className="p-2 rounded-lg border border-border hover:bg-gray-light disabled:opacity-30 disabled:cursor-not-allowed transition-all"
               title="Suivant"
             >
-              <svg className="w-5 h-5 text-text-dark" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-              </svg>
+              <ChevronRightIcon className="w-5 h-5 text-text-dark" />
             </button>
 
             {/* Bouton fermer */}
@@ -201,9 +198,7 @@ export function MultiCaptureModal({
               className="p-2 rounded-lg hover:bg-gray-light transition-all ml-2"
               title="Fermer"
             >
-              <svg className="w-5 h-5 text-text-muted" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-              </svg>
+              <XIcon className="w-5 h-5 text-text-muted" />
             </button>
           </div>
         </div>

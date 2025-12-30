@@ -12,6 +12,19 @@ import { useGoogleCalendarStatus } from '@/hooks/useGoogleCalendarStatus'
 import { saveItem } from '@/services/capture'
 import type { Mood as ItemMood } from '@/types/items'
 import { IdeaDevelopPanel } from '@/features/ideas/components/IdeaDevelopPanel'
+import { CONTEXT_CONFIG } from '@/config/contexts'
+import {
+  TaskIcon,
+  NoteIcon,
+  ShoppingIcon,
+  IdeaIcon,
+  TrashIcon,
+  ArrowLeftIcon,
+  XIcon,
+  AlertIcon
+} from '@/components/ui/icons'
+import { IconButton } from '@/components/ui/IconButton'
+import { ActionButton } from '@/components/ui/ActionButton'
 
 // ============================================
 // TYPES
@@ -45,137 +58,61 @@ interface CaptureModalProps {
 
 export type ActionType = 'save' | 'plan' | 'develop' | 'add_to_list' | 'delete'
 
-interface ActionButton {
+interface ActionConfig {
   label: string
   value: ActionType
   requiresAI?: boolean
-  variant?: 'primary' | 'secondary'
+  variant?: 'save' | 'plan' | 'secondary'
 }
-
-// ============================================
-// ICÔNES SVG
-// ============================================
-
-const TaskIcon = () => (
-  <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-    <path strokeLinecap="round" strokeLinejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-  </svg>
-)
-
-const NoteIcon = () => (
-  <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-    <path strokeLinecap="round" strokeLinejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-  </svg>
-)
-
-const ShoppingIcon = () => (
-  <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-    <path strokeLinecap="round" strokeLinejoin="round" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" />
-  </svg>
-)
-
-const IdeaIcon = () => (
-  <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-    <path strokeLinecap="round" strokeLinejoin="round" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
-  </svg>
-)
-
-const TrashIcon = () => (
-  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-    <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-  </svg>
-)
-
-const BackIcon = () => (
-  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
-    <path strokeLinecap="round" strokeLinejoin="round" d="M19 12H5M5 12L12 19M5 12L12 5" />
-  </svg>
-)
-
-const CloseIcon = () => (
-  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
-    <path strokeLinecap="round" strokeLinejoin="round" d="M18 6L6 18M6 6L18 18" />
-  </svg>
-)
-
-// Icônes contexte (même style que les types)
-const PersonalIcon = () => (
-  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-    <path strokeLinecap="round" strokeLinejoin="round" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
-  </svg>
-)
-
-const FamilyIcon = () => (
-  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-    <path strokeLinecap="round" strokeLinejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
-  </svg>
-)
-
-const WorkIcon = () => (
-  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-    <path strokeLinecap="round" strokeLinejoin="round" d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
-  </svg>
-)
-
-const HealthIcon = () => (
-  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-    <path strokeLinecap="round" strokeLinejoin="round" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
-  </svg>
-)
-
-const OtherIcon = () => (
-  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-    <path strokeLinecap="round" strokeLinejoin="round" d="M5 12h.01M12 12h.01M19 12h.01M6 12a1 1 0 11-2 0 1 1 0 012 0zm7 0a1 1 0 11-2 0 1 1 0 012 0zm7 0a1 1 0 11-2 0 1 1 0 012 0z" />
-  </svg>
-)
 
 // ============================================
 // CONFIGURATION
 // ============================================
 
 const TYPE_CONFIG: Record<ItemType, {
-  icon: ReactNode
+  icon: React.FC<{ className?: string }>
   label: string
-  actions: ActionButton[]
+  actions: ActionConfig[]
 }> = {
   task: {
-    icon: <TaskIcon />,
+    icon: TaskIcon,
     label: 'Tâche',
     actions: [
-      { label: 'Enregistrer', value: 'save', variant: 'primary' },
-      { label: 'Planifier', value: 'plan', variant: 'secondary', requiresAI: true }
+      { label: 'Enregistrer', value: 'save', variant: 'save' },
+      { label: 'Planifier', value: 'plan', variant: 'plan', requiresAI: true }
     ]
   },
   note: {
-    icon: <NoteIcon />,
+    icon: NoteIcon,
     label: 'Note',
     actions: [
-      { label: 'Ajouter', value: 'save', variant: 'primary' }
+      { label: 'Ajouter', value: 'save', variant: 'save' }
     ]
   },
   list_item: {
-    icon: <ShoppingIcon />,
+    icon: ShoppingIcon,
     label: 'Course',
     actions: [
-      { label: 'Ajouter', value: 'add_to_list', variant: 'primary' }
+      { label: 'Ajouter', value: 'add_to_list', variant: 'save' }
     ]
   },
   idea: {
-    icon: <IdeaIcon />,
+    icon: IdeaIcon,
     label: 'Idée',
     actions: [
-      { label: 'Enregistrer', value: 'save', variant: 'primary' },
-      { label: 'Développer', value: 'develop', variant: 'secondary', requiresAI: true }
+      { label: 'Enregistrer', value: 'save', variant: 'save' },
+      { label: 'Développer', value: 'develop', variant: 'plan', requiresAI: true }
     ]
   }
 }
 
-const CONTEXT_CONFIG: Record<ItemContext, { icon: ReactNode; label: string }> = {
-  personal: { icon: <PersonalIcon />, label: 'Perso' },
-  family: { icon: <FamilyIcon />, label: 'Famille' },
-  work: { icon: <WorkIcon />, label: 'Travail' },
-  health: { icon: <HealthIcon />, label: 'Santé' },
-  other: { icon: <OtherIcon />, label: 'Autre' }
+// Labels courts pour la capture (le CONTEXT_CONFIG global a les labels complets)
+const CONTEXT_SHORT_LABELS: Record<ItemContext, string> = {
+  personal: 'Perso',
+  family: 'Famille',
+  work: 'Travail',
+  health: 'Santé',
+  other: 'Autre'
 }
 
 // ============================================
@@ -361,9 +298,7 @@ export function CaptureModal({
       {captureResult.quotaExceeded && (
         <div className="bg-amber-50 border border-amber-200 rounded-lg p-3">
           <div className="flex items-start gap-2">
-            <svg className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-            </svg>
+            <AlertIcon className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
             <div className="text-sm">
               <p className="font-medium text-amber-800">Quota IA épuisé cette semaine</p>
               <p className="text-amber-700 mt-1">
@@ -383,7 +318,10 @@ export function CaptureModal({
           <div className="flex items-center gap-2 text-sm">
             <span className="text-primary">IA suggère :</span>
             <span className="font-medium text-primary flex items-center gap-1">
-              <span className="w-5 h-5">{TYPE_CONFIG[captureResult.suggestedType].icon}</span>
+              {(() => {
+                const SuggestedIcon = TYPE_CONFIG[captureResult.suggestedType].icon
+                return <SuggestedIcon className="w-5 h-5" />
+              })()}
               {TYPE_CONFIG[captureResult.suggestedType].label}
             </span>
           </div>
@@ -407,22 +345,18 @@ export function CaptureModal({
           {(Object.keys(TYPE_CONFIG) as ItemType[]).map((type) => {
             const typeConfig = TYPE_CONFIG[type]
             const isSelected = selectedType === type
+            const TypeIcon = typeConfig.icon
 
             return (
-              <button
+              <IconButton
                 key={type}
+                icon={<TypeIcon />}
+                label={typeConfig.label}
+                size="sm"
+                variant={isSelected ? 'primary' : 'ghost'}
                 onClick={() => setSelectedType(type)}
-                className={`
-                  flex items-center justify-center p-3 rounded-xl transition-all
-                  ${isSelected
-                    ? 'bg-primary text-white shadow-lg scale-105'
-                    : 'bg-gray-light text-text-muted hover:bg-border'
-                  }
-                `}
-                title={typeConfig.label}
-              >
-                {typeConfig.icon}
-              </button>
+                className={isSelected ? 'shadow-lg scale-105' : 'bg-gray-light'}
+              />
             )
           })}
         </div>
@@ -435,23 +369,19 @@ export function CaptureModal({
           <div className="flex gap-2">
             {(Object.keys(CONTEXT_CONFIG) as ItemContext[]).map((ctx) => {
               const ctxConfig = CONTEXT_CONFIG[ctx]
+              const CtxIcon = ctxConfig.icon
               const isSelected = selectedContext === ctx
 
               return (
-                <button
+                <IconButton
                   key={ctx}
+                  icon={<CtxIcon />}
+                  label={CONTEXT_SHORT_LABELS[ctx]}
+                  size="sm"
+                  variant={isSelected ? 'primary' : 'ghost'}
                   onClick={() => setSelectedContext(ctx)}
-                  className={`
-                    flex items-center justify-center p-3 rounded-xl transition-all
-                    ${isSelected
-                      ? 'bg-primary text-white shadow-lg scale-105'
-                      : 'bg-gray-light text-text-muted hover:bg-border'
-                    }
-                  `}
-                  title={ctxConfig.label}
-                >
-                  {ctxConfig.icon}
-                </button>
+                  className={isSelected ? 'shadow-lg scale-105' : 'bg-gray-light'}
+                />
               )
             })}
           </div>
@@ -464,31 +394,25 @@ export function CaptureModal({
           const isDisabled = (actionConfig.requiresAI && !hasAIQuota) || isSaving
 
           return (
-            <button
+            <ActionButton
               key={actionConfig.value}
+              label={isSaving && actionConfig.value === 'plan' ? 'Chargement...' : actionConfig.label}
+              variant={actionConfig.variant || 'save'}
               onClick={() => !isDisabled && handleAction(selectedType, actionConfig.value)}
               disabled={isDisabled}
-              className={`
-                flex-1 py-3 px-4 rounded-xl font-medium transition-all
-                ${actionConfig.variant === 'primary'
-                  ? 'bg-primary text-white hover:opacity-90'
-                  : 'border-2 border-border text-text-dark hover:border-primary hover:text-primary'
-                }
-                ${isDisabled ? 'opacity-50 cursor-not-allowed' : ''}
-              `}
-            >
-              {isSaving && actionConfig.value === 'plan' ? 'Chargement...' : actionConfig.label}
-            </button>
+              fullWidth
+              className="flex-1"
+            />
           )
         })}
 
-        <button
+        <IconButton
+          icon={<TrashIcon />}
+          label="Supprimer"
+          variant="danger"
+          size="md"
           onClick={() => onSave(selectedType, 'delete', selectedContext)}
-          className="p-3 rounded-xl border-2 border-red-200 text-red-500 hover:bg-red-50 transition-all"
-          title="Supprimer"
-        >
-          <TrashIcon />
-        </button>
+        />
       </div>
 
       {/* Panel de développement d'idée (inline) */}
@@ -709,12 +633,13 @@ export function CaptureModal({
         {/* Header */}
         <div className="flex items-center justify-between p-4 border-b border-border flex-shrink-0">
           {currentStep === 'schedule' ? (
-            <button
+            <IconButton
+              icon={<ArrowLeftIcon />}
+              label="Retour"
+              variant="ghost"
+              size="sm"
               onClick={handleBack}
-              className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
-            >
-              <BackIcon />
-            </button>
+            />
           ) : (
             <div className="w-10" />
           )}
@@ -723,12 +648,13 @@ export function CaptureModal({
             {currentStep === 'organize' ? 'Organiser' : 'Planifier la tâche'}
           </h2>
 
-          <button
+          <IconButton
+            icon={<XIcon />}
+            label="Fermer"
+            variant="ghost"
+            size="sm"
             onClick={onClose}
-            className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
-          >
-            <CloseIcon />
-          </button>
+          />
         </div>
 
         {/* Content - avec overflow scroll */}

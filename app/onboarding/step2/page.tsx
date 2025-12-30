@@ -4,9 +4,8 @@ import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/Button';
 import { EnergyCard } from '@/components/ui/EnergyCard';
-import { SunriseIcon, CoffeeIcon, BriefcaseIcon, SunsetIcon, MoonIcon } from '@/components/ui/icons/TimeIcons';
+import { SunriseIcon, CoffeeIcon, BriefcaseIcon, SunsetIcon, MoonIcon } from '@/components/ui/icons';
 import { updateUserProfile, getOrCreateUserProfile } from '@/services/supabaseService';
-import { ArrowLeftIcon, ChevronLeft } from 'lucide-react';
 
 
 interface EnergyMoment {

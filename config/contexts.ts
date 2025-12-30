@@ -3,8 +3,8 @@ import {
   UsersIcon,
   BriefcaseIcon,
   ActivityIcon,
-  PinIcon
-} from '@/components/ui/icons/CategoryIcons'
+  MoreHorizontalIcon
+} from '@/components/ui/icons'
 import type { ItemContext } from '@/types/items'
 
 export const CONTEXT_CONFIG: Record<ItemContext, {
@@ -33,7 +33,7 @@ export const CONTEXT_CONFIG: Record<ItemContext, {
     colorClass: 'text-red-500'
   },
   other: {
-    icon: PinIcon,
+    icon: MoreHorizontalIcon,
     label: 'Autre',
     colorClass: 'text-gray-500'
   }

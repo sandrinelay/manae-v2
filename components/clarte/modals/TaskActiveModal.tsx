@@ -10,7 +10,9 @@ import {
   CalendarIcon,
   ArchiveIcon,
   TrashIcon
-} from '@/components/ui/icons/ItemTypeIcons'
+} from '@/components/ui/icons'
+import { IconButton } from '@/components/ui/IconButton'
+import { ActionButton } from '@/components/ui/ActionButton'
 import { formatRelativeTime, formatScheduledDate } from '@/lib/date-utils'
 
 interface TaskActiveModalProps {
@@ -117,48 +119,48 @@ export function TaskActiveModal({
             {/* Actions */}
             <div className="flex flex-wrap gap-2 p-4 border-t border-border">
               {/* Fait */}
-              <button
+              <ActionButton
+                label="Fait"
+                icon={<CheckIcon />}
+                variant="done"
                 onClick={() => {
                   onMarkDone(task.id)
                   onClose()
                 }}
-                className="flex-1 py-2.5 px-4 flex items-center justify-center gap-2 rounded-xl bg-green-50 text-green-600 border border-green-200 hover:bg-green-100 transition-colors"
-              >
-                <CheckIcon className="w-4 h-4" />
-                <span>Fait</span>
-              </button>
+                className="flex-1"
+              />
 
               {/* Caler / Décaler */}
-              <button
+              <ActionButton
+                label={planButtonLabel}
+                icon={<CalendarIcon />}
+                variant="plan"
                 onClick={() => {
                   onPlan(task.id)
                   onClose()
                 }}
-                className="flex-1 py-2.5 px-4 flex items-center justify-center gap-2 rounded-xl bg-teal-50 text-teal-600 border border-teal-200 hover:bg-teal-100 transition-colors"
-              >
-                <CalendarIcon className="w-4 h-4" />
-                <span>{planButtonLabel}</span>
-              </button>
+                className="flex-1"
+              />
 
               {/* Ranger */}
-              <button
+              <ActionButton
+                label="Ranger"
+                icon={<ArchiveIcon />}
+                variant="archive"
                 onClick={() => {
                   onStore(task.id)
                   onClose()
                 }}
-                className="py-2.5 px-4 flex items-center justify-center gap-2 rounded-xl border border-border hover:bg-gray-50 transition-colors"
-              >
-                <ArchiveIcon className="w-4 h-4" />
-                <span>Ranger</span>
-              </button>
+              />
 
               {/* Supprimer */}
-              <button
+              <IconButton
+                icon={<TrashIcon />}
+                label="Supprimer"
+                variant="danger"
+                size="md"
                 onClick={() => setShowDeleteConfirm(true)}
-                className="py-2.5 px-4 flex items-center justify-center rounded-xl border border-red-200 text-red-500 hover:bg-red-50 transition-colors"
-              >
-                <TrashIcon className="w-4 h-4" />
-              </button>
+              />
             </div>
           </>
         )}

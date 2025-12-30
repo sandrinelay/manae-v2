@@ -2,6 +2,7 @@
 
 import { CONTEXT_CONFIG } from '@/config/contexts'
 import type { ItemContext } from '@/types/items'
+import { AllContextsIcon } from '@/components/ui/icons'
 
 // Types pour le filtre contexte
 export type ContextFilterType = 'all' | ItemContext
@@ -10,18 +11,6 @@ interface ContextFilterTabsProps {
   activeContext: ContextFilterType
   onContextChange: (context: ContextFilterType) => void
   className?: string
-}
-
-// Icône "Tous" - cercle avec points
-function AllContextsIcon({ className }: { className?: string }) {
-  return (
-    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
-      <circle cx="12" cy="12" r="9" />
-      <circle cx="8" cy="12" r="1.5" fill="currentColor" stroke="none" />
-      <circle cx="12" cy="12" r="1.5" fill="currentColor" stroke="none" />
-      <circle cx="16" cy="12" r="1.5" fill="currentColor" stroke="none" />
-    </svg>
-  )
 }
 
 // Configuration du filtre avec "all" en premier

@@ -11,7 +11,8 @@ import GoogleCalendarCTA from '@/components/capture/GoogleCalendarCTA'
 import {
   XIcon,
   CalendarIcon
-} from '@/components/ui/icons/ItemTypeIcons'
+} from '@/components/ui/icons'
+import { ActionButton } from '@/components/ui/ActionButton'
 
 interface PlanTaskModalProps {
   task: Item
@@ -275,20 +276,20 @@ export function PlanTaskModal({ task, onClose, onSuccess }: PlanTaskModalProps) 
 
         {/* Footer Actions */}
         <div className="flex gap-3 p-4 border-t border-border bg-white flex-shrink-0">
-          <button
+          <ActionButton
+            label="Annuler"
+            variant="secondary"
             onClick={onClose}
-            className="flex-1 py-2.5 px-4 rounded-xl border border-border hover:bg-gray-50 transition-colors text-text-dark"
-          >
-            Annuler
-          </button>
+            className="flex-1"
+          />
 
-          <button
+          <ActionButton
+            label={scheduling.isLoading ? 'Planification...' : 'Planifier'}
+            variant="save"
             onClick={handleSchedule}
             disabled={!scheduling.selectedSlot || scheduling.isLoading}
-            className="flex-1 py-2.5 px-4 rounded-xl bg-primary text-white hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {scheduling.isLoading ? 'Planification...' : 'Planifier'}
-          </button>
+            className="flex-1"
+          />
         </div>
       </div>
     </>
