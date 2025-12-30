@@ -1,24 +1,28 @@
 'use client'
 
-import { useState, useCallback, useMemo } from 'react'
-import { useRouter } from 'next/navigation'
+import { useState, useCallback, useMemo, useEffect, Suspense } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { useAuth } from '@/hooks/useAuth'
 import { AppHeader } from '@/components/layout'
 import BottomNav from '@/components/layout/BottomNav'
 import { ClarteHeader } from '@/components/clarte/ClarteHeader'
 import { TasksBlock } from '@/components/clarte/blocks/TasksBlock'
+import { TasksFullView } from '@/components/clarte/views/TasksFullView'
 import { NotesBlock } from '@/components/clarte/blocks/NotesBlock'
 import { IdeasBlock } from '@/components/clarte/blocks/IdeasBlock'
 import { ShoppingBlock } from '@/components/clarte/blocks/ShoppingBlock'
 import { NoteDetailModal } from '@/components/clarte/modals/NoteDetailModal'
+import { TaskActiveModal } from '@/components/clarte/modals/TaskActiveModal'
+import { PlanTaskModal } from '@/components/clarte/modals/PlanTaskModal'
 import { useClarteData } from '@/hooks/useClarteData'
 import { createClient } from '@/lib/supabase/client'
 import type { Item } from '@/types/items'
 import type { FilterType } from '@/config/filters'
 import type { ContextFilterType } from '@/components/ui/ContextFilterTabs'
 
-export default function ClartePage() {
+function ClartePageContent() {
   const router = useRouter()
+  const searchParams = useSearchParams()
   const { user, isLoading: authLoading } = useAuth()
   const { data, isLoading: dataLoading, refetch } = useClarteData()
 
@@ -26,21 +30,54 @@ export default function ClartePage() {
   const [activeContext, setActiveContext] = useState<ContextFilterType>('all')
   const [searchQuery, setSearchQuery] = useState<string | null>(null)
   const [selectedNote, setSelectedNote] = useState<Item | null>(null)
+  const [selectedTask, setSelectedTask] = useState<Item | null>(null)
+  const [taskToPlan, setTaskToPlan] = useState<Item | null>(null)
+
+  // Gérer le retour après connexion Google Calendar
+  useEffect(() => {
+    const resumePlanning = searchParams.get('resumePlanning')
+    if (resumePlanning === 'true' && data?.tasks) {
+      const pendingPlanning = localStorage.getItem('manae_pending_planning')
+      if (pendingPlanning) {
+        try {
+          const context = JSON.parse(pendingPlanning)
+          if (context.itemId) {
+            // Chercher la tâche dans les données
+            const task = data.tasks.find(t => t.id === context.itemId)
+            if (task) {
+              setTaskToPlan(task)
+            }
+          }
+          // Nettoyer le localStorage
+          localStorage.removeItem('manae_pending_planning')
+          // Nettoyer l'URL
+          router.replace('/clarte')
+        } catch (e) {
+          console.error('Erreur parsing pending planning:', e)
+          localStorage.removeItem('manae_pending_planning')
+        }
+      }
+    }
+  }, [searchParams, data?.tasks, router])
 
   // Handlers
   const handleMarkDone = useCallback(async (id: string) => {
     const supabase = createClient()
     await supabase
       .from('items')
-      .update({ state: 'completed' })
+      .update({ state: 'completed', updated_at: new Date().toISOString() })
       .eq('id', id)
+    setSelectedTask(null)
     await refetch()
   }, [refetch])
 
   const handlePlan = useCallback((id: string) => {
-    // TODO: Ouvrir modal Plan Task
-    console.log('Plan:', id)
-  }, [])
+    const task = data?.tasks.find(t => t.id === id)
+    if (task) {
+      setSelectedTask(null) // Fermer la modal de détail si ouverte
+      setTaskToPlan(task)
+    }
+  }, [data?.tasks])
 
   const handleDeleteTask = useCallback(async (id: string) => {
     const supabase = createClient()
@@ -48,8 +85,24 @@ export default function ClartePage() {
       .from('items')
       .delete()
       .eq('id', id)
+    setSelectedTask(null)
     await refetch()
   }, [refetch])
+
+  const handleStoreTask = useCallback(async (id: string) => {
+    const supabase = createClient()
+    await supabase
+      .from('items')
+      .update({ state: 'archived', updated_at: new Date().toISOString() })
+      .eq('id', id)
+    setSelectedTask(null)
+    await refetch()
+  }, [refetch])
+
+  const handleTapTask = useCallback((id: string) => {
+    const task = data?.tasks.find(t => t.id === id)
+    if (task) setSelectedTask(task)
+  }, [data?.tasks])
 
   const handleTapNote = useCallback((id: string) => {
     const note = data?.notes.find(n => n.id === id)
@@ -185,13 +238,23 @@ export default function ClartePage() {
         {/* Blocs */}
         <div className="space-y-4 mt-4">
           {showTasks && (
-            <TasksBlock
-              tasks={data.tasks}
-              totalCount={data.counts.tasks}
-              onMarkDone={handleMarkDone}
-              onPlan={handlePlan}
-              onDelete={handleDeleteTask}
-            />
+            activeFilter === 'tasks' ? (
+              // Vue complète quand filtre tâches actif
+              <TasksFullView
+                tasks={data.tasks}
+                onRefresh={refetch}
+              />
+            ) : (
+              // Aperçu en mode global
+              <TasksBlock
+                tasks={data.tasks}
+                totalCount={data.counts.tasks}
+                onMarkDone={handleMarkDone}
+                onPlan={handlePlan}
+                onTap={handleTapTask}
+                onShowFullView={() => setActiveFilter('tasks')}
+              />
+            )
           )}
 
           {showNotes && (
@@ -233,7 +296,40 @@ export default function ClartePage() {
         />
       )}
 
+      {/* Modal détail tâche active */}
+      {selectedTask && (
+        <TaskActiveModal
+          task={selectedTask}
+          onClose={() => setSelectedTask(null)}
+          onMarkDone={handleMarkDone}
+          onPlan={handlePlan}
+          onStore={handleStoreTask}
+          onDelete={handleDeleteTask}
+        />
+      )}
+
+      {/* Modal de planification */}
+      {taskToPlan && (
+        <PlanTaskModal
+          task={taskToPlan}
+          onClose={() => setTaskToPlan(null)}
+          onSuccess={refetch}
+        />
+      )}
+
       <BottomNav />
     </div>
+  )
+}
+
+export default function ClartePage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-mint flex items-center justify-center">
+        <div className="animate-spin h-8 w-8 border-4 border-primary border-t-transparent rounded-full" />
+      </div>
+    }>
+      <ClartePageContent />
+    </Suspense>
   )
 }

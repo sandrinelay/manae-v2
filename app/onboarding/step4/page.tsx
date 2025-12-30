@@ -48,6 +48,16 @@ function OnboardingStep4Content() {
 
             // Rediriger vers la bonne destination
             if (returnTo === 'planning') {
+                // Vérifier si on vient de Clarté ou de Capture
+                const pendingPlanning = localStorage.getItem('manae_pending_planning')
+                if (pendingPlanning) {
+                    const context = JSON.parse(pendingPlanning)
+                    if (context.returnTo === 'clarte-schedule') {
+                        // Retour vers /clarte avec flag pour restaurer le contexte de planification
+                        router.push('/clarte?resumePlanning=true')
+                        return
+                    }
+                }
                 // Retour vers /capture avec flag pour restaurer le contexte de planification
                 router.push('/capture?resumePlanning=true');
             } else {

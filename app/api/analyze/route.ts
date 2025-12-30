@@ -102,12 +102,35 @@ TYPES POSSIBLES :
 3. "idea" : Projet abstrait à développer
 4. "list_item" : Article(s) de courses
 
-CONTEXTE À DÉTECTER (OBLIGATOIRE) :
-- "personal" : Vie personnelle (coiffeur, sport, loisirs)
-- "family" : Famille/enfants (pédiatre, école, activités enfants)
-- "work" : Travail/professionnel
-- "health" : Santé (médecin, dentiste, médicaments, soins)
-- "other" : Si la pensée n'entre pas dans les 4 catégories ci-dessus
+⚠️ CONTEXTE - RÈGLES STRICTES (OBLIGATOIRE) :
+
+HEALTH (santé) - PRIORITAIRE si mot-clé médical présent :
+→ "rdv médecin", "prendre rdv dentiste", "rdv dermato", "rdv ophtalmo", "rdv gynéco"
+→ "kiné", "ostéo", "psy", "pharmacie", "ordonnance", "prise de sang", "vaccin"
+→ Tout ce qui concerne un professionnel de santé = HEALTH
+
+FAMILY (famille/enfants) :
+→ Activités enfants : "inscrire au judo", "cours de piano", "foot", "danse"
+→ École/crèche : "réunion parents", "inscription école", "goûter"
+→ Avec prénom enfant : "emmener Milo", "chercher Emma"
+→ Pédiatre = FAMILY (c'est pour l'enfant)
+
+WORK (travail) :
+→ "réunion", "meeting", "client", "boss", "collègue", "bureau", "projet pro"
+
+PERSONAL (perso) :
+→ Loisirs perso SANS enfant : "coiffeur", "resto avec ami", "cinéma", "mon sport"
+
+OTHER : uniquement si aucune catégorie ne correspond
+
+EXEMPLES DE CONTEXTE :
+- "prendre rdv médecin" → context: "health"
+- "prendre rdv dentiste" → context: "health"
+- "rdv dermato" → context: "health"
+- "inscrire Milo au judo" → context: "family"
+- "réunion lundi" → context: "work"
+- "rdv coiffeur" → context: "personal"
+- "rdv pédiatre" → context: "family" (car c'est pour l'enfant)
 
 DONNÉES À EXTRAIRE :
 - Contexte : OBLIGATOIRE
@@ -165,7 +188,7 @@ EXEMPLES CONCRETS DE DÉCOUPAGE :
       messages: [
         {
           role: 'system',
-          content: 'Tu es un expert en organisation et productivité. Tu réponds toujours en JSON valide.'
+          content: 'Tu es un expert en organisation et productivité. Tu réponds toujours en JSON valide. IMPORTANT: Le champ "context" dans extracted_data est OBLIGATOIRE et doit être précis. Si la pensée mentionne un professionnel de santé (médecin, dentiste, dermato, etc.), le contexte est TOUJOURS "health".'
         },
         {
           role: 'user',
@@ -244,10 +267,38 @@ function basicAnalysis(content: string): AnalyzeResponse {
 
   // Détection contexte basique
   const detectContext = (): 'personal' | 'family' | 'work' | 'health' | 'other' => {
-    const familyKeywords = ['pédiatre', 'pediatre', 'école', 'ecole', 'enfant', 'bébé', 'bebe', 'crèche', 'creche', 'nounou', 'garderie']
-    const healthKeywords = ['médecin', 'medecin', 'docteur', 'pharmacie', 'médicament', 'medicament', 'rdv médical', 'hopital', 'hôpital']
-    const workKeywords = ['travail', 'bureau', 'réunion', 'reunion', 'client', 'projet pro', 'collègue', 'collegue', 'boss']
-    const personalKeywords = ['coiffeur', 'sport', 'gym', 'yoga', 'massage', 'restaurant', 'cinéma', 'cinema', 'ami', 'copain']
+    // Mots-clés famille : enfants, activités enfants, école, etc.
+    const familyKeywords = [
+      'pédiatre', 'pediatre', 'école', 'ecole', 'enfant', 'bébé', 'bebe',
+      'crèche', 'creche', 'nounou', 'garderie', 'cantine', 'goûter', 'gouter',
+      // Activités enfants
+      'judo', 'foot', 'football', 'danse', 'piano', 'guitare', 'musique',
+      'piscine', 'natation', 'tennis', 'basket', 'gym enfant', 'éveil',
+      'inscrire', 'inscription',
+      // Actions famille
+      'chercher à', 'déposer à', 'emmener', 'récupérer',
+      // Prénoms courants enfants (heuristique)
+      'milo', 'emma', 'lucas', 'léa', 'hugo', 'chloé', 'louis', 'jade',
+      'gabriel', 'louise', 'raphaël', 'alice', 'arthur', 'rose', 'jules',
+      'manon', 'léo', 'lina', 'adam', 'maël', 'lola', 'nathan', 'anna',
+      'noah', 'inès', 'ethan', 'camille', 'tom', 'sarah', 'théo', 'eva'
+    ]
+    const healthKeywords = [
+      'médecin', 'medecin', 'docteur', 'pharmacie', 'médicament', 'medicament',
+      'rdv médical', 'hopital', 'hôpital', 'clinique',
+      // Spécialistes médicaux
+      'dentiste', 'dermato', 'dermatologue', 'ophtalmo', 'ophtalmologue', 'oculiste',
+      'kiné', 'kine', 'kinésithérapeute', 'ostéo', 'osteo', 'ostéopathe',
+      'gynéco', 'gyneco', 'gynécologue', 'cardio', 'cardiologue',
+      'psy', 'psychologue', 'psychiatre', 'orthophoniste',
+      'radiologue', 'radio', 'irm', 'scanner', 'échographie', 'echographie',
+      'allergologue', 'pneumologue', 'gastro', 'gastroentérologue',
+      'orl', 'rhumatologue', 'neurologue', 'urologue',
+      // Soins
+      'vaccin', 'prise de sang', 'analyse', 'ordonnance', 'consultation'
+    ]
+    const workKeywords = ['travail', 'bureau', 'réunion', 'reunion', 'client', 'projet pro', 'collègue', 'collegue', 'boss', 'manager', 'meeting']
+    const personalKeywords = ['coiffeur', 'mon sport', 'ma gym', 'mon yoga', 'massage', 'restaurant', 'cinéma', 'cinema', 'ami', 'copain', 'copine', 'sortie']
 
     if (familyKeywords.some(k => lowerContent.includes(k))) return 'family'
     if (healthKeywords.some(k => lowerContent.includes(k))) return 'health'

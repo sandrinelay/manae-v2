@@ -1,9 +1,10 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { Item } from '@/types/items'
 import { TaskCard } from '../cards/TaskCard'
 import { EmptyState } from '../EmptyState'
+import { sortTasksForPreview } from '@/lib/task-utils'
 
 // Configuration
 const INITIAL_VISIBLE_COUNT = 4
@@ -13,7 +14,8 @@ interface TasksBlockProps {
   totalCount: number
   onMarkDone?: (id: string) => void
   onPlan?: (id: string) => void
-  onDelete?: (id: string) => void
+  onTap?: (id: string) => void
+  onShowFullView?: () => void
 }
 
 export function TasksBlock({
@@ -21,31 +23,43 @@ export function TasksBlock({
   totalCount,
   onMarkDone,
   onPlan,
-  onDelete
+  onTap,
+  onShowFullView
 }: TasksBlockProps) {
   const [isExpanded, setIsExpanded] = useState(false)
 
+  // Trier les tâches avec le tri intelligent
+  const sortedTasks = useMemo(() => sortTasksForPreview(tasks), [tasks])
+
   // Nombre de tâches visibles
-  const visibleTasks = isExpanded ? tasks : tasks.slice(0, INITIAL_VISIBLE_COUNT)
-  const hiddenCount = tasks.length - INITIAL_VISIBLE_COUNT
+  const visibleTasks = isExpanded ? sortedTasks : sortedTasks.slice(0, INITIAL_VISIBLE_COUNT)
+  const hiddenCount = sortedTasks.length - INITIAL_VISIBLE_COUNT
   const hasMoreTasks = hiddenCount > 0
 
   return (
     <section>
-      {/* Header */}
-      <div className="flex items-center justify-between mb-3">
-        <h2 className="text-xs font-semibold text-primary uppercase tracking-wider">
-          Priorités
+      {/* Header cliquable */}
+      <button
+        onClick={onShowFullView}
+        className="w-full flex items-center justify-between mb-3 group"
+      >
+        <h2 className="text-xs font-semibold text-primary uppercase tracking-wider group-hover:text-primary/80 transition-colors">
+          Tâches
         </h2>
-        {totalCount > 0 && (
-          <span className="text-xs text-text-muted">
-            {totalCount} pensée{totalCount > 1 ? 's' : ''}
+        <div className="flex items-center gap-2">
+          {totalCount > 0 && (
+            <span className="text-xs text-text-muted">
+              {totalCount} tâche{totalCount > 1 ? 's' : ''}
+            </span>
+          )}
+          <span className="text-xs text-text-muted group-hover:text-primary transition-colors">
+            →
           </span>
-        )}
-      </div>
+        </div>
+      </button>
 
       {/* État vide */}
-      {tasks.length === 0 ? (
+      {sortedTasks.length === 0 ? (
         <EmptyState message="Aucune tâche pour le moment" />
       ) : (
         <>
@@ -57,7 +71,7 @@ export function TasksBlock({
                 item={task}
                 onMarkDone={onMarkDone}
                 onPlan={onPlan}
-                onDelete={onDelete}
+                onTap={onTap}
               />
             ))}
           </div>
@@ -70,7 +84,7 @@ export function TasksBlock({
             >
               {isExpanded
                 ? '− Réduire'
-                : `+ Voir les ${hiddenCount} autre${hiddenCount > 1 ? 's' : ''} pensée${hiddenCount > 1 ? 's' : ''}`
+                : `+ Voir les ${hiddenCount} autre${hiddenCount > 1 ? 's' : ''} tâche${hiddenCount > 1 ? 's' : ''}`
               }
             </button>
           )}

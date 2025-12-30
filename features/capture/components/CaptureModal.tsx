@@ -707,7 +707,7 @@ export function CaptureModal({
       {/* Modal - positionné au-dessus du BottomNav */}
       <div className="fixed z-50 bg-white shadow-2xl animate-slide-up flex flex-col inset-x-0 bottom-[80px] rounded-t-3xl" style={{ maxHeight: 'calc(100vh - 140px)' }}>
         {/* Header */}
-        <div className="flex items-center justify-between p-4 border-b border-border shrink-0">
+        <div className="flex items-center justify-between p-4 border-b border-border flex-shrink-0">
           {currentStep === 'schedule' ? (
             <button
               onClick={handleBack}
@@ -731,19 +731,19 @@ export function CaptureModal({
           </button>
         </div>
 
-        {/* Content */}
-        <div className="p-6 overflow-y-auto flex-1 min-h-0">
+        {/* Content - avec overflow scroll */}
+        <div className="p-6 overflow-y-auto flex-1 min-h-0" style={{ maxHeight: 'calc(100vh - 140px - 140px)' }}>
           {currentStep === 'organize' ? OrganizeContent() : ScheduleContent()}
         </div>
 
-        {/* Footer Actions - Schedule step only */}
+        {/* Footer Actions - Schedule step only - TOUJOURS VISIBLE */}
         {currentStep === 'schedule' && (
-          <div className="flex gap-3 p-4 border-t border-border bg-white shrink-0">
+          <div className="flex gap-3 p-4 border-t border-border bg-white flex-shrink-0" style={{ position: 'sticky', bottom: 0 }}>
             <button
               onClick={handleBack}
               className="flex-1 px-6 py-3 border-2 border-border rounded-lg font-medium text-text-dark hover:bg-gray-50 transition-colors"
             >
-              Retour
+              Annuler
             </button>
 
             <button

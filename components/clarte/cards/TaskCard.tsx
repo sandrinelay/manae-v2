@@ -2,27 +2,31 @@
 
 import { Item, ItemState } from '@/types/items'
 import { CONTEXT_CONFIG } from '@/config/contexts'
-import { CalendarIcon, TrashIcon } from '@/components/ui/icons/ItemTypeIcons'
-import { formatScheduledDate } from '@/lib/date-utils'
+import { CalendarIcon, CheckIcon } from '@/components/ui/icons/ItemTypeIcons'
+import { formatScheduledDate, formatRelativeTime } from '@/lib/date-utils'
+
+// Mode d'affichage de la carte
+type CardMode = 'active' | 'done' | 'stored'
 
 interface TaskCardProps {
   item: Item
-  onPlan?: (id: string) => void
-  onDelete?: (id: string) => void
+  mode?: CardMode // Par défaut 'active'
   onMarkDone?: (id: string) => void
+  onPlan?: (id: string) => void
+  onTap?: (id: string) => void // Pour ouvrir la modal de détail
 }
 
-// Couleurs douces pour les boutons d'action
+// Couleurs pour les boutons d'action
 const ACTION_COLORS = {
+  done: {
+    bg: 'bg-green-50',
+    text: 'text-green-500',
+    hover: 'hover:bg-green-100'
+  },
   calendar: {
     bg: 'bg-teal-50',
     text: 'text-teal-500',
     hover: 'hover:bg-teal-100'
-  },
-  trash: {
-    bg: 'bg-rose-50',
-    text: 'text-rose-400',
-    hover: 'hover:bg-rose-100'
   }
 }
 
@@ -60,85 +64,153 @@ const STATUS_CONFIG: Record<ItemState, { label: string; className: string; dotCo
   }
 }
 
-export function TaskCard({ item, onPlan, onDelete, onMarkDone }: TaskCardProps) {
+// Configuration pour les modes done/stored
+const MODE_CONFIG: Record<'done' | 'stored', { dotColor: string; label: string; textClass: string }> = {
+  done: {
+    dotColor: 'bg-green-300',
+    label: 'Terminé',
+    textClass: 'text-text-dark'
+  },
+  stored: {
+    dotColor: 'bg-gray-300',
+    label: 'Rangé',
+    textClass: 'text-gray-400'
+  }
+}
+
+export function TaskCard({ item, mode = 'active', onMarkDone, onPlan, onTap }: TaskCardProps) {
   const context = item.context || 'other'
   const contextConfig = CONTEXT_CONFIG[context]
   const ContextIcon = contextConfig.icon
 
   const state = item.state || 'active'
   const statusConfig = STATUS_CONFIG[state]
-  const isInactive = state === 'completed' || state === 'archived'
 
-  // Afficher le bouton planifier seulement si active ou captured
-  const showPlanButton = state === 'active' || state === 'captured'
+  // Détermine si on affiche en mode spécial (done/stored)
+  const isSpecialMode = mode === 'done' || mode === 'stored'
+  const modeConfig = isSpecialMode ? MODE_CONFIG[mode] : null
+
+  // Styles selon le mode
+  const dotColor = modeConfig?.dotColor || statusConfig.dotColor
+  const titleClass = modeConfig?.textClass || (state === 'completed' || state === 'archived' ? 'text-gray-400' : 'text-text-dark')
+  const cardOpacity = mode === 'stored' ? 'opacity-70' : ''
+
+  // En mode active, la carte est cliquable pour ouvrir la modal
+  // En mode done/stored, aussi cliquable
+  const isClickable = !!onTap
+  const showActions = mode === 'active'
+
+  // Boutons selon l'état :
+  // - active/captured : [Fait] [Caler]
+  // - planned : [Fait] [Décaler]
+  const isPlanned = state === 'planned'
+  const planButtonLabel = isPlanned ? 'Décaler' : 'Caler'
+
+  // Date relative pour les modes done/stored
+  const relativeDate = isSpecialMode ? formatRelativeTime(item.updated_at || item.created_at) : null
+
+  const handleCardClick = () => {
+    if (onTap) {
+      onTap(item.id)
+    }
+  }
 
   return (
-    <div className={`
-      bg-white rounded-2xl p-4 border border-gray-100
-      transition-all duration-200
-      ${isInactive ? 'opacity-60' : ''}
-    `}>
+    <div
+      onClick={handleCardClick}
+      role="button"
+      tabIndex={0}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault()
+          handleCardClick()
+        }
+      }}
+      className={`
+        w-full text-left bg-white rounded-2xl p-4 border border-gray-100
+        transition-all duration-200 hover:shadow-md cursor-pointer
+        ${cardOpacity}
+      `}
+    >
       {/* Indicateur + Titre */}
       <div className="flex items-start gap-3">
         {/* Indicateur de statut (point coloré) */}
         <div className={`
           w-2 h-2 rounded-full mt-2 shrink-0
-          ${statusConfig.dotColor}
+          ${dotColor}
         `} />
 
         {/* Contenu */}
         <div className="flex-1 min-w-0">
-          <h3 className={`
-            font-medium leading-snug
-            ${isInactive ? 'text-gray-400 line-through' : 'text-text-dark'}
-          `}>
+          <h3 className={`font-medium leading-snug ${titleClass}`}>
             {item.content}
           </h3>
 
-          {/* Statut + Date (si planifié) + Contexte */}
+          {/* Statut + Date + Contexte */}
           <div className="flex items-center gap-2 mt-1.5">
-            <span className={`text-xs font-medium uppercase tracking-wide ${statusConfig.className}`}>
-              {statusConfig.label}
-            </span>
-            {state === 'planned' && item.scheduled_at && (
+            {/* Mode active : affiche le statut normal */}
+            {mode === 'active' && (
+              <>
+                <span className={`text-xs font-medium uppercase tracking-wide ${statusConfig.className}`}>
+                  {statusConfig.label}
+                </span>
+                {state === 'planned' && item.scheduled_at && (
+                  <span className="text-xs text-text-muted">
+                    {formatScheduledDate(item.scheduled_at)}
+                  </span>
+                )}
+              </>
+            )}
+
+            {/* Mode done/stored : affiche le label + date relative */}
+            {isSpecialMode && modeConfig && (
               <span className="text-xs text-text-muted">
-                {formatScheduledDate(item.scheduled_at)}
+                {modeConfig.label} {relativeDate}
               </span>
             )}
+
             <ContextIcon className={`w-4 h-4 ${contextConfig.colorClass}`} />
           </div>
         </div>
 
-        {/* Boutons d'action */}
-        <div className="flex items-center gap-2 shrink-0">
-          {/* Bouton Planifier */}
-          {showPlanButton && onPlan && (
-            <button
-              onClick={() => onPlan(item.id)}
-              className={`
-                p-2 rounded-xl transition-colors
-                ${ACTION_COLORS.calendar.bg} ${ACTION_COLORS.calendar.text} ${ACTION_COLORS.calendar.hover}
-              `}
-              aria-label="Planifier"
-            >
-              <CalendarIcon className="w-5 h-5" />
-            </button>
-          )}
+        {/* Boutons d'action (seulement en mode active) */}
+        {showActions && (
+          <div className="flex items-center gap-2 shrink-0">
+            {/* Bouton Fait */}
+            {onMarkDone && (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation()
+                  onMarkDone(item.id)
+                }}
+                className={`
+                  p-2 rounded-xl transition-colors
+                  ${ACTION_COLORS.done.bg} ${ACTION_COLORS.done.text} ${ACTION_COLORS.done.hover}
+                `}
+                aria-label="Marquer comme fait"
+              >
+                <CheckIcon className="w-5 h-5" />
+              </button>
+            )}
 
-          {/* Bouton Supprimer */}
-          {onDelete && (
-            <button
-              onClick={() => onDelete(item.id)}
-              className={`
-                p-2 rounded-xl transition-colors
-                ${ACTION_COLORS.trash.bg} ${ACTION_COLORS.trash.text} ${ACTION_COLORS.trash.hover}
-              `}
-              aria-label="Supprimer"
-            >
-              <TrashIcon className="w-5 h-5" />
-            </button>
-          )}
-        </div>
+            {/* Bouton Caler / Décaler */}
+            {onPlan && (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation()
+                  onPlan(item.id)
+                }}
+                className={`
+                  p-2 rounded-xl transition-colors
+                  ${ACTION_COLORS.calendar.bg} ${ACTION_COLORS.calendar.text} ${ACTION_COLORS.calendar.hover}
+                `}
+                aria-label={planButtonLabel}
+              >
+                <CalendarIcon className="w-5 h-5" />
+              </button>
+            )}
+          </div>
+        )}
       </div>
     </div>
   )
