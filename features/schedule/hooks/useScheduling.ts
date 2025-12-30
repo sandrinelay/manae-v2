@@ -7,6 +7,7 @@ import { getCalendarEvents, createCalendarEvent } from '@/features/schedule/serv
 import { findAvailableSlots, selectTop3Diversified } from '@/features/schedule/services/slots.service'
 import { estimateTaskDuration } from '@/features/schedule/services/ai-duration.service'
 import { updateItem } from '@/services/supabase/items.service'
+import { formatEventDescription } from '@/lib/google-calendar/event-formatter'
 import type { TimeSlot, GoogleCalendarEvent } from '../types/scheduling.types'
 import type { Mood, TemporalConstraint } from '@/types/items'
 
@@ -277,6 +278,7 @@ export function useScheduling(params: UseSchedulingParams): UseSchedulingReturn 
 
       const eventId = await createCalendarEvent({
         summary: taskContent,
+        description: formatEventDescription(itemId),
         startDateTime,
         endDateTime
       })
