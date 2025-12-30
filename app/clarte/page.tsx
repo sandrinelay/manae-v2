@@ -9,6 +9,7 @@ import { ClarteHeader } from '@/components/clarte/ClarteHeader'
 import { TasksBlock } from '@/components/clarte/blocks/TasksBlock'
 import { TasksFullView } from '@/components/clarte/views/TasksFullView'
 import { NotesBlock } from '@/components/clarte/blocks/NotesBlock'
+import { NotesFullView } from '@/components/clarte/views/NotesFullView'
 import { IdeasBlock } from '@/components/clarte/blocks/IdeasBlock'
 import { ShoppingBlock } from '@/components/clarte/blocks/ShoppingBlock'
 import { EmptySearchResult } from '@/components/clarte/EmptySearchResult'
@@ -18,7 +19,7 @@ import { PlanTaskModal } from '@/components/clarte/modals/PlanTaskModal'
 import { useClarteData } from '@/hooks/useClarteData'
 import { normalizeString } from '@/components/ui/SearchBar'
 import { createClient } from '@/lib/supabase/client'
-import type { Item } from '@/types/items'
+import type { Item, ItemContext } from '@/types/items'
 import type { FilterType } from '@/config/filters'
 import type { ContextFilterType } from '@/components/ui/ContextFilterTabs'
 
@@ -164,10 +165,19 @@ function ClartePageContent() {
     setSearchQuery(null)
   }, [])
 
-  const handleEditNote = useCallback((id: string) => {
-    console.log('Edit note:', id)
+  const handleEditNote = useCallback(async (id: string, content: string, context: ItemContext) => {
+    const supabase = createClient()
+    await supabase
+      .from('items')
+      .update({
+        content,
+        context,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', id)
     setSelectedNote(null)
-  }, [])
+    await refetch()
+  }, [refetch])
 
   const handleArchiveNote = useCallback(async (id: string) => {
     const supabase = createClient()
@@ -271,11 +281,16 @@ function ClartePageContent() {
               )}
 
               {shouldShowNotes && (
-                <NotesBlock
-                  notes={notesByContext}
-                  totalCount={notesByContext.length}
-                  onTapNote={handleTapNote}
-                />
+                activeFilter === 'notes' && !isSearching ? (
+                  <NotesFullView notes={notesByContext} onRefresh={refetch} />
+                ) : (
+                  <NotesBlock
+                    notes={notesByContext}
+                    totalCount={notesByContext.length}
+                    onTapNote={handleTapNote}
+                    onShowFullView={() => setActiveFilter('notes')}
+                  />
+                )
               )}
 
               {shouldShowIdeas && (
