@@ -16,12 +16,15 @@ const TABS = [
   { id: 'archived' as TabId, label: 'Archivées' }
 ]
 
+type ContextFilter = ItemContext | 'all'
+
 interface NotesFullViewProps {
   notes: Item[] // Notes initiales (actives seulement)
+  contextFilter?: ContextFilter
   onRefresh: () => Promise<void>
 }
 
-export function NotesFullView({ notes: initialNotes, onRefresh }: NotesFullViewProps) {
+export function NotesFullView({ notes: initialNotes, contextFilter = 'all', onRefresh }: NotesFullViewProps) {
   const [activeTab, setActiveTab] = useState<TabId>('active')
   const [selectedNote, setSelectedNote] = useState<Item | null>(null)
   const [allNotes, setAllNotes] = useState<Item[]>(initialNotes)
@@ -61,15 +64,21 @@ export function NotesFullView({ notes: initialNotes, onRefresh }: NotesFullViewP
     await fetchAllNotes()
   }, [onRefresh, fetchAllNotes])
 
+  // Filtrer les notes par contexte
+  const notesByContext = useMemo(() => {
+    if (contextFilter === 'all') return allNotes
+    return allNotes.filter(n => n.context === contextFilter)
+  }, [allNotes, contextFilter])
+
   // Filtrer les notes selon l'onglet
   const activeNotes = useMemo(() =>
-    allNotes.filter(n => n.state === 'active' || n.state === 'captured'),
-    [allNotes]
+    notesByContext.filter(n => n.state === 'active' || n.state === 'captured'),
+    [notesByContext]
   )
 
   const archivedNotes = useMemo(() =>
-    allNotes.filter(n => n.state === 'archived'),
-    [allNotes]
+    notesByContext.filter(n => n.state === 'archived'),
+    [notesByContext]
   )
 
   // Compteurs pour les onglets

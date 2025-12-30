@@ -11,11 +11,14 @@ import { TasksFullView } from '@/components/clarte/views/TasksFullView'
 import { NotesBlock } from '@/components/clarte/blocks/NotesBlock'
 import { NotesFullView } from '@/components/clarte/views/NotesFullView'
 import { IdeasBlock } from '@/components/clarte/blocks/IdeasBlock'
+import { IdeasFullView } from '@/components/clarte/views/IdeasFullView'
 import { ShoppingBlock } from '@/components/clarte/blocks/ShoppingBlock'
 import { EmptySearchResult } from '@/components/clarte/EmptySearchResult'
 import { NoteDetailModal } from '@/components/clarte/modals/NoteDetailModal'
 import { TaskActiveModal } from '@/components/clarte/modals/TaskActiveModal'
 import { PlanTaskModal } from '@/components/clarte/modals/PlanTaskModal'
+import { IdeaDetailModal } from '@/components/clarte/modals/IdeaDetailModal'
+import { IdeaDevelopModal } from '@/components/clarte/modals/IdeaDevelopModal'
 import { useClarteData } from '@/hooks/useClarteData'
 import { normalizeString } from '@/components/ui/SearchBar'
 import { createClient } from '@/lib/supabase/client'
@@ -36,6 +39,8 @@ function ClartePageContent() {
   const { data, isLoading: dataLoading, refetch } = useClarteData({ searchQuery })
   const [selectedNote, setSelectedNote] = useState<Item | null>(null)
   const [selectedTask, setSelectedTask] = useState<Item | null>(null)
+  const [selectedIdea, setSelectedIdea] = useState<Item | null>(null)
+  const [ideaToDevelop, setIdeaToDevelop] = useState<Item | null>(null)
   const [taskToPlan, setTaskToPlan] = useState<Item | null>(null)
 
   // Fonction de filtrage par recherche
@@ -140,9 +145,39 @@ function ClartePageContent() {
     if (idea.state === 'project') {
       router.push(`/projects/${id}`)
     } else {
-      console.log('Tap idea:', id, idea.state)
+      setSelectedIdea(idea)
     }
   }, [data?.ideas, router])
+
+  const handleDevelopIdea = useCallback((id: string) => {
+    const idea = data?.ideas.find(i => i.id === id)
+    if (idea) {
+      setSelectedIdea(null)
+      setIdeaToDevelop(idea)
+    }
+  }, [data?.ideas])
+
+  const handleIdeaDeveloped = useCallback(async () => {
+    setIdeaToDevelop(null)
+    await refetch()
+  }, [refetch])
+
+  const handleArchiveIdea = useCallback(async (id: string) => {
+    const supabase = createClient()
+    await supabase
+      .from('items')
+      .update({ state: 'archived', updated_at: new Date().toISOString() })
+      .eq('id', id)
+    setSelectedIdea(null)
+    await refetch()
+  }, [refetch])
+
+  const handleDeleteIdea = useCallback(async (id: string) => {
+    const supabase = createClient()
+    await supabase.from('items').delete().eq('id', id)
+    setSelectedIdea(null)
+    await refetch()
+  }, [refetch])
 
   const handleToggleShoppingItem = useCallback(async (id: string) => {
     const supabase = createClient()
@@ -199,6 +234,12 @@ function ClartePageContent() {
     return filteredNotes.filter(item => item.context === activeContext)
   }, [filteredNotes, activeContext])
 
+  // Filtrer les idées par contexte
+  const ideasByContext = useMemo(() => {
+    if (activeContext === 'all') return filteredIdeas
+    return filteredIdeas.filter(item => item.context === activeContext)
+  }, [filteredIdeas, activeContext])
+
   const isLoading = authLoading || dataLoading
 
   if (isLoading) {
@@ -240,7 +281,7 @@ function ClartePageContent() {
   const isSearching = !!searchQuery
   const shouldShowTasks = showTasks && (!isSearching || filteredTasks.length > 0)
   const shouldShowNotes = showNotes && (!isSearching || notesByContext.length > 0)
-  const shouldShowIdeas = showIdeas && (!isSearching || filteredIdeas.length > 0)
+  const shouldShowIdeas = showIdeas && (!isSearching || ideasByContext.length > 0)
   const shouldShowShopping = showShopping && (!isSearching || filteredShopping.length > 0)
 
   // Vérifier si aucun résultat pendant une recherche
@@ -282,7 +323,7 @@ function ClartePageContent() {
 
               {shouldShowNotes && (
                 activeFilter === 'notes' && !isSearching ? (
-                  <NotesFullView notes={notesByContext} onRefresh={refetch} />
+                  <NotesFullView notes={notesByContext} contextFilter={activeContext} onRefresh={refetch} />
                 ) : (
                   <NotesBlock
                     notes={notesByContext}
@@ -294,11 +335,20 @@ function ClartePageContent() {
               )}
 
               {shouldShowIdeas && (
-                <IdeasBlock
-                  ideas={filteredIdeas}
-                  totalCount={filteredIdeas.length}
-                  onTapIdea={handleTapIdea}
-                />
+                activeFilter === 'ideas' && !isSearching ? (
+                  <IdeasFullView
+                    ideas={ideasByContext}
+                    contextFilter={activeContext}
+                    onRefresh={refetch}
+                  />
+                ) : (
+                  <IdeasBlock
+                    ideas={ideasByContext}
+                    totalCount={ideasByContext.length}
+                    onTapIdea={handleTapIdea}
+                    onShowFullView={() => setActiveFilter('ideas')}
+                  />
+                )
               )}
 
               {shouldShowShopping && (
@@ -340,6 +390,24 @@ function ClartePageContent() {
           task={taskToPlan}
           onClose={() => setTaskToPlan(null)}
           onSuccess={refetch}
+        />
+      )}
+
+      {selectedIdea && (
+        <IdeaDetailModal
+          idea={selectedIdea}
+          onClose={() => setSelectedIdea(null)}
+          onDevelop={handleDevelopIdea}
+          onArchive={handleArchiveIdea}
+          onDelete={handleDeleteIdea}
+        />
+      )}
+
+      {ideaToDevelop && (
+        <IdeaDevelopModal
+          idea={ideaToDevelop}
+          onClose={() => setIdeaToDevelop(null)}
+          onDeveloped={handleIdeaDeveloped}
         />
       )}
 

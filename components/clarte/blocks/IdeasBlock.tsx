@@ -12,9 +12,10 @@ interface IdeasBlockProps {
   ideas: Item[]
   totalCount: number
   onTapIdea: (id: string) => void
+  onShowFullView?: () => void
 }
 
-export function IdeasBlock({ ideas, totalCount, onTapIdea }: IdeasBlockProps) {
+export function IdeasBlock({ ideas, totalCount, onTapIdea, onShowFullView }: IdeasBlockProps) {
   const [isExpanded, setIsExpanded] = useState(false)
 
   // Nombre d'idées visibles
@@ -24,25 +25,33 @@ export function IdeasBlock({ ideas, totalCount, onTapIdea }: IdeasBlockProps) {
 
   return (
     <section>
-      {/* Header */}
-      <div className="flex items-center justify-between mb-3">
-        <h2 className="text-xs font-semibold text-primary uppercase tracking-wider">
+      {/* Header cliquable */}
+      <button
+        onClick={onShowFullView}
+        className="w-full flex items-center justify-between mb-3 group"
+      >
+        <h2 className="text-xs font-semibold text-primary uppercase tracking-wider group-hover:text-primary/80 transition-colors">
           Idées
         </h2>
-        {totalCount > 0 && (
-          <span className="text-xs text-text-muted">
-            {totalCount} pensée{totalCount > 1 ? 's' : ''}
+        <div className="flex items-center gap-2">
+          {totalCount > 0 && (
+            <span className="text-xs text-text-muted">
+              {totalCount} pensée{totalCount > 1 ? 's' : ''}
+            </span>
+          )}
+          <span className="text-xs text-text-muted group-hover:text-primary transition-colors">
+            →
           </span>
-        )}
-      </div>
+        </div>
+      </button>
 
       {/* État vide */}
       {ideas.length === 0 ? (
         <EmptyState message="Aucune idée pour le moment" />
       ) : (
         <>
-          {/* Liste d'idées */}
-          <div className="space-y-3">
+          {/* Grille d'idées (2 colonnes) */}
+          <div className="grid grid-cols-2 gap-3">
             {visibleIdeas.map(idea => (
               <IdeaCard
                 key={idea.id}
