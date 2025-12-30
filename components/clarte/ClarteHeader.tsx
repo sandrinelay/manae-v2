@@ -33,7 +33,7 @@ export function ClarteHeader({
     <header className="sticky top-0 z-10 bg-mint pt-4 pb-2">
       {/* Barre de recherche */}
       <SearchBar
-        placeholder="Rechercher une pensée..."
+        placeholder="Rechercher..."
         onSearch={onSearch}
         onClear={onClearSearch}
       />

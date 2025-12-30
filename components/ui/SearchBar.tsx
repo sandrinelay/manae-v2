@@ -3,6 +3,16 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { SearchIcon, XIcon } from '@/components/ui/icons/ItemTypeIcons'
 
+/**
+ * Normalise une chaîne: minuscules + sans accents
+ */
+export function normalizeString(str: string): string {
+  return str
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+}
+
 interface SearchBarProps {
   placeholder?: string
   debounceMs?: number
@@ -12,7 +22,7 @@ interface SearchBarProps {
 }
 
 export function SearchBar({
-  placeholder = 'Rechercher une pensée...',
+  placeholder = 'Rechercher...',
   debounceMs = 300,
   onSearch,
   onClear,

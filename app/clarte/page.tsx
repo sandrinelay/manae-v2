@@ -11,10 +11,12 @@ import { TasksFullView } from '@/components/clarte/views/TasksFullView'
 import { NotesBlock } from '@/components/clarte/blocks/NotesBlock'
 import { IdeasBlock } from '@/components/clarte/blocks/IdeasBlock'
 import { ShoppingBlock } from '@/components/clarte/blocks/ShoppingBlock'
+import { EmptySearchResult } from '@/components/clarte/EmptySearchResult'
 import { NoteDetailModal } from '@/components/clarte/modals/NoteDetailModal'
 import { TaskActiveModal } from '@/components/clarte/modals/TaskActiveModal'
 import { PlanTaskModal } from '@/components/clarte/modals/PlanTaskModal'
 import { useClarteData } from '@/hooks/useClarteData'
+import { normalizeString } from '@/components/ui/SearchBar'
 import { createClient } from '@/lib/supabase/client'
 import type { Item } from '@/types/items'
 import type { FilterType } from '@/config/filters'
@@ -24,14 +26,42 @@ function ClartePageContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const { user, isLoading: authLoading } = useAuth()
-  const { data, isLoading: dataLoading, refetch } = useClarteData()
 
   const [activeFilter, setActiveFilter] = useState<FilterType>('all')
   const [activeContext, setActiveContext] = useState<ContextFilterType>('all')
   const [searchQuery, setSearchQuery] = useState<string | null>(null)
+
+  // Passer searchQuery au hook pour charger tous les items en mode recherche
+  const { data, isLoading: dataLoading, refetch } = useClarteData({ searchQuery })
   const [selectedNote, setSelectedNote] = useState<Item | null>(null)
   const [selectedTask, setSelectedTask] = useState<Item | null>(null)
   const [taskToPlan, setTaskToPlan] = useState<Item | null>(null)
+
+  // Fonction de filtrage par recherche
+  const filterBySearch = useCallback((items: Item[]) => {
+    if (!searchQuery) return items
+    const normalizedQuery = normalizeString(searchQuery)
+    return items.filter(item =>
+      normalizeString(item.content || '').includes(normalizedQuery)
+    )
+  }, [searchQuery])
+
+  // Items filtrés par recherche
+  const filteredTasks = useMemo(() => filterBySearch(data?.tasks || []), [data?.tasks, filterBySearch])
+  const filteredNotes = useMemo(() => filterBySearch(data?.notes || []), [data?.notes, filterBySearch])
+  const filteredIdeas = useMemo(() => filterBySearch(data?.ideas || []), [data?.ideas, filterBySearch])
+  const filteredShopping = useMemo(() => filterBySearch(data?.shoppingItems || []), [data?.shoppingItems, filterBySearch])
+
+  // Compteurs (reflètent la recherche si active)
+  const displayCounts = useMemo(() => {
+    if (!searchQuery) return data?.counts
+    return {
+      tasks: filteredTasks.length,
+      notes: filteredNotes.length,
+      ideas: filteredIdeas.length,
+      shopping: filteredShopping.length
+    }
+  }, [searchQuery, data?.counts, filteredTasks.length, filteredNotes.length, filteredIdeas.length, filteredShopping.length])
 
   // Gérer le retour après connexion Google Calendar
   useEffect(() => {
@@ -42,15 +72,12 @@ function ClartePageContent() {
         try {
           const context = JSON.parse(pendingPlanning)
           if (context.itemId) {
-            // Chercher la tâche dans les données
             const task = data.tasks.find(t => t.id === context.itemId)
             if (task) {
               setTaskToPlan(task)
             }
           }
-          // Nettoyer le localStorage
           localStorage.removeItem('manae_pending_planning')
-          // Nettoyer l'URL
           router.replace('/clarte')
         } catch (e) {
           console.error('Erreur parsing pending planning:', e)
@@ -74,17 +101,14 @@ function ClartePageContent() {
   const handlePlan = useCallback((id: string) => {
     const task = data?.tasks.find(t => t.id === id)
     if (task) {
-      setSelectedTask(null) // Fermer la modal de détail si ouverte
+      setSelectedTask(null)
       setTaskToPlan(task)
     }
   }, [data?.tasks])
 
   const handleDeleteTask = useCallback(async (id: string) => {
     const supabase = createClient()
-    await supabase
-      .from('items')
-      .delete()
-      .eq('id', id)
+    await supabase.from('items').delete().eq('id', id)
     setSelectedTask(null)
     await refetch()
   }, [refetch])
@@ -112,11 +136,9 @@ function ClartePageContent() {
   const handleTapIdea = useCallback((id: string) => {
     const idea = data?.ideas.find(i => i.id === id)
     if (!idea) return
-
     if (idea.state === 'project') {
       router.push(`/projects/${id}`)
     } else {
-      // TODO: Ouvrir panel Develop Idea ou modal clarification
       console.log('Tap idea:', id, idea.state)
     }
   }, [data?.ideas, router])
@@ -125,17 +147,12 @@ function ClartePageContent() {
     const supabase = createClient()
     const item = data?.shoppingItems.find(i => i.id === id)
     if (!item) return
-
     const newState = item.state === 'completed' ? 'active' : 'completed'
-    await supabase
-      .from('items')
-      .update({ state: newState })
-      .eq('id', id)
+    await supabase.from('items').update({ state: newState }).eq('id', id)
     await refetch()
   }, [data?.shoppingItems, refetch])
 
   const handlePlanShopping = useCallback(() => {
-    // TODO: Ouvrir flow Plan Task avec données courses
     console.log('Plan shopping')
   }, [])
 
@@ -148,37 +165,29 @@ function ClartePageContent() {
   }, [])
 
   const handleEditNote = useCallback((id: string) => {
-    // TODO: Ouvrir modal édition
     console.log('Edit note:', id)
     setSelectedNote(null)
   }, [])
 
   const handleArchiveNote = useCallback(async (id: string) => {
     const supabase = createClient()
-    await supabase
-      .from('items')
-      .update({ state: 'archived' })
-      .eq('id', id)
+    await supabase.from('items').update({ state: 'archived' }).eq('id', id)
     setSelectedNote(null)
     await refetch()
   }, [refetch])
 
   const handleDeleteNote = useCallback(async (id: string) => {
     const supabase = createClient()
-    await supabase
-      .from('items')
-      .delete()
-      .eq('id', id)
+    await supabase.from('items').delete().eq('id', id)
     setSelectedNote(null)
     await refetch()
   }, [refetch])
 
-  // Filtrer les notes par contexte (uniquement pour les notes)
-  const filteredNotes = useMemo(() => {
-    if (!data?.notes) return []
-    if (activeContext === 'all') return data.notes
-    return data.notes.filter(item => item.context === activeContext)
-  }, [data?.notes, activeContext])
+  // Filtrer les notes par contexte
+  const notesByContext = useMemo(() => {
+    if (activeContext === 'all') return filteredNotes
+    return filteredNotes.filter(item => item.context === activeContext)
+  }, [filteredNotes, activeContext])
 
   const isLoading = authLoading || dataLoading
 
@@ -217,75 +226,79 @@ function ClartePageContent() {
   const showIdeas = activeFilter === 'all' || activeFilter === 'ideas'
   const showShopping = activeFilter === 'all' || activeFilter === 'shopping'
 
+  // En mode recherche, masquer les blocs vides
+  const isSearching = !!searchQuery
+  const shouldShowTasks = showTasks && (!isSearching || filteredTasks.length > 0)
+  const shouldShowNotes = showNotes && (!isSearching || notesByContext.length > 0)
+  const shouldShowIdeas = showIdeas && (!isSearching || filteredIdeas.length > 0)
+  const shouldShowShopping = showShopping && (!isSearching || filteredShopping.length > 0)
+
+  // Vérifier si aucun résultat pendant une recherche
+  const noResults = isSearching && !shouldShowTasks && !shouldShowNotes && !shouldShowIdeas && !shouldShowShopping
+
   return (
     <div className="min-h-screen bg-mint flex flex-col">
       <AppHeader userName={user.email?.split('@')[0]} />
       <div className="flex-1 pb-24">
         <div className="max-w-2xl mx-auto px-4">
-          {/* Header sticky avec recherche et filtres */}
           <ClarteHeader
             activeFilter={activeFilter}
             activeContext={activeContext}
-            counts={data.counts}
+            counts={displayCounts}
             onFilterChange={setActiveFilter}
             onContextChange={setActiveContext}
             onSearch={handleSearch}
             onClearSearch={handleClearSearch}
           />
 
-        {/* TODO: Afficher SearchResults si searchQuery existe */}
+          {noResults ? (
+            <EmptySearchResult query={searchQuery!} />
+          ) : (
+            <div className="space-y-4 mt-4">
+              {shouldShowTasks && (
+                activeFilter === 'tasks' && !isSearching ? (
+                  <TasksFullView tasks={filteredTasks} onRefresh={refetch} />
+                ) : (
+                  <TasksBlock
+                    tasks={filteredTasks}
+                    totalCount={filteredTasks.length}
+                    onMarkDone={handleMarkDone}
+                    onPlan={handlePlan}
+                    onTap={handleTapTask}
+                    onShowFullView={() => setActiveFilter('tasks')}
+                  />
+                )
+              )}
 
-        {/* Blocs */}
-        <div className="space-y-4 mt-4">
-          {showTasks && (
-            activeFilter === 'tasks' ? (
-              // Vue complète quand filtre tâches actif
-              <TasksFullView
-                tasks={data.tasks}
-                onRefresh={refetch}
-              />
-            ) : (
-              // Aperçu en mode global
-              <TasksBlock
-                tasks={data.tasks}
-                totalCount={data.counts.tasks}
-                onMarkDone={handleMarkDone}
-                onPlan={handlePlan}
-                onTap={handleTapTask}
-                onShowFullView={() => setActiveFilter('tasks')}
-              />
-            )
-          )}
+              {shouldShowNotes && (
+                <NotesBlock
+                  notes={notesByContext}
+                  totalCount={notesByContext.length}
+                  onTapNote={handleTapNote}
+                />
+              )}
 
-          {showNotes && (
-            <NotesBlock
-              notes={filteredNotes}
-              totalCount={filteredNotes.length}
-              onTapNote={handleTapNote}
-            />
-          )}
+              {shouldShowIdeas && (
+                <IdeasBlock
+                  ideas={filteredIdeas}
+                  totalCount={filteredIdeas.length}
+                  onTapIdea={handleTapIdea}
+                />
+              )}
 
-          {showIdeas && (
-            <IdeasBlock
-              ideas={data.ideas}
-              totalCount={data.counts.ideas}
-              onTapIdea={handleTapIdea}
-            />
+              {shouldShowShopping && (
+                <ShoppingBlock
+                  items={filteredShopping}
+                  totalCount={filteredShopping.length}
+                  onToggleItem={handleToggleShoppingItem}
+                  onPlanShopping={handlePlanShopping}
+                />
+              )}
+            </div>
           )}
-
-          {showShopping && (
-            <ShoppingBlock
-              items={data.shoppingItems}
-              totalCount={data.counts.shopping}
-              onToggleItem={handleToggleShoppingItem}
-              onPlanShopping={handlePlanShopping}
-            />
-          )}
-        </div>
         </div>
       </div>
 
-      {/* Modal détail note */}
       {selectedNote && (
         <NoteDetailModal
           note={selectedNote}
@@ -296,7 +309,6 @@ function ClartePageContent() {
         />
       )}
 
-      {/* Modal détail tâche active */}
       {selectedTask && (
         <TaskActiveModal
           task={selectedTask}
@@ -308,7 +320,6 @@ function ClartePageContent() {
         />
       )}
 
-      {/* Modal de planification */}
       {taskToPlan && (
         <PlanTaskModal
           task={taskToPlan}

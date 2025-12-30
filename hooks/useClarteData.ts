@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import type { Item } from '@/types/items'
 
@@ -17,6 +17,10 @@ interface ClarteData {
   }
 }
 
+interface UseClarteDataOptions {
+  searchQuery?: string | null
+}
+
 interface UseClarteDataReturn {
   data: ClarteData | null
   isLoading: boolean
@@ -24,14 +28,22 @@ interface UseClarteDataReturn {
   refetch: () => Promise<void>
 }
 
-export function useClarteData(): UseClarteDataReturn {
+export function useClarteData(options: UseClarteDataOptions = {}): UseClarteDataReturn {
+  const { searchQuery } = options
   const [data, setData] = useState<ClarteData | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<Error | null>(null)
 
-  const fetchData = useCallback(async () => {
+  // Track si on a déjà chargé les données complètes
+  const hasFullDataRef = useRef(false)
+  const isSearchMode = !!searchQuery
+
+  const fetchData = useCallback(async (forceFullLoad = false) => {
     try {
-      setIsLoading(true)
+      // Ne pas afficher le loader si on a déjà des données (évite le flicker)
+      if (!data) {
+        setIsLoading(true)
+      }
       setError(null)
 
       const supabase = createClient()
@@ -39,7 +51,20 @@ export function useClarteData(): UseClarteDataReturn {
 
       if (!user) throw new Error('Non authentifié')
 
-      // Fetch tasks (4 items pour aperçu)
+      // Si on a déjà les données complètes et pas de forceFullLoad, on skip
+      if (hasFullDataRef.current && !forceFullLoad) {
+        setIsLoading(false)
+        return
+      }
+
+      // Charger en mode complet si recherche active ou si on avait déjà les données complètes
+      const needsFullLoad = isSearchMode || hasFullDataRef.current || forceFullLoad
+      const tasksLimit = needsFullLoad ? 100 : 4
+      const notesLimit = needsFullLoad ? 100 : 5
+      const ideasLimit = needsFullLoad ? 100 : 4
+      const shoppingLimit = needsFullLoad ? 100 : 6
+
+      // Fetch tasks
       const { data: tasks, count: tasksCount } = await supabase
         .from('items')
         .select('*', { count: 'exact' })
@@ -48,9 +73,9 @@ export function useClarteData(): UseClarteDataReturn {
         .in('state', ['active', 'planned', 'captured'])
         .is('parent_id', null)
         .order('scheduled_at', { ascending: true, nullsFirst: false })
-        .limit(4)
+        .limit(tasksLimit)
 
-      // Fetch notes (5 items pour aperçu)
+      // Fetch notes
       const { data: notes, count: notesCount } = await supabase
         .from('items')
         .select('*', { count: 'exact' })
@@ -58,9 +83,9 @@ export function useClarteData(): UseClarteDataReturn {
         .eq('type', 'note')
         .in('state', ['active', 'captured'])
         .order('updated_at', { ascending: false })
-        .limit(5)
+        .limit(notesLimit)
 
-      // Fetch ideas (4 items pour aperçu)
+      // Fetch ideas
       const { data: ideas, count: ideasCount } = await supabase
         .from('items')
         .select('*', { count: 'exact' })
@@ -68,17 +93,22 @@ export function useClarteData(): UseClarteDataReturn {
         .eq('type', 'idea')
         .in('state', ['active', 'captured', 'project'])
         .order('updated_at', { ascending: false })
-        .limit(4)
+        .limit(ideasLimit)
 
-      // Fetch shopping items (liste active)
+      // Fetch shopping items
       const { data: shoppingItems, count: shoppingCount } = await supabase
         .from('items')
         .select('*', { count: 'exact' })
         .eq('user_id', user.id)
         .eq('type', 'list_item')
-        .eq('state', 'active')
+        .in('state', ['active', 'completed'])
         .order('created_at', { ascending: true })
-        .limit(6)
+        .limit(shoppingLimit)
+
+      // Marquer qu'on a les données complètes si on était en mode recherche
+      if (needsFullLoad) {
+        hasFullDataRef.current = true
+      }
 
       setData({
         tasks: sortTasks(tasks || []),
@@ -97,13 +127,23 @@ export function useClarteData(): UseClarteDataReturn {
     } finally {
       setIsLoading(false)
     }
-  }, [])
+  }, [data, isSearchMode])
 
+  // Charger les données au montage
   useEffect(() => {
     fetchData()
-  }, [fetchData])
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
-  return { data, isLoading, error, refetch: fetchData }
+  // Recharger en mode complet quand on passe en mode recherche
+  useEffect(() => {
+    if (isSearchMode && !hasFullDataRef.current) {
+      fetchData(true)
+    }
+  }, [isSearchMode]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  const refetch = useCallback(() => fetchData(true), [fetchData])
+
+  return { data, isLoading, error, refetch }
 }
 
 // Tri intelligent des tâches
