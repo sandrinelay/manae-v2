@@ -9,6 +9,10 @@ import type {
   TemporalConstraintType,
   TemporalUrgency
 } from '@/types/items'
+import {
+  cleanShoppingItemContent,
+  detectShoppingCategory
+} from '@/config/shopping-categories'
 
 // ============================================
 // TYPES INTERNES
@@ -26,6 +30,7 @@ interface OpenAIAnalysisResponse {
       time?: string
       location?: string
       items?: string[]
+      category?: string
     }
     suggestions?: string[]
     reasoning?: string
@@ -88,7 +93,7 @@ Pour chaque item détecté, détermine :
    - "task" : Action concrète à faire (ex: "Appeler le dentiste", "Prendre RDV")
    - "note" : Information/mémo à retenir (ex: "Léa adore les licornes", "Code WiFi: abc123")
    - "idea" : Envie floue, projet pas structuré (ex: "Partir au Japon", "Refaire la cuisine")
-   - "list_item" : Article de courses (ex: "lait", "pain", "œufs")
+   - "list_item" : Article de courses → NETTOYER le contenu (voir règle LIST_ITEM ci-dessous)
 
 2. STATE (étape cycle de vie - MUTABLE) :
    - "captured" : Vient d'être saisi, nécessite clarification
@@ -105,6 +110,17 @@ Pour chaque item détecté, détermine :
    - time : Si une heure est mentionnée
    - location : Si un lieu est mentionné
    - items : Si plusieurs articles détectés (pour list_item)
+   - category : Catégorie de l'article (pour list_item uniquement) parmi :
+     "bakery" (pain, baguette, croissant)
+     "dairy" (lait, yaourt, fromage, beurre, œufs)
+     "meat" (poulet, bœuf, poisson, jambon)
+     "produce" (fruits, légumes, tomates, carottes)
+     "grocery" (pâtes, riz, conserves, sauce, sucre)
+     "frozen" (surgelés, glaces)
+     "hygiene" (savon, dentifrice, shampoing)
+     "household" (lessive, éponge, sacs poubelle)
+     "drinks" (eau, jus, café, thé, vin, bière)
+     "other" (si aucune catégorie ne correspond)
 
 5. TEMPORAL CONSTRAINT (contrainte temporelle - CRITIQUE pour la planification) :
    Détecte les indicateurs de QUAND la tâche doit être faite.
@@ -167,10 +183,27 @@ RÈGLES CRITIQUES :
 - confidence : 0.0 à 1.0 (certitude de la classification)
 - temporal_constraint : null si aucune contrainte temporelle détectée
 
-EXEMPLES :
+⚠️ RÈGLE LIST_ITEM (TRÈS IMPORTANTE) :
+Pour CHAQUE article de courses, tu DOIS NETTOYER le content :
+1. D'abord DÉCOUPER la liste par virgules ou "et"
+2. Puis pour CHAQUE article obtenu :
+   - Supprimer les verbes : "acheter", "prendre", "il faut", "il me faut", "je dois acheter"
+   - Supprimer les articles : "du", "de la", "des", "de l'", "le", "la", "les", "un", "une"
+   - Mettre une majuscule au début
+   - Garder les qualificatifs importants (ex: "farine complète" → "Farine complète")
+
+EXEMPLES LIST_ITEM (SUIVRE EXACTEMENT CE FORMAT) :
+- "Acheter du lait" → 1 item : content: "Lait", category: "dairy"
+- "Il me faut de la farine" → 1 item : content: "Farine", category: "bakery"
+- "Prendre des œufs" → 1 item : content: "Œufs", category: "dairy"
+- "acheter du pain, des oeufs et de la farine complète" → 3 items :
+  ✓ content: "Pain", category: "bakery" (PAS "acheter du pain")
+  ✓ content: "Oeufs", category: "dairy" (PAS "des oeufs")
+  ✓ content: "Farine complète", category: "bakery" (PAS "de la farine complète")
+- "Pain beurre confiture" → 3 items : "Pain" (bakery), "Beurre" (dairy), "Confiture" (grocery)
+
+EXEMPLES AUTRES TYPES :
 - "Aller au ski en février 2027" → type: "idea", state: "captured", temporal_constraint: null
-- "Acheter du lait" → type: "list_item", state: "active", temporal_constraint: null
-- "Pain lait œufs" → 3 items type: "list_item"
 - "Appeler le plombier demain" → type: "task", temporal_constraint: { type: "fixed_date", date: demain, urgency: "medium" }
 - "Urgent: rappeler client" → type: "task", temporal_constraint: { type: "asap", urgency: "critical" }
 
@@ -187,7 +220,8 @@ Réponds UNIQUEMENT en JSON valide, sans markdown :
         "date": "ISO 8601" ou null,
         "time": "HH:mm" ou null,
         "location": "string" ou null,
-        "items": ["item1", "item2"] ou null
+        "items": ["item1", "item2"] ou null,
+        "category": "bakery|dairy|meat|produce|grocery|frozen|hygiene|household|drinks|other" ou null
       },
       "temporal_constraint": {
         "type": "deadline" | "fixed_date" | "start_date" | "time_range" | "asap",
@@ -247,19 +281,44 @@ export function analyzeWithRules(rawText: string): AIAnalysisResult {
     const itemsToAdd = groceryWordsFound.length > 0 ? groceryWordsFound : words.slice(0, 5)
 
     for (const item of itemsToAdd) {
+      // Nettoyer et détecter la catégorie
+      const cleanedContent = cleanShoppingItemContent(item)
+      const category = detectShoppingCategory(item)
+
       items.push({
-        content: item.charAt(0).toUpperCase() + item.slice(1).toLowerCase(),
+        content: cleanedContent,
         type: 'list_item',
         state: 'active',
         context: 'family',
         ai_analysis: {
           type_suggestion: 'list_item',
           confidence: 0.7,
-          extracted_data: { items: [item] },
+          extracted_data: { items: [item], category },
           suggestions: ['Ajouter à la liste de courses']
         }
       })
     }
+
+    return { items, raw_input: rawText }
+  }
+
+  // Cas spécial : "acheter du X" → nettoyer et créer un list_item
+  if (isGroceryContext) {
+    const cleanedContent = cleanShoppingItemContent(rawText)
+    const category = detectShoppingCategory(cleanedContent)
+
+    items.push({
+      content: cleanedContent,
+      type: 'list_item',
+      state: 'active',
+      context: 'family',
+      ai_analysis: {
+        type_suggestion: 'list_item',
+        confidence: 0.7,
+        extracted_data: { category },
+        suggestions: ['Ajouter à la liste de courses']
+      }
+    })
 
     return { items, raw_input: rawText }
   }

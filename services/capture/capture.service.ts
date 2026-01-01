@@ -3,6 +3,7 @@
 import { createClient } from '@/lib/supabase/client'
 import { checkAIQuota, trackAIUsage } from '@/services/quota'
 import type { ItemType, ItemState, AIAnalysis } from '@/types/items'
+import { detectShoppingCategory } from '@/config/shopping-categories'
 
 // ============================================
 // TYPES
@@ -38,6 +39,7 @@ export interface SaveItemInput {
   mood?: 'energetic' | 'neutral' | 'overwhelmed' | 'tired'
   context?: 'personal' | 'family' | 'work' | 'health' | 'other'
   listId?: string // Pour list_item
+  shoppingCategory?: string // Catégorie pour list_item
 }
 
 // ============================================
@@ -181,7 +183,7 @@ export async function saveItem(input: SaveItemInput): Promise<string> {
     }
   }
 
-  // Si list_item, gérer la liste de courses
+  // Si list_item, gérer la liste de courses et la catégorie
   if (input.type === 'list_item') {
     if (!input.listId) {
       // Créer ou récupérer la liste par défaut
@@ -189,6 +191,13 @@ export async function saveItem(input: SaveItemInput): Promise<string> {
       itemData.list_id = listId
     } else {
       itemData.list_id = input.listId
+    }
+    // Ajouter la catégorie (priorité: input > AI extracted_data)
+    const category = input.shoppingCategory
+      || input.aiAnalysis?.extracted_data?.category
+      || null
+    if (category) {
+      itemData.shopping_category = category
     }
   }
 
@@ -332,6 +341,7 @@ export function extractMultipleItems(content: string): string[] {
 
 /**
  * Sauvegarde plusieurs items de courses d'un coup
+ * Détecte automatiquement la catégorie de chaque item
  */
 export async function saveMultipleListItems(
   userId: string,
@@ -347,6 +357,7 @@ export async function saveMultipleListItems(
     state: 'active' as ItemState,
     content: item,
     list_id: listId,
+    shopping_category: detectShoppingCategory(item),
     ai_analysis: aiAnalysis || null,
     metadata: {
       categorized_by: aiAnalysis ? 'ai' : 'user'

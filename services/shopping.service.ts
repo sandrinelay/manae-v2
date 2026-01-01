@@ -1,5 +1,5 @@
 import { createClient } from '@/lib/supabase/client'
-import type { Item } from '@/types/items'
+import type { Item, ShoppingCategory } from '@/types/items'
 import type { ShoppingList } from '@/types/shopping-lists'
 
 // ============================================
@@ -54,6 +54,22 @@ export async function fetchShoppingListItems(listId: string): Promise<Item[]> {
   return data as Item[]
 }
 
+export async function fetchAllShoppingItems(): Promise<Item[]> {
+  const userId = await getCurrentUserId()
+  const supabase = getSupabase()
+
+  const { data, error } = await supabase
+    .from('items')
+    .select('*')
+    .eq('user_id', userId)
+    .eq('type', 'list_item')
+    .in('state', ['active', 'completed'])
+    .order('created_at', { ascending: false })
+
+  if (error) throw error
+  return data as Item[]
+}
+
 // ============ CREATE ============
 
 export async function addShoppingItem(listId: string, content: string): Promise<void> {
@@ -73,12 +89,32 @@ export async function addShoppingItem(listId: string, content: string): Promise<
 
 // ============ UPDATE ============
 
-export async function toggleShoppingItem(id: string): Promise<void> {
+export async function toggleShoppingItem(id: string, currentState: string): Promise<void> {
+  const supabase = getSupabase()
+  const newState = currentState === 'completed' ? 'active' : 'completed'
+
+  const { error } = await supabase
+    .from('items')
+    .update({ state: newState, updated_at: new Date().toISOString() })
+    .eq('id', id)
+
+  if (error) throw error
+}
+
+export async function updateShoppingItem(
+  id: string,
+  content: string,
+  category: ShoppingCategory
+): Promise<void> {
   const supabase = getSupabase()
 
   const { error } = await supabase
     .from('items')
-    .update({ state: 'completed', updated_at: new Date().toISOString() })
+    .update({
+      content,
+      shopping_category: category,
+      updated_at: new Date().toISOString()
+    })
     .eq('id', id)
 
   if (error) throw error
@@ -110,8 +146,10 @@ export async function deleteShoppingItem(id: string): Promise<void> {
 export const shoppingService = {
   fetchActiveShoppingList,
   fetchShoppingListItems,
+  fetchAllShoppingItems,
   addShoppingItem,
   toggleShoppingItem,
+  updateShoppingItem,
   renameShoppingList,
   deleteShoppingItem
 }

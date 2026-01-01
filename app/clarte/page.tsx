@@ -13,6 +13,7 @@ import { NotesFullView } from '@/components/clarte/views/NotesFullView'
 import { IdeasBlock } from '@/components/clarte/blocks/IdeasBlock'
 import { IdeasFullView } from '@/components/clarte/views/IdeasFullView'
 import { ShoppingBlock } from '@/components/clarte/blocks/ShoppingBlock'
+import { ShoppingFullView } from '@/components/clarte/views/ShoppingFullView'
 import { EmptySearchResult } from '@/components/clarte/EmptySearchResult'
 import { NoteDetailModal } from '@/components/clarte/modals/NoteDetailModal'
 import { TaskActiveModal } from '@/components/clarte/modals/TaskActiveModal'
@@ -380,12 +381,20 @@ function ClartePageContent() {
               )}
 
               {shouldShowShopping && (
-                <ShoppingBlock
-                  items={filteredShopping}
-                  totalCount={filteredShopping.length}
-                  onToggleItem={handleToggleShoppingItem}
-                  onPlanShopping={handlePlanShopping}
-                />
+                activeFilter === 'shopping' && !isSearching ? (
+                  <ShoppingFullView
+                    items={filteredShopping}
+                    onRefresh={refetch}
+                  />
+                ) : (
+                  <ShoppingBlock
+                    items={filteredShopping}
+                    totalCount={filteredShopping.length}
+                    onToggleItem={handleToggleShoppingItem}
+                    onPlanShopping={handlePlanShopping}
+                    onShowFullView={() => setActiveFilter('shopping')}
+                  />
+                )
               )}
             </div>
           )}

@@ -42,6 +42,22 @@ export type ItemContext = 'personal' | 'family' | 'work' | 'health' | 'other'
  */
 export type Mood = 'energetic' | 'neutral' | 'overwhelmed' | 'tired'
 
+/**
+ * ShoppingCategory = Catégorie d'article de courses
+ * Utilisé pour le tri et le groupage des articles
+ */
+export type ShoppingCategory =
+  | 'bakery'    // Boulangerie
+  | 'dairy'     // Produits laitiers
+  | 'meat'      // Viandes & Poissons
+  | 'produce'   // Fruits & Légumes
+  | 'grocery'   // Épicerie
+  | 'frozen'    // Surgelés
+  | 'hygiene'   // Hygiène
+  | 'household' // Entretien
+  | 'drinks'    // Boissons
+  | 'other'     // Autre
+
 // ============================================
 // CONTRAINTES TEMPORELLES
 // ============================================
@@ -119,6 +135,7 @@ export interface Item {
   scheduled_at?: string | null
   google_event_id?: string | null
   mood?: Mood | null
+  shopping_category?: ShoppingCategory | null // Catégorie pour list_item uniquement
   created_at: string
   updated_at: string
 }
@@ -137,6 +154,7 @@ export interface CreateItemInput {
   list_id?: string | null
   scheduled_at?: string | null
   mood?: Mood | null
+  shopping_category?: ShoppingCategory | null
 }
 
 /**
@@ -154,6 +172,7 @@ export interface UpdateItemInput {
   scheduled_at?: string | null
   google_event_id?: string | null
   mood?: Mood | null
+  shopping_category?: ShoppingCategory | null
 }
 
 /**

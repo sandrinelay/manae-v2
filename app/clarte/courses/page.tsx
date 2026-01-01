@@ -61,13 +61,16 @@ export default function CoursesPage() {
   }, [newItemText, list, isAdding, fetchData])
 
   const handleToggleItem = useCallback(async (id: string) => {
+    const item = items.find(i => i.id === id)
+    if (!item) return
+
     try {
-      await toggleShoppingItem(id)
+      await toggleShoppingItem(id, item.state)
       await fetchData()
     } catch (error) {
       console.error('Erreur toggle item:', error)
     }
-  }, [fetchData])
+  }, [items, fetchData])
 
   const handleDeleteItem = useCallback(async (id: string) => {
     try {

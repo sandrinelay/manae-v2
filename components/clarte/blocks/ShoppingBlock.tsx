@@ -13,9 +13,10 @@ interface ShoppingBlockProps {
   totalCount: number
   onToggleItem: (id: string) => void
   onPlanShopping?: () => void
+  onShowFullView?: () => void
 }
 
-export function ShoppingBlock({ items, totalCount, onToggleItem, onPlanShopping }: ShoppingBlockProps) {
+export function ShoppingBlock({ items, totalCount, onToggleItem, onPlanShopping, onShowFullView }: ShoppingBlockProps) {
   const [isExpanded, setIsExpanded] = useState(false)
 
   // Nombre d'items visibles
@@ -25,17 +26,25 @@ export function ShoppingBlock({ items, totalCount, onToggleItem, onPlanShopping 
 
   return (
     <section>
-      {/* Header */}
-      <div className="flex items-center justify-between mb-3">
-        <h2 className="text-xs font-semibold text-primary uppercase tracking-wider">
+      {/* Header cliquable */}
+      <button
+        onClick={onShowFullView}
+        className="w-full flex items-center justify-between mb-3 group"
+      >
+        <h2 className="text-xs font-semibold text-primary uppercase tracking-wider group-hover:text-primary/80 transition-colors">
           Courses
         </h2>
-        {totalCount > 0 && (
-          <span className="text-xs text-text-muted">
-            {totalCount} article{totalCount > 1 ? 's' : ''}
+        <div className="flex items-center gap-2">
+          {totalCount > 0 && (
+            <span className="text-xs text-text-muted">
+              {totalCount} article{totalCount > 1 ? 's' : ''}
+            </span>
+          )}
+          <span className="text-xs text-text-muted group-hover:text-primary transition-colors">
+            →
           </span>
-        )}
-      </div>
+        </div>
+      </button>
 
       {/* État vide */}
       {items.length === 0 ? (
