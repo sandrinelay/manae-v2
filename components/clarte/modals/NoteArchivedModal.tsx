@@ -27,6 +27,13 @@ export function NoteArchivedModal({ note, onClose, onEdit, onReactivate, onDelet
   const contextConfig = CONTEXT_CONFIG[context]
   const ContextIcon = contextConfig.icon
 
+  const adjustTextareaHeight = () => {
+    if (textareaRef.current) {
+      textareaRef.current.style.height = 'auto'
+      textareaRef.current.style.height = `${Math.min(textareaRef.current.scrollHeight, 200)}px`
+    }
+  }
+
   // Focus et ajuste la hauteur du textarea en mode édition
   useEffect(() => {
     if (isEditMode && textareaRef.current) {
@@ -34,13 +41,6 @@ export function NoteArchivedModal({ note, onClose, onEdit, onReactivate, onDelet
       adjustTextareaHeight()
     }
   }, [isEditMode])
-
-  const adjustTextareaHeight = () => {
-    if (textareaRef.current) {
-      textareaRef.current.style.height = 'auto'
-      textareaRef.current.style.height = `${Math.min(textareaRef.current.scrollHeight, 200)}px`
-    }
-  }
 
   const handleContentChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     setEditContent(e.target.value)
@@ -117,6 +117,7 @@ export function NoteArchivedModal({ note, onClose, onEdit, onReactivate, onDelet
               </div>
               <button
                 onClick={isEditMode ? handleCancel : onClose}
+                aria-label={isEditMode ? 'Annuler' : 'Fermer'}
                 className="p-2 hover:bg-gray-100 rounded-full transition-colors"
               >
                 <XIcon className="w-5 h-5 text-text-muted" />

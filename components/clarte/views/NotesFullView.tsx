@@ -1,7 +1,13 @@
 'use client'
 
 import { useState, useCallback, useMemo, useEffect } from 'react'
-import { createClient } from '@/lib/supabase/client'
+import {
+  fetchNotes,
+  archiveItem,
+  activateItem,
+  deleteItem,
+  updateItemContent
+} from '@/services/items.service'
 import { TabBar } from '@/components/clarte/tabs/TabBar'
 import { NoteRow } from '@/components/clarte/cards/NoteRow'
 import { NoteDetailModal } from '@/components/clarte/modals/NoteDetailModal'
@@ -30,22 +36,12 @@ export function NotesFullView({ notes: initialNotes, contextFilter = 'all', onRe
   const [allNotes, setAllNotes] = useState<Item[]>(initialNotes)
   const [isLoading, setIsLoading] = useState(false)
 
-  // Fetch toutes les notes quand on change d'onglet
+  // Fetch toutes les notes
   const fetchAllNotes = useCallback(async () => {
     setIsLoading(true)
     try {
-      const supabase = createClient()
-      const { data: { user } } = await supabase.auth.getUser()
-      if (!user) return
-
-      const { data } = await supabase
-        .from('items')
-        .select('*')
-        .eq('user_id', user.id)
-        .eq('type', 'note')
-        .order('updated_at', { ascending: false })
-
-      if (data) setAllNotes(data)
+      const data = await fetchNotes()
+      setAllNotes(data)
     } catch (error) {
       console.error('Erreur fetch notes:', error)
     } finally {
@@ -94,50 +90,43 @@ export function NotesFullView({ notes: initialNotes, contextFilter = 'all', onRe
   }, [allNotes])
 
   const handleEdit = useCallback(async (id: string, content: string, context: ItemContext) => {
-    const supabase = createClient()
-    await supabase
-      .from('items')
-      .update({
-        content,
-        context,
-        updated_at: new Date().toISOString()
-      })
-      .eq('id', id)
-    setSelectedNote(null)
-    await handleRefresh()
+    try {
+      await updateItemContent(id, content, context)
+      setSelectedNote(null)
+      await handleRefresh()
+    } catch (error) {
+      console.error('Erreur modification:', error)
+    }
   }, [handleRefresh])
 
   const handleArchive = useCallback(async (id: string) => {
-    const supabase = createClient()
-    await supabase
-      .from('items')
-      .update({
-        state: 'archived',
-        updated_at: new Date().toISOString()
-      })
-      .eq('id', id)
-    setSelectedNote(null)
-    await handleRefresh()
+    try {
+      await archiveItem(id)
+      setSelectedNote(null)
+      await handleRefresh()
+    } catch (error) {
+      console.error('Erreur archivage:', error)
+    }
   }, [handleRefresh])
 
   const handleReactivate = useCallback(async (id: string) => {
-    const supabase = createClient()
-    await supabase
-      .from('items')
-      .update({
-        state: 'active',
-        updated_at: new Date().toISOString()
-      })
-      .eq('id', id)
-    setSelectedNote(null)
-    await handleRefresh()
+    try {
+      await activateItem(id)
+      setSelectedNote(null)
+      await handleRefresh()
+    } catch (error) {
+      console.error('Erreur réactivation:', error)
+    }
   }, [handleRefresh])
 
   const handleDelete = useCallback(async (id: string) => {
-    const supabase = createClient()
-    await supabase.from('items').delete().eq('id', id)
-    setSelectedNote(null)
-    await handleRefresh()
+    try {
+      await deleteItem(id)
+      setSelectedNote(null)
+      await handleRefresh()
+    } catch (error) {
+      console.error('Erreur suppression:', error)
+    }
   }, [handleRefresh])
 
   // Détermine si la note sélectionnée est active

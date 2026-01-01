@@ -116,7 +116,7 @@ export function IdeaDevelopPanel({
           {ideaAge === 'old' && (
             <div className="space-y-2">
               <p className="text-sm text-text-muted">
-                Qu'est-ce qui la freine ? <span className="opacity-60">(optionnel)</span>
+                Qu&apos;est-ce qui la freine ? <span className="opacity-60">(optionnel)</span>
               </p>
               <div className="flex flex-wrap gap-2">
                 {(Object.entries(BLOCKER_CONFIG) as [IdeaBlocker, typeof BLOCKER_CONFIG[IdeaBlocker]][]).map(
@@ -241,7 +241,7 @@ export function IdeaDevelopPanel({
           {result.project.motivation && (
             <div className="bg-mint p-4 rounded-xl">
               <p className="text-sm text-primary italic">
-                "{result.project.motivation}"
+                &quot;{result.project.motivation}&quot;
               </p>
             </div>
           )}

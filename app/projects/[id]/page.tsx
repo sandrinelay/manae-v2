@@ -1,9 +1,13 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import { useParams, useRouter } from 'next/navigation'
-import { createClient } from '@/lib/supabase/client'
 import { useAuth } from '@/hooks/useAuth'
+import {
+  fetchProject,
+  fetchProjectSteps,
+  updateItemState
+} from '@/services/items.service'
 import type { Item, ItemState } from '@/types/items'
 import { ArrowLeftIcon, CheckIcon, CircleIcon } from '@/components/ui/icons'
 
@@ -34,6 +38,36 @@ export default function ProjectPage() {
   // CHARGEMENT DU PROJET
   // ============================================
 
+  const loadProject = useCallback(async () => {
+    if (!user) return
+
+    setIsLoading(true)
+    setError(null)
+
+    try {
+      // 1. Charger le projet
+      const projectData = await fetchProject(projectId, user.id)
+
+      if (!projectData) {
+        setError('Projet non trouvé')
+        return
+      }
+
+      // 2. Charger les étapes (enfants)
+      const stepsData = await fetchProjectSteps(projectId, user.id)
+
+      setProject({
+        ...projectData,
+        steps: stepsData
+      })
+    } catch (err) {
+      console.error('Erreur:', err)
+      setError('Erreur lors du chargement')
+    } finally {
+      setIsLoading(false)
+    }
+  }, [projectId, user])
+
   useEffect(() => {
     if (isAuthLoading) return
     if (!user) {
@@ -41,63 +75,17 @@ export default function ProjectPage() {
       return
     }
 
-    const loadProject = async () => {
-      setIsLoading(true)
-      setError(null)
-
-      try {
-        const supabase = createClient()
-
-        // 1. Charger le projet
-        const { data: projectData, error: projectError } = await supabase
-          .from('items')
-          .select('*')
-          .eq('id', projectId)
-          .eq('user_id', user.id)
-          .eq('state', 'project')
-          .single()
-
-        if (projectError || !projectData) {
-          setError('Projet non trouvé')
-          return
-        }
-
-        // 2. Charger les étapes (enfants)
-        const { data: stepsData, error: stepsError } = await supabase
-          .from('items')
-          .select('*')
-          .eq('parent_id', projectId)
-          .eq('user_id', user.id)
-          .order('created_at', { ascending: true })
-
-        if (stepsError) {
-          console.error('Erreur chargement étapes:', stepsError)
-        }
-
-        setProject({
-          ...projectData,
-          steps: stepsData || []
-        })
-      } catch (err) {
-        console.error('Erreur:', err)
-        setError('Erreur lors du chargement')
-      } finally {
-        setIsLoading(false)
-      }
-    }
-
     loadProject()
-  }, [projectId, user, isAuthLoading, router])
+  }, [isAuthLoading, user, router, loadProject])
 
   // ============================================
   // HANDLERS
   // ============================================
 
-  const toggleStepComplete = async (stepId: string, currentState: ItemState) => {
+  const toggleStepComplete = useCallback(async (stepId: string, currentState: ItemState) => {
     if (!project) return
 
     const newState: ItemState = currentState === 'completed' ? 'active' : 'completed'
-    const supabase = createClient()
 
     // Mise à jour optimiste
     setProject(prev => {
@@ -111,12 +99,7 @@ export default function ProjectPage() {
     })
 
     try {
-      const { error } = await supabase
-        .from('items')
-        .update({ state: newState })
-        .eq('id', stepId)
-
-      if (error) throw error
+      await updateItemState(stepId, newState)
     } catch (err) {
       console.error('Erreur mise à jour:', err)
       // Rollback
@@ -130,7 +113,7 @@ export default function ProjectPage() {
         }
       })
     }
-  }
+  }, [project])
 
   // ============================================
   // RENDER
@@ -238,7 +221,7 @@ export default function ProjectPage() {
         {metadata?.motivation && (
           <div className="bg-mint rounded-xl p-4 border border-primary/20">
             <p className="text-sm text-primary italic">
-              "{metadata.motivation}"
+              &quot;{metadata.motivation}&quot;
             </p>
           </div>
         )}

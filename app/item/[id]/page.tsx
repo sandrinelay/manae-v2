@@ -2,7 +2,7 @@
 
 import { useEffect, useState, use } from 'react'
 import { useRouter } from 'next/navigation'
-import { createClient } from '@/lib/supabase/client'
+import { fetchItemById } from '@/services/items.service'
 
 interface ItemPageProps {
   params: Promise<{ id: string }>
@@ -16,16 +16,9 @@ export default function ItemPage({ params }: ItemPageProps) {
   useEffect(() => {
     async function redirectToItem() {
       try {
-        const supabase = createClient()
+        const item = await fetchItemById(id)
 
-        // Récupérer l'item pour déterminer sa redirection
-        const { data: item, error: fetchError } = await supabase
-          .from('items')
-          .select('type, state')
-          .eq('id', id)
-          .single()
-
-        if (fetchError || !item) {
+        if (!item) {
           setError('Item introuvable')
           return
         }

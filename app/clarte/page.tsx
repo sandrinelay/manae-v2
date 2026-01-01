@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useCallback, useMemo, useEffect, Suspense } from 'react'
+import { useState, useCallback, useMemo, useEffect, Suspense, useRef } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { useAuth } from '@/hooks/useAuth'
 import { AppHeader } from '@/components/layout'
@@ -21,7 +21,13 @@ import { IdeaDetailModal } from '@/components/clarte/modals/IdeaDetailModal'
 import { IdeaDevelopModal } from '@/components/clarte/modals/IdeaDevelopModal'
 import { useClarteData } from '@/hooks/useClarteData'
 import { normalizeString } from '@/components/ui/SearchBar'
-import { createClient } from '@/lib/supabase/client'
+import {
+  completeItem,
+  deleteItem,
+  archiveItem,
+  updateItemContent,
+  updateItemState
+} from '@/services/items.service'
 import type { Item, ItemContext } from '@/types/items'
 import type { FilterType } from '@/config/filters'
 import type { ContextFilterType } from '@/components/ui/ContextFilterTabs'
@@ -70,9 +76,10 @@ function ClartePageContent() {
   }, [searchQuery, data?.counts, filteredTasks.length, filteredNotes.length, filteredIdeas.length, filteredShopping.length])
 
   // Gérer le retour après connexion Google Calendar
+  const hasResumedPlanning = useRef(false)
   useEffect(() => {
     const resumePlanning = searchParams.get('resumePlanning')
-    if (resumePlanning === 'true' && data?.tasks) {
+    if (resumePlanning === 'true' && data?.tasks && !hasResumedPlanning.current) {
       const pendingPlanning = localStorage.getItem('manae_pending_planning')
       if (pendingPlanning) {
         try {
@@ -80,7 +87,12 @@ function ClartePageContent() {
           if (context.itemId) {
             const task = data.tasks.find(t => t.id === context.itemId)
             if (task) {
-              setTaskToPlan(task)
+              hasResumedPlanning.current = true
+              // Utiliser requestAnimationFrame pour éviter le setState synchrone dans l'effect
+              requestAnimationFrame(() => {
+                setTaskToPlan(task)
+                setActiveFilter('tasks')
+              })
             }
           }
           localStorage.removeItem('manae_pending_planning')
@@ -95,13 +107,13 @@ function ClartePageContent() {
 
   // Handlers
   const handleMarkDone = useCallback(async (id: string) => {
-    const supabase = createClient()
-    await supabase
-      .from('items')
-      .update({ state: 'completed', updated_at: new Date().toISOString() })
-      .eq('id', id)
-    setSelectedTask(null)
-    await refetch()
+    try {
+      await completeItem(id)
+      setSelectedTask(null)
+      await refetch()
+    } catch (error) {
+      console.error('Erreur completion:', error)
+    }
   }, [refetch])
 
   const handlePlan = useCallback((id: string) => {
@@ -113,20 +125,23 @@ function ClartePageContent() {
   }, [data?.tasks])
 
   const handleDeleteTask = useCallback(async (id: string) => {
-    const supabase = createClient()
-    await supabase.from('items').delete().eq('id', id)
-    setSelectedTask(null)
-    await refetch()
+    try {
+      await deleteItem(id)
+      setSelectedTask(null)
+      await refetch()
+    } catch (error) {
+      console.error('Erreur suppression:', error)
+    }
   }, [refetch])
 
   const handleStoreTask = useCallback(async (id: string) => {
-    const supabase = createClient()
-    await supabase
-      .from('items')
-      .update({ state: 'archived', updated_at: new Date().toISOString() })
-      .eq('id', id)
-    setSelectedTask(null)
-    await refetch()
+    try {
+      await archiveItem(id)
+      setSelectedTask(null)
+      await refetch()
+    } catch (error) {
+      console.error('Erreur archivage:', error)
+    }
   }, [refetch])
 
   const handleTapTask = useCallback((id: string) => {
@@ -163,30 +178,36 @@ function ClartePageContent() {
   }, [refetch])
 
   const handleArchiveIdea = useCallback(async (id: string) => {
-    const supabase = createClient()
-    await supabase
-      .from('items')
-      .update({ state: 'archived', updated_at: new Date().toISOString() })
-      .eq('id', id)
-    setSelectedIdea(null)
-    await refetch()
+    try {
+      await archiveItem(id)
+      setSelectedIdea(null)
+      await refetch()
+    } catch (error) {
+      console.error('Erreur archivage:', error)
+    }
   }, [refetch])
 
   const handleDeleteIdea = useCallback(async (id: string) => {
-    const supabase = createClient()
-    await supabase.from('items').delete().eq('id', id)
-    setSelectedIdea(null)
-    await refetch()
+    try {
+      await deleteItem(id)
+      setSelectedIdea(null)
+      await refetch()
+    } catch (error) {
+      console.error('Erreur suppression:', error)
+    }
   }, [refetch])
 
   const handleToggleShoppingItem = useCallback(async (id: string) => {
-    const supabase = createClient()
-    const item = data?.shoppingItems.find(i => i.id === id)
-    if (!item) return
-    const newState = item.state === 'completed' ? 'active' : 'completed'
-    await supabase.from('items').update({ state: newState }).eq('id', id)
-    await refetch()
-  }, [data?.shoppingItems, refetch])
+    try {
+      const item = data?.shoppingItems.find(i => i.id === id)
+      if (!item) return
+      const newState = item.state === 'completed' ? 'active' : 'completed'
+      await updateItemState(id, newState)
+      await refetch()
+    } catch (error) {
+      console.error('Erreur toggle shopping:', error)
+    }
+  }, [data, refetch])
 
   const handlePlanShopping = useCallback(() => {
     console.log('Plan shopping')
@@ -201,31 +222,33 @@ function ClartePageContent() {
   }, [])
 
   const handleEditNote = useCallback(async (id: string, content: string, context: ItemContext) => {
-    const supabase = createClient()
-    await supabase
-      .from('items')
-      .update({
-        content,
-        context,
-        updated_at: new Date().toISOString()
-      })
-      .eq('id', id)
-    setSelectedNote(null)
-    await refetch()
+    try {
+      await updateItemContent(id, content, context)
+      setSelectedNote(null)
+      await refetch()
+    } catch (error) {
+      console.error('Erreur modification:', error)
+    }
   }, [refetch])
 
   const handleArchiveNote = useCallback(async (id: string) => {
-    const supabase = createClient()
-    await supabase.from('items').update({ state: 'archived' }).eq('id', id)
-    setSelectedNote(null)
-    await refetch()
+    try {
+      await archiveItem(id)
+      setSelectedNote(null)
+      await refetch()
+    } catch (error) {
+      console.error('Erreur archivage:', error)
+    }
   }, [refetch])
 
   const handleDeleteNote = useCallback(async (id: string) => {
-    const supabase = createClient()
-    await supabase.from('items').delete().eq('id', id)
-    setSelectedNote(null)
-    await refetch()
+    try {
+      await deleteItem(id)
+      setSelectedNote(null)
+      await refetch()
+    } catch (error) {
+      console.error('Erreur suppression:', error)
+    }
   }, [refetch])
 
   // Filtrer les notes par contexte
@@ -308,7 +331,12 @@ function ClartePageContent() {
             <div className="space-y-4 mt-4">
               {shouldShowTasks && (
                 activeFilter === 'tasks' && !isSearching ? (
-                  <TasksFullView tasks={filteredTasks} onRefresh={refetch} />
+                  <TasksFullView
+                    tasks={filteredTasks}
+                    onRefresh={refetch}
+                    initialTaskToPlan={taskToPlan}
+                    onTaskToPlanHandled={() => setTaskToPlan(null)}
+                  />
                 ) : (
                   <TasksBlock
                     tasks={filteredTasks}

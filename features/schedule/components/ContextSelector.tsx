@@ -74,7 +74,7 @@ export function ContextSelector({
 
       {aiSuggested && (
         <p className="text-xs text-text-muted">
-          ✨ L'IA suggère le contexte "{CONTEXT_CONFIG[aiSuggested]?.label}"
+          ✨ L&apos;IA suggère le contexte &quot;{CONTEXT_CONFIG[aiSuggested]?.label}&quot;
         </p>
       )}
     </div>

@@ -111,7 +111,7 @@ export async function POST(request: NextRequest) {
     const validatedItems: AIAnalyzedItem[] = aiResponse.items
       .map(item => {
         // Valider type/state
-        let type = item.type as ItemType
+        const type = item.type as ItemType
         let state = item.state as ItemState
 
         // Corriger les combinaisons invalides

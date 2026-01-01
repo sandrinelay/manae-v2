@@ -179,7 +179,7 @@ export function MultiCaptureModal({
               onClick={handlePrevious}
               disabled={remainingPensées <= 1}
               className="p-2 rounded-lg border border-border hover:bg-gray-light disabled:opacity-30 disabled:cursor-not-allowed transition-all"
-              title="Précédent"
+              aria-label="Précédent"
             >
               <ChevronLeftIcon className="w-5 h-5 text-text-dark" />
             </button>
@@ -187,7 +187,7 @@ export function MultiCaptureModal({
               onClick={handleNext}
               disabled={remainingPensées <= 1}
               className="p-2 rounded-lg border border-border hover:bg-gray-light disabled:opacity-30 disabled:cursor-not-allowed transition-all"
-              title="Suivant"
+              aria-label="Suivant"
             >
               <ChevronRightIcon className="w-5 h-5 text-text-dark" />
             </button>
@@ -196,7 +196,7 @@ export function MultiCaptureModal({
             <button
               onClick={onClose}
               className="p-2 rounded-lg hover:bg-gray-light transition-all ml-2"
-              title="Fermer"
+              aria-label="Fermer"
             >
               <XIcon className="w-5 h-5 text-text-muted" />
             </button>

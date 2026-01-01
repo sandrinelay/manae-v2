@@ -2,7 +2,7 @@
 
 import { useState, useCallback, useMemo, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { createClient } from '@/lib/supabase/client'
+import { fetchIdeas, archiveItem, deleteItem } from '@/services/items.service'
 import { TabBar } from '@/components/clarte/tabs/TabBar'
 import { IdeaCard } from '@/components/clarte/cards/IdeaCard'
 import { IdeaDetailModal } from '@/components/clarte/modals/IdeaDetailModal'
@@ -38,18 +38,8 @@ export function IdeasFullView({ ideas: initialIdeas, contextFilter = 'all', onRe
   const fetchAllIdeas = useCallback(async () => {
     setIsLoading(true)
     try {
-      const supabase = createClient()
-      const { data: { user } } = await supabase.auth.getUser()
-      if (!user) return
-
-      const { data } = await supabase
-        .from('items')
-        .select('*')
-        .eq('user_id', user.id)
-        .eq('type', 'idea')
-        .order('updated_at', { ascending: false })
-
-      if (data) setAllIdeas(data)
+      const data = await fetchIdeas()
+      setAllIdeas(data)
     } catch (error) {
       console.error('Erreur fetch ideas:', error)
     } finally {
@@ -149,23 +139,23 @@ export function IdeasFullView({ ideas: initialIdeas, contextFilter = 'all', onRe
   }, [handleRefresh])
 
   const handleArchive = useCallback(async (id: string) => {
-    const supabase = createClient()
-    await supabase
-      .from('items')
-      .update({
-        state: 'archived',
-        updated_at: new Date().toISOString()
-      })
-      .eq('id', id)
-    setSelectedIdea(null)
-    await handleRefresh()
+    try {
+      await archiveItem(id)
+      setSelectedIdea(null)
+      await handleRefresh()
+    } catch (error) {
+      console.error('Erreur archivage:', error)
+    }
   }, [handleRefresh])
 
   const handleDelete = useCallback(async (id: string) => {
-    const supabase = createClient()
-    await supabase.from('items').delete().eq('id', id)
-    setSelectedIdea(null)
-    await handleRefresh()
+    try {
+      await deleteItem(id)
+      setSelectedIdea(null)
+      await handleRefresh()
+    } catch (error) {
+      console.error('Erreur suppression:', error)
+    }
   }, [handleRefresh])
 
   // Vérifier si l'idée sélectionnée est active (non archivée)

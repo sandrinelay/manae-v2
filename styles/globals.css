@@ -28,6 +28,12 @@
   --color-border: #E2E8F0;
   --color-border-primary: #4A7488;
 
+  /* Mood colors */
+  --color-mood-energetic: #E89B6C;
+  --color-mood-calm: #7EB89E;
+  --color-mood-overwhelmed: #E07B7B;
+  --color-mood-tired: #8E9AAF;
+
   /* === FONTS === */
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
@@ -71,6 +77,12 @@
   /* Border colors */
   --border-light: #E2E8F0;
   --border-primary: #4A7488;
+
+  /* Mood colors */
+  --mood-energetic: #E89B6C;
+  --mood-calm: #7EB89E;
+  --mood-overwhelmed: #E07B7B;
+  --mood-tired: #8E9AAF;
 }
 
 /* @media (prefers-color-scheme: dark) {

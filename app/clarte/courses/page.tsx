@@ -2,9 +2,16 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
-import { createClient } from '@/lib/supabase/client'
 import { ChevronLeft, Plus, Trash2, Calendar, Edit2 } from 'lucide-react'
 import BottomNav from '@/components/layout/BottomNav'
+import {
+  fetchActiveShoppingList,
+  fetchShoppingListItems,
+  addShoppingItem,
+  toggleShoppingItem,
+  deleteShoppingItem,
+  renameShoppingList
+} from '@/services/shopping.service'
 import type { Item } from '@/types/items'
 import type { ShoppingList } from '@/types/shopping-lists'
 
@@ -18,100 +25,76 @@ export default function CoursesPage() {
 
   const fetchData = useCallback(async () => {
     setIsLoading(true)
-    const supabase = createClient()
-    const { data: { user } } = await supabase.auth.getUser()
+    try {
+      const activeList = await fetchActiveShoppingList()
 
-    if (!user) return
-
-    // Récupérer la liste active
-    const { data: activeList } = await supabase
-      .from('shopping_lists')
-      .select('*')
-      .eq('user_id', user.id)
-      .eq('status', 'active')
-      .order('updated_at', { ascending: false })
-      .limit(1)
-      .single()
-
-    if (activeList) {
-      setList(activeList)
-
-      // Récupérer les items actifs
-      const { data: listItems } = await supabase
-        .from('items')
-        .select('*')
-        .eq('user_id', user.id)
-        .eq('type', 'list_item')
-        .eq('list_id', activeList.id)
-        .eq('state', 'active')
-        .order('created_at', { ascending: true })
-
-      setItems(listItems || [])
+      if (activeList) {
+        setList(activeList)
+        const listItems = await fetchShoppingListItems(activeList.id)
+        setItems(listItems)
+      }
+    } catch (error) {
+      console.error('Erreur fetch data:', error)
+    } finally {
+      setIsLoading(false)
     }
-
-    setIsLoading(false)
   }, [])
 
   useEffect(() => {
     fetchData()
   }, [fetchData])
 
-  const handleAddItem = async (e: React.FormEvent) => {
+  const handleAddItem = useCallback(async (e: React.FormEvent) => {
     e.preventDefault()
     if (!newItemText.trim() || !list || isAdding) return
 
     setIsAdding(true)
-    const supabase = createClient()
-    const { data: { user } } = await supabase.auth.getUser()
+    try {
+      await addShoppingItem(list.id, newItemText)
+      setNewItemText('')
+      await fetchData()
+    } catch (error) {
+      console.error('Erreur ajout item:', error)
+    } finally {
+      setIsAdding(false)
+    }
+  }, [newItemText, list, isAdding, fetchData])
 
-    if (!user) return
+  const handleToggleItem = useCallback(async (id: string) => {
+    try {
+      await toggleShoppingItem(id)
+      await fetchData()
+    } catch (error) {
+      console.error('Erreur toggle item:', error)
+    }
+  }, [fetchData])
 
-    await supabase.from('items').insert({
-      user_id: user.id,
-      type: 'list_item',
-      state: 'active',
-      content: newItemText.trim(),
-      list_id: list.id
-    })
+  const handleDeleteItem = useCallback(async (id: string) => {
+    try {
+      await deleteShoppingItem(id)
+      await fetchData()
+    } catch (error) {
+      console.error('Erreur suppression item:', error)
+    }
+  }, [fetchData])
 
-    setNewItemText('')
-    setIsAdding(false)
-    fetchData()
-  }
-
-  const handleToggleItem = async (id: string) => {
-    const supabase = createClient()
-    // Marquer comme completed = disparaît de la liste
-    await supabase
-      .from('items')
-      .update({ state: 'completed', updated_at: new Date().toISOString() })
-      .eq('id', id)
-    fetchData()
-  }
-
-  const handleDeleteItem = async (id: string) => {
-    const supabase = createClient()
-    await supabase.from('items').delete().eq('id', id)
-    fetchData()
-  }
-
-  const handlePlanShopping = () => {
+  const handlePlanShopping = useCallback(() => {
     // TODO: Ouvrir flow Plan Task avec description de la liste
     console.log('Plan shopping with items:', items.map(i => i.content).join(', '))
-  }
+  }, [items])
 
-  const handleRenameList = async () => {
+  const handleRenameList = useCallback(async () => {
     if (!list) return
     const newName = prompt('Nouveau nom de la liste:', list.name)
     if (!newName || newName === list.name) return
 
-    const supabase = createClient()
-    await supabase
-      .from('shopping_lists')
-      .update({ name: newName, updated_at: new Date().toISOString() })
-      .eq('id', list.id)
-    fetchData()
-  }
+    try {
+      await renameShoppingList(list.id, newName)
+      await fetchData()
+    } catch (error) {
+      console.error('Erreur renommage liste:', error)
+    }
+  }, [list, fetchData])
 
   return (
     <div className="min-h-screen bg-mint pb-24">

@@ -14,6 +14,21 @@ interface GoogleTokens {
   expires_at?: number
 }
 
+// Type pour les événements bruts retournés par l'API Google Calendar
+interface GoogleCalendarRawEvent {
+  id: string
+  summary?: string
+  status?: string
+  start?: {
+    dateTime?: string
+    date?: string
+  }
+  end?: {
+    dateTime?: string
+    date?: string
+  }
+}
+
 const GOOGLE_TOKENS_KEY = 'google_tokens'
 
 /**
@@ -154,25 +169,25 @@ export async function getCalendarEvents(
 
     // 4. Filtrer et formater les événements
     const events: GoogleCalendarEvent[] = (data.items || [])
-      .filter((event: any) => {
+      .filter((event: GoogleCalendarRawEvent) => {
         // Exclure les événements annulés
         if (event.status === 'cancelled') return false
-        
+
         // Exclure les événements sans date (edge case)
         if (!event.start?.dateTime && !event.start?.date) return false
-        
+
         return true
       })
-      .map((event: any) => ({
+      .map((event: GoogleCalendarRawEvent) => ({
         id: event.id,
         summary: event.summary || '(Sans titre)',
         start: {
-          dateTime: event.start.dateTime,
-          date: event.start.date
+          dateTime: event.start?.dateTime,
+          date: event.start?.date
         },
         end: {
-          dateTime: event.end.dateTime,
-          date: event.end.date
+          dateTime: event.end?.dateTime,
+          date: event.end?.date
         },
         status: event.status || 'confirmed'
       }))

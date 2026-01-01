@@ -1,7 +1,14 @@
 'use client'
 
 import { useState, useCallback, useMemo, useEffect } from 'react'
-import { createClient } from '@/lib/supabase/client'
+import {
+  fetchTasks,
+  deleteItem,
+  completeItem,
+  activateItem,
+  archiveItem,
+  updateItemContent
+} from '@/services/items.service'
 import { TabBar } from '@/components/clarte/tabs/TabBar'
 import { TaskCard } from '@/components/clarte/cards/TaskCard'
 import { TaskActiveModal } from '@/components/clarte/modals/TaskActiveModal'
@@ -16,7 +23,7 @@ import {
   TASK_CATEGORY_LABELS,
   type TaskTimeCategory
 } from '@/lib/task-utils'
-import type { Item } from '@/types/items'
+import type { Item, ItemContext } from '@/types/items'
 
 type TabId = 'active' | 'done' | 'stored'
 
@@ -32,32 +39,23 @@ const CATEGORY_ORDER: TaskTimeCategory[] = ['today', 'overdue', 'thisWeek', 'toS
 interface TasksFullViewProps {
   tasks: Item[] // Tâches initiales (actives seulement)
   onRefresh: () => Promise<void>
+  initialTaskToPlan?: Item | null // Tâche à planifier (pour reprise après connexion Google)
+  onTaskToPlanHandled?: () => void // Callback pour signaler que la tâche a été traitée
 }
 
-export function TasksFullView({ tasks: initialTasks, onRefresh }: TasksFullViewProps) {
+export function TasksFullView({ tasks: initialTasks, onRefresh, initialTaskToPlan, onTaskToPlanHandled }: TasksFullViewProps) {
   const [activeTab, setActiveTab] = useState<TabId>('active')
   const [selectedTask, setSelectedTask] = useState<Item | null>(null)
-  const [taskToPlan, setTaskToPlan] = useState<Item | null>(null)
+  const [taskToPlan, setTaskToPlan] = useState<Item | null>(initialTaskToPlan || null)
   const [allTasks, setAllTasks] = useState<Item[]>(initialTasks)
   const [isLoading, setIsLoading] = useState(false)
 
-  // Fetch toutes les tâches quand on change d'onglet
+  // Fetch toutes les tâches
   const fetchAllTasks = useCallback(async () => {
     setIsLoading(true)
     try {
-      const supabase = createClient()
-      const { data: { user } } = await supabase.auth.getUser()
-      if (!user) return
-
-      const { data } = await supabase
-        .from('items')
-        .select('*')
-        .eq('user_id', user.id)
-        .eq('type', 'task')
-        .is('parent_id', null)
-        .order('updated_at', { ascending: false })
-
-      if (data) setAllTasks(data)
+      const data = await fetchTasks()
+      setAllTasks(data)
     } catch (error) {
       console.error('Erreur fetch tasks:', error)
     } finally {
@@ -69,6 +67,13 @@ export function TasksFullView({ tasks: initialTasks, onRefresh }: TasksFullViewP
   useEffect(() => {
     fetchAllTasks()
   }, [fetchAllTasks])
+
+  // Gérer la mise à jour de initialTaskToPlan depuis le parent
+  useEffect(() => {
+    if (initialTaskToPlan) {
+      setTaskToPlan(initialTaskToPlan)
+    }
+  }, [initialTaskToPlan])
 
   // Refresh quand on appelle onRefresh
   const handleRefresh = useCallback(async () => {
@@ -102,53 +107,69 @@ export function TasksFullView({ tasks: initialTasks, onRefresh }: TasksFullViewP
   }, [allTasks])
 
   const handleDelete = useCallback(async (id: string) => {
-    const supabase = createClient()
-    await supabase.from('items').delete().eq('id', id)
-    setSelectedTask(null)
-    await handleRefresh()
+    try {
+      await deleteItem(id)
+      setSelectedTask(null)
+      await handleRefresh()
+    } catch (error) {
+      console.error('Erreur suppression:', error)
+    }
   }, [handleRefresh])
 
   const handleMarkDone = useCallback(async (id: string) => {
-    const supabase = createClient()
-    await supabase.from('items').update({
-      state: 'completed',
-      updated_at: new Date().toISOString()
-    }).eq('id', id)
-    setSelectedTask(null)
-    await handleRefresh()
+    try {
+      await completeItem(id)
+      setSelectedTask(null)
+      await handleRefresh()
+    } catch (error) {
+      console.error('Erreur completion:', error)
+    }
   }, [handleRefresh])
 
   const handleReactivate = useCallback(async (id: string) => {
-    const supabase = createClient()
-    await supabase.from('items').update({
-      state: 'active',
-      updated_at: new Date().toISOString()
-    }).eq('id', id)
-    setSelectedTask(null)
-    await handleRefresh()
+    try {
+      await activateItem(id)
+      setSelectedTask(null)
+      await handleRefresh()
+    } catch (error) {
+      console.error('Erreur réactivation:', error)
+    }
   }, [handleRefresh])
 
   const handleStore = useCallback(async (id: string) => {
-    const supabase = createClient()
-    await supabase.from('items').update({
-      state: 'archived',
-      updated_at: new Date().toISOString()
-    }).eq('id', id)
-    setSelectedTask(null)
-    await handleRefresh()
+    try {
+      await archiveItem(id)
+      setSelectedTask(null)
+      await handleRefresh()
+    } catch (error) {
+      console.error('Erreur archivage:', error)
+    }
   }, [handleRefresh])
 
   const handleDeleteTask = useCallback(async (id: string) => {
-    const supabase = createClient()
-    await supabase.from('items').delete().eq('id', id)
-    setSelectedTask(null)
-    await handleRefresh()
+    try {
+      await deleteItem(id)
+      setSelectedTask(null)
+      await handleRefresh()
+    } catch (error) {
+      console.error('Erreur suppression:', error)
+    }
   }, [handleRefresh])
 
   const handleTapTask = useCallback((id: string) => {
     const task = allTasks.find(t => t.id === id)
     if (task) setSelectedTask(task)
   }, [allTasks])
+
+  const handleEditTask = useCallback(async (id: string, content: string, context: ItemContext) => {
+    try {
+      await updateItemContent(id, content, context)
+      setSelectedTask(null)
+      await handleRefresh()
+    } catch (error) {
+      console.error('Erreur modification:', error)
+    }
+  }, [handleRefresh])
 
   // Détermine si la tâche sélectionnée est active (active ou planned)
   const isSelectedTaskActive = selectedTask &&
@@ -251,6 +272,7 @@ export function TasksFullView({ tasks: initialTasks, onRefresh }: TasksFullViewP
           onPlan={handlePlan}
           onStore={handleStore}
           onDelete={handleDelete}
+          onEdit={handleEditTask}
         />
       )}
 
@@ -269,7 +291,10 @@ export function TasksFullView({ tasks: initialTasks, onRefresh }: TasksFullViewP
       {taskToPlan && (
         <PlanTaskModal
           task={taskToPlan}
-          onClose={() => setTaskToPlan(null)}
+          onClose={() => {
+            setTaskToPlan(null)
+            onTaskToPlanHandled?.()
+          }}
           onSuccess={handleRefresh}
         />
       )}

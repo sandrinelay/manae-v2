@@ -1,4 +1,5 @@
 import type { Item } from '@/types/items'
+import { TASK_TIME_LABELS } from '@/constants/labels'
 
 /**
  * Catégories temporelles pour les tâches
@@ -7,14 +8,9 @@ export type TaskTimeCategory = 'today' | 'overdue' | 'thisWeek' | 'toSchedule' |
 
 /**
  * Labels pour les catégories (vocabulaire Manae : doux, non culpabilisant)
+ * Re-export depuis constants/labels pour rétrocompatibilité
  */
-export const TASK_CATEGORY_LABELS: Record<TaskTimeCategory, string> = {
-  today: 'Aujourd\'hui',
-  overdue: 'En attente',      // PAS "en retard"
-  thisWeek: 'Cette semaine',
-  toSchedule: 'À caler',
-  later: 'Plus tard'
-}
+export const TASK_CATEGORY_LABELS: Record<TaskTimeCategory, string> = TASK_TIME_LABELS
 
 /**
  * Détermine la catégorie temporelle d'une tâche

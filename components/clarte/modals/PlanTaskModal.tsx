@@ -108,6 +108,7 @@ export function PlanTaskModal({ task, onClose, onSuccess }: PlanTaskModalProps) 
           </div>
           <button
             onClick={onClose}
+            aria-label="Fermer"
             className="p-2 hover:bg-gray-100 rounded-full transition-colors"
           >
             <XIcon className="w-5 h-5 text-text-muted" />

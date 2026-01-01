@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useSyncExternalStore } from 'react';
 import { createPortal } from 'react-dom';
 import { Button } from './Button';
 
@@ -10,16 +10,33 @@ interface DeleteConfirmModalProps {
     onConfirm: () => void;
 }
 
+// Helper pour détecter si on est côté client
+function subscribeMounted() {
+    return () => {};
+}
+
+function getMountedSnapshot() {
+    return true;
+}
+
+function getServerMountedSnapshot() {
+    return false;
+}
+
 export const DeleteConfirmModal: React.FC<DeleteConfirmModalProps> = ({
     itemName,
     onCancel,
     onConfirm
 }) => {
-    const [isMounted, setIsMounted] = useState(false);
+    // Utiliser useSyncExternalStore pour détecter le montage côté client
+    const isMounted = useSyncExternalStore(
+        subscribeMounted,
+        getMountedSnapshot,
+        getServerMountedSnapshot
+    );
 
-    // S'assurer que le composant est monté côté client
+    // Gérer le scroll du body (cet effet est OK car il ne fait pas de setState)
     useEffect(() => {
-        setIsMounted(true);
         document.body.style.overflow = 'hidden';
         return () => {
             document.body.style.overflow = 'unset';
@@ -87,14 +104,14 @@ export const DeleteConfirmModal: React.FC<DeleteConfirmModalProps> = ({
                 <div className="flex items-center gap-3 mb-4">
                     <span className="text-3xl">🗑️</span>
                     <h3 className="text-xl font-bold text-text-dark">
-                        Supprimer l'indisponibilité ?
+                        Supprimer l&apos;indisponibilité ?
                     </h3>
                 </div>
 
                 {/* Message */}
                 <div className="mb-6 space-y-3">
                     <p className="text-text-medium leading-relaxed">
-                        Es-tu sûr(e) de vouloir supprimer <strong className="text-text-dark">"{itemName}"</strong> ?
+                        Es-tu sûr(e) de vouloir supprimer <strong className="text-text-dark">&quot;{itemName}&quot;</strong> ?
                     </p>
 
                     <div className="bg-red-50 border-l-4 border-red-500 p-3 rounded-lg">

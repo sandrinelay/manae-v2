@@ -100,7 +100,7 @@ export default function OnboardingStep2() {
                 {/* Content */}
                 <main>
                     <h2 className="text-2xl font-bold text-text-dark mb-3">
-                        Tes moments d'énergie
+                        Tes moments d&apos;énergie
                     </h2>
                     <p className="text-base text-text-medium mb-6 leading-relaxed">
                         Quand préfères-tu avancer sur tes tâches ?

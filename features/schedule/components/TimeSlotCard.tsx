@@ -1,5 +1,6 @@
 'use client'
 
+import { useMemo } from 'react'
 import type { TimeSlot } from '../types/scheduling.types'
 import { CheckIcon } from '@/components/ui/icons'
 
@@ -21,14 +22,31 @@ const RANK_MEDALS: Record<number, string> = {
 }
 
 // ============================================
+// HELPERS - Date stable pour le render
+// ============================================
+
+function getDateInfo(slotDate: string) {
+  const date = new Date(slotDate)
+  const now = new Date()
+  const tomorrow = new Date(now)
+  tomorrow.setDate(tomorrow.getDate() + 1)
+
+  const isToday = date.toDateString() === now.toDateString()
+  const isTomorrow = date.toDateString() === tomorrow.toDateString()
+
+  return { date, isToday, isTomorrow }
+}
+
+// ============================================
 // COMPOSANT
 // ============================================
 
 export function TimeSlotCard({ slot, rank, isSelected, onSelect }: TimeSlotCardProps) {
-  // Formater la date en français
-  const date = new Date(slot.date)
-  const isToday = date.toDateString() === new Date().toDateString()
-  const isTomorrow = date.toDateString() === new Date(Date.now() + 86400000).toDateString()
+  // Mémoiser le calcul de date pour éviter les appels impurs pendant le render
+  const { date, isToday, isTomorrow } = useMemo(
+    () => getDateInfo(slot.date),
+    [slot.date]
+  )
 
   let dateLabel: string
   if (isToday) {

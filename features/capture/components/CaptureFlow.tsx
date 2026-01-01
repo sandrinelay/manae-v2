@@ -223,7 +223,7 @@ export function CaptureFlow({ userId, onSuccess }: CaptureFlowProps) {
       <div className="bg-white rounded-3xl p-5 shadow-sm mb-6">
         {/* Titre */}
         <h1 className="text-xl font-bold text-text-dark mb-1">
-          Qu'as-tu en tête ?
+          Qu&apos;as-tu en tête ?
         </h1>
         <p className="text-sm text-text-muted mb-4">
           Tâches, notes, idées, courses... Dépose tout ici.
@@ -310,7 +310,7 @@ export function CaptureFlow({ userId, onSuccess }: CaptureFlowProps) {
               </p>
               <p className="text-red-600 text-xs mt-1">
                 Tes pensées seront enregistrées sans analyse automatique.
-                Tu pourras les trier manuellement dans "Ma Liste".
+                Tu pourras les trier manuellement dans &quot;Ma Liste&quot;.
               </p>
               <button
                 onClick={handleUpgrade}

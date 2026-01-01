@@ -2,6 +2,7 @@
 
 import type { ReactNode } from 'react'
 import { EnergeticIcon, CalmIcon, OverwhelmedIcon, TiredIcon } from '@/components/ui/icons'
+import { MOOD_LABELS, SECTION_LABELS } from '@/constants/labels'
 
 type Mood = 'energetic' | 'calm' | 'overwhelmed' | 'tired'
 
@@ -23,29 +24,29 @@ const MOODS: MoodConfig[] = [
   {
     value: 'energetic',
     icon: <EnergeticIcon className="w-6 h-6" />,
-    label: 'Énergique',
-    bgSelected: 'bg-[#E89B6C]', // Orange pastel - énergie, vitalité, enthousiasme
+    label: MOOD_LABELS.energetic,
+    bgSelected: 'bg-mood-energetic',
     iconColorSelected: 'text-white'
   },
   {
     value: 'calm',
     icon: <CalmIcon className="w-6 h-6" />,
-    label: 'Calme',
-    bgSelected: 'bg-[#7EB89E]', // Vert pastel - sérénité, équilibre, harmonie
+    label: MOOD_LABELS.calm,
+    bgSelected: 'bg-mood-calm',
     iconColorSelected: 'text-white'
   },
   {
     value: 'overwhelmed',
     icon: <OverwhelmedIcon className="w-6 h-6" />,
-    label: 'Débordé(e)',
-    bgSelected: 'bg-[#E07B7B]', // Corail saturé pastel - stress, urgence, tension
+    label: MOOD_LABELS.overwhelmed,
+    bgSelected: 'bg-mood-overwhelmed',
     iconColorSelected: 'text-white'
   },
   {
     value: 'tired',
     icon: <TiredIcon className="w-6 h-6" />,
-    label: 'Fatigué(e)',
-    bgSelected: 'bg-[#8E9AAF]', // Gris pastel bleuté - fatigue, repos, calme
+    label: MOOD_LABELS.tired,
+    bgSelected: 'bg-mood-tired',
     iconColorSelected: 'text-white'
   }
 ]
@@ -62,7 +63,7 @@ export function MoodSelector({ selectedMood, onSelectMood, disabled }: MoodSelec
   return (
     <div className="space-y-3">
       <p className="text-xs font-semibold text-text-dark uppercase tracking-wide">
-        Comment te sens-tu ? (optionnel)
+        {SECTION_LABELS.moodQuestion}
       </p>
       <div className="flex gap-3">
         {MOODS.map((mood) => {

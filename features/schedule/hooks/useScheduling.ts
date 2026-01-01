@@ -267,8 +267,15 @@ export function useScheduling(params: UseSchedulingParams): UseSchedulingReturn 
 
     try {
       // 1. Créer l'événement dans Google Calendar
-      const startDateTime = `${selectedSlot.date}T${selectedSlot.startTime}:00`
-      const endDateTime = `${selectedSlot.date}T${selectedSlot.endTime}:00`
+      // Obtenir le timezone offset local (ex: +01:00 pour Paris)
+      const tzOffset = -new Date().getTimezoneOffset()
+      const tzHours = Math.floor(Math.abs(tzOffset) / 60).toString().padStart(2, '0')
+      const tzMinutes = (Math.abs(tzOffset) % 60).toString().padStart(2, '0')
+      const tzSign = tzOffset >= 0 ? '+' : '-'
+      const timezone = `${tzSign}${tzHours}:${tzMinutes}`
+
+      const startDateTime = `${selectedSlot.date}T${selectedSlot.startTime}:00${timezone}`
+      const endDateTime = `${selectedSlot.date}T${selectedSlot.endTime}:00${timezone}`
 
       console.log('[useScheduling] Création événement Calendar:', {
         summary: taskContent,

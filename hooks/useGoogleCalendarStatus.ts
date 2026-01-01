@@ -1,28 +1,35 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useSyncExternalStore, useCallback } from 'react'
+
+// Helper pour lire le statut Google Calendar depuis localStorage
+function getCalendarSnapshot() {
+  if (typeof window === 'undefined') return false
+  return !!localStorage.getItem('google_tokens')
+}
+
+function getServerSnapshot() {
+  return false
+}
 
 export function useGoogleCalendarStatus() {
-  const [isConnected, setIsConnected] = useState(false)
-  const [isLoading, setIsLoading] = useState(true)
-
-  useEffect(() => {
-    // Vérifier dans localStorage si les tokens Google existent
-    const tokens = localStorage.getItem('google_tokens')
-    setIsConnected(!!tokens)
-    setIsLoading(false)
-
-    // Écouter les changements de connexion
-    const handleConnectionChange = (event: CustomEvent<{ connected: boolean }>) => {
-      setIsConnected(event.detail.connected)
-    }
-
-    window.addEventListener('calendar-connection-changed', handleConnectionChange as EventListener)
+  // Subscribe aux changements (storage event + custom event)
+  const subscribe = useCallback((callback: () => void) => {
+    window.addEventListener('storage', callback)
+    window.addEventListener('calendar-connection-changed', callback)
 
     return () => {
-      window.removeEventListener('calendar-connection-changed', handleConnectionChange as EventListener)
+      window.removeEventListener('storage', callback)
+      window.removeEventListener('calendar-connection-changed', callback)
     }
   }, [])
 
-  return { isConnected, isLoading }
+  const isConnected = useSyncExternalStore(
+    subscribe,
+    getCalendarSnapshot,
+    getServerSnapshot
+  )
+
+  // Plus besoin de isLoading car useSyncExternalStore est synchrone
+  return { isConnected, isLoading: false }
 }

@@ -1,25 +1,38 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useSyncExternalStore } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/Button';
 
+// Helper pour lire localStorage de manière synchrone avec useSyncExternalStore
+function subscribeToStorage(callback: () => void) {
+  window.addEventListener('storage', callback);
+  return () => window.removeEventListener('storage', callback);
+}
+
+function getOnboardingSnapshot() {
+  if (typeof window === 'undefined') return null;
+  const data = localStorage.getItem('manae_onboarding');
+  return data ? JSON.parse(data) : null;
+}
+
+function getServerSnapshot() {
+  return null;
+}
+
 export default function Dashboard() {
   const router = useRouter();
-  const [isLoading, setIsLoading] = useState(true);
-  const [onboardingStep, setOnboardingStep] = useState<number>(0);
-  const [userName, setUserName] = useState<string>('');
 
-  useEffect(() => {
-    // Check onboarding status
-    const onboardingData = localStorage.getItem('manae_onboarding');
-    if (onboardingData) {
-      const data = JSON.parse(onboardingData);
-      setOnboardingStep(data.step || 0);
-      setUserName(data.name || '');
-    }
-    setIsLoading(false);
-  }, []);
+  // Utiliser useSyncExternalStore pour lire localStorage sans setState dans useEffect
+  const onboardingData = useSyncExternalStore(
+    subscribeToStorage,
+    getOnboardingSnapshot,
+    getServerSnapshot
+  );
+
+  const onboardingStep = onboardingData?.step || 0;
+  const userName = onboardingData?.name || '';
+  const isLoading = false; // Plus besoin de loading, useSyncExternalStore est synchrone
 
   const handleContinueOnboarding = () => {
     if (onboardingStep === 0) {
@@ -66,14 +79,14 @@ export default function Dashboard() {
                 Bonjour {userName} !
               </h2>
               <p className="text-text-medium mb-6">
-                Ton espace est prêt. Je suis là pour t'aider à gérer ton temps.
+                Ton espace est prêt. Je suis là pour t&apos;aider à gérer ton temps.
               </p>
               <div className="space-y-3">
                 <Button onClick={() => alert('Fonctionnalité à venir !')}>
                   Voir mes tâches
                 </Button>
                 <Button variant="secondary" onClick={handleReset}>
-                  Recommencer l'intro
+                  Recommencer l&apos;intro
                 </Button>
               </div>
             </div>

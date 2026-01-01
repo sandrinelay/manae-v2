@@ -258,7 +258,7 @@ export default function TestCalendarPage() {
             🧪 Test Google Calendar API
           </h1>
           <p className="text-text-muted text-sm mb-6">
-            Page de test pour valider l'intégration Google Calendar
+            Page de test pour valider l&apos;intégration Google Calendar
           </p>
 
           {/* Boutons de test */}
@@ -344,11 +344,11 @@ export default function TestCalendarPage() {
         <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
           <h3 className="font-semibold text-blue-900 mb-2">📖 Instructions</h3>
           <ol className="text-sm text-blue-800 space-y-1 list-decimal list-inside">
-            <li>Clique sur "🔑 Vérifier tokens" pour voir si Google Calendar est connecté</li>
-            <li>Si non connecté, va dans "Aller à onboarding" pour connecter</li>
-            <li>Une fois connecté, clique sur "📋 Récupérer événements"</li>
-            <li>Puis teste "➕ Créer événement test" et vérifie dans ton Google Calendar</li>
-            <li>Utilise "🔌 Déconnecter Calendar" pour tester les erreurs de tokens manquants</li>
+            <li>Clique sur &quot;🔑 Vérifier tokens&quot; pour voir si Google Calendar est connecté</li>
+            <li>Si non connecté, va dans &quot;Aller à onboarding&quot; pour connecter</li>
+            <li>Une fois connecté, clique sur &quot;📋 Récupérer événements&quot;</li>
+            <li>Puis teste &quot;➕ Créer événement test&quot; et vérifie dans ton Google Calendar</li>
+            <li>Utilise &quot;🔌 Déconnecter Calendar&quot; pour tester les erreurs de tokens manquants</li>
           </ol>
         </div>
       </div>

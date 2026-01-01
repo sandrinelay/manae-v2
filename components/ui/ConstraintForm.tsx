@@ -1,7 +1,7 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
-import { Constraint, CATEGORY_CONFIG, DAYS_OF_WEEK } from '@/types';
+import React, { useState } from 'react';
+import { Constraint, DAYS_OF_WEEK } from '@/types';
 import { Input } from './Input';
 import { Button } from './Button';
 import {
@@ -57,12 +57,16 @@ export const ConstraintForm: React.FC<ConstraintFormProps> = ({
     });
 
     // Auto-détection de catégorie quand le nom change
-    useEffect(() => {
-        if (formData.name && !constraint) {
-            const detectedCategory = detectCategory(formData.name);
-            setFormData(prev => ({ ...prev, category: detectedCategory }));
-        }
-    }, [formData.name, constraint]);
+    // Note: On utilise un pattern différent - la détection se fait dans le onChange
+    const handleNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const newName = e.target.value;
+        const detectedCategory = !constraint && newName ? detectCategory(newName) : formData.category;
+        setFormData(prev => ({
+            ...prev,
+            name: newName,
+            category: detectedCategory
+        }));
+    };
 
     const toggleDay = (dayId: string) => {
         setFormData(prev => ({
@@ -96,7 +100,7 @@ export const ConstraintForm: React.FC<ConstraintFormProps> = ({
                     label="NOM"
                     placeholder="Ex: Travail, École des enfants..."
                     value={formData.name}
-                    onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
+                    onChange={handleNameChange}
                 />
 
                 {/* Sélection d'icône */}
