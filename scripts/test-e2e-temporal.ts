@@ -70,6 +70,58 @@ const testCases: TestCase[] = [
   // 11. Courses (pas de contrainte temporelle)
   { input: 'Acheter du lait', expectedType: 'list_item', expectedConstraint: null, description: 'COURSES - Produit simple' },
   { input: 'lait pain oeufs', expectedType: 'list_item', expectedConstraint: null, description: 'COURSES - Liste brute' },
+
+  // ============================================
+  // 12. PENSÉES MAMAN (2 enfants : Emma 3 ans, Léo 6 ans)
+  // ============================================
+
+  // Tâches quotidiennes
+  { input: 'Prendre RDV pédiatre pour Emma', expectedType: 'task', expectedConstraint: null, description: 'MAMAN - RDV médical enfant' },
+  { input: 'Acheter des couches taille 4', expectedType: 'list_item', expectedConstraint: null, description: 'MAMAN - Course bébé' },
+  { input: 'Inscrire Léo au foot', expectedType: 'task', expectedConstraint: null, description: 'MAMAN - Inscription activité' },
+  { input: 'Rappeler la nounou pour vendredi', expectedType: 'task', expectedConstraint: 'fixed_date', description: 'MAMAN - Appel avec jour' },
+  { input: 'Commander le gâteau d\'anniversaire de Léo', expectedType: 'task', expectedConstraint: null, description: 'MAMAN - Commande' },
+  { input: 'Préparer le sac de piscine pour demain', expectedType: 'task', expectedConstraint: 'fixed_date', description: 'MAMAN - Préparation demain' },
+  { input: 'Acheter des chaussures neuves pour Emma', expectedType: 'list_item', expectedConstraint: null, description: 'MAMAN - Achat vêtement' },
+  { input: 'RDV orthophoniste mardi 16h', expectedType: 'task', expectedConstraint: 'fixed_date', description: 'MAMAN - RDV jour+heure' },
+  { input: 'Urgent rappeler la maîtresse', expectedType: 'task', expectedConstraint: 'asap', description: 'MAMAN - Appel urgent école' },
+  { input: 'Récupérer carnet de santé chez le médecin', expectedType: 'task', expectedConstraint: null, description: 'MAMAN - Tâche administrative' },
+
+  // Tâches avec contraintes temporelles
+  { input: 'Réunion parents d\'élèves jeudi 18h', expectedType: 'task', expectedConstraint: 'fixed_date', description: 'MAMAN - Réunion école' },
+  { input: 'Spectacle de fin d\'année vendredi 14h', expectedType: 'task', expectedConstraint: 'fixed_date', description: 'MAMAN - Événement école' },
+  { input: 'Vaccin Emma avant le 15', expectedType: 'task', expectedConstraint: 'deadline', description: 'MAMAN - Deadline vaccin' },
+  { input: 'Acheter cadeau anniversaire Théo avant samedi', expectedType: 'task', expectedConstraint: 'deadline', description: 'MAMAN - Deadline cadeau' },
+  { input: 'Appeler crèche lundi matin', expectedType: 'task', expectedConstraint: 'time_range', description: 'MAMAN - Appel matin' },
+  { input: 'Kermesse de l\'école samedi après-midi', expectedType: 'task', expectedConstraint: 'time_range', description: 'MAMAN - Événement après-midi' },
+
+  // Courses enfants
+  { input: 'Compotes pomme, petits suisses, jambon', expectedType: 'list_item', expectedConstraint: null, description: 'MAMAN - Liste courses enfants' },
+  { input: 'Lait, pain de mie, céréales', expectedType: 'list_item', expectedConstraint: null, description: 'MAMAN - Liste courses petit-déj' },
+  { input: 'Acheter du sérum phy', expectedType: 'list_item', expectedConstraint: null, description: 'MAMAN - Course pharmacie' },
+  { input: 'Lingettes, couches, crème change', expectedType: 'list_item', expectedConstraint: null, description: 'MAMAN - Courses bébé' },
+
+  // Notes famille
+  { input: 'Emma allergique aux arachides', expectedType: 'note', expectedConstraint: null, description: 'MAMAN - Note allergie' },
+  { input: 'Léo adore les dinosaures', expectedType: 'note', expectedConstraint: null, description: 'MAMAN - Note préférence enfant' },
+  { input: 'Code portail école : 4589', expectedType: 'note', expectedConstraint: null, description: 'MAMAN - Note code' },
+  { input: 'Pointure Emma : 26', expectedType: 'note', expectedConstraint: null, description: 'MAMAN - Note taille' },
+  { input: 'Taille Léo : 6 ans', expectedType: 'note', expectedConstraint: null, description: 'MAMAN - Note taille vêtement' },
+  { input: 'Doudou préféré Emma : lapin bleu', expectedType: 'note', expectedConstraint: null, description: 'MAMAN - Note doudou' },
+
+  // Idées projets famille
+  { input: 'Organiser anniversaire Léo thème pirates', expectedType: 'idea', expectedConstraint: null, description: 'MAMAN - Idée anniversaire' },
+  { input: 'Partir à Disneyland cet été', expectedType: 'idea', expectedConstraint: null, description: 'MAMAN - Idée voyage' },
+  { input: 'Inscrire Emma à la danse en septembre', expectedType: 'idea', expectedConstraint: null, description: 'MAMAN - Idée activité future' },
+  { input: 'Refaire la chambre des enfants', expectedType: 'idea', expectedConstraint: null, description: 'MAMAN - Idée aménagement' },
+  { input: 'Trouver une baby-sitter pour le week-end en amoureux', expectedType: 'idea', expectedConstraint: null, description: 'MAMAN - Idée organisation' },
+  { input: 'Apprendre à faire du vélo à Emma', expectedType: 'idea', expectedConstraint: null, description: 'MAMAN - Idée apprentissage' },
+
+  // Administratif enfants
+  { input: 'Renouveler carte d\'identité Emma', expectedType: 'task', expectedConstraint: null, description: 'MAMAN - Admin identité' },
+  { input: 'Envoyer dossier inscription CP', expectedType: 'task', expectedConstraint: null, description: 'MAMAN - Admin école' },
+  { input: 'Payer la cantine avant vendredi', expectedType: 'task', expectedConstraint: 'deadline', description: 'MAMAN - Deadline paiement' },
+  { input: 'Demander attestation assurance scolaire', expectedType: 'task', expectedConstraint: null, description: 'MAMAN - Admin assurance' },
 ]
 
 interface AnalysisResult {
