@@ -49,6 +49,7 @@ function ClartePageContent() {
   const [selectedIdea, setSelectedIdea] = useState<Item | null>(null)
   const [ideaToDevelop, setIdeaToDevelop] = useState<Item | null>(null)
   const [taskToPlan, setTaskToPlan] = useState<Item | null>(null)
+  const [showShoppingPlanModal, setShowShoppingPlanModal] = useState(false)
 
   // Fonction de filtrage par recherche
   const filterBySearch = useCallback((items: Item[]) => {
@@ -80,16 +81,29 @@ function ClartePageContent() {
   const hasResumedPlanning = useRef(false)
   useEffect(() => {
     const resumePlanning = searchParams.get('resumePlanning')
-    if (resumePlanning === 'true' && data?.tasks && !hasResumedPlanning.current) {
+    if (resumePlanning === 'true' && !hasResumedPlanning.current) {
       const pendingPlanning = localStorage.getItem('manae_pending_planning')
       if (pendingPlanning) {
         try {
           const context = JSON.parse(pendingPlanning)
-          if (context.itemId) {
+
+          // Cas spécial : planification des courses
+          if (context.itemId === 'shopping-trip') {
+            hasResumedPlanning.current = true
+            localStorage.removeItem('manae_pending_planning')
+            requestAnimationFrame(() => {
+              setActiveFilter('shopping')
+              setShowShoppingPlanModal(true)
+            })
+            router.replace('/clarte')
+            return
+          }
+
+          // Cas standard : planification d'une tâche
+          if (context.itemId && data?.tasks) {
             const task = data.tasks.find(t => t.id === context.itemId)
             if (task) {
               hasResumedPlanning.current = true
-              // Utiliser requestAnimationFrame pour éviter le setState synchrone dans l'effect
               requestAnimationFrame(() => {
                 setTaskToPlan(task)
                 setActiveFilter('tasks')
@@ -385,6 +399,8 @@ function ClartePageContent() {
                   <ShoppingFullView
                     items={filteredShopping}
                     onRefresh={refetch}
+                    initialShowPlanModal={showShoppingPlanModal}
+                    onPlanModalClosed={() => setShowShoppingPlanModal(false)}
                   />
                 ) : (
                   <ShoppingBlock

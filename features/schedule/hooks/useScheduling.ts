@@ -22,6 +22,8 @@ export interface UseSchedulingParams {
   taskContent: string
   mood?: Mood
   temporalConstraint?: TemporalConstraint | null
+  /** Si true, ne met pas à jour l'item en DB (utile pour les événements standalone comme les courses) */
+  skipItemUpdate?: boolean
 }
 
 // Info sur le filtrage service
@@ -57,7 +59,7 @@ export interface UseSchedulingReturn {
 // ============================================
 
 export function useScheduling(params: UseSchedulingParams): UseSchedulingReturn {
-  const { itemId, taskContent, mood, temporalConstraint } = params
+  const { itemId, taskContent, mood, temporalConstraint, skipItemUpdate = false } = params
 
   // ============================================
   // ÉTAT
@@ -294,14 +296,17 @@ export function useScheduling(params: UseSchedulingParams): UseSchedulingReturn 
 
       console.log('[useScheduling] Événement créé:', eventId)
 
-      // 2. Update l'item en DB
-      await updateItem(itemId, {
-        state: 'planned',
-        scheduled_at: startDateTime,
-        google_event_id: eventId
-      })
-
-      console.log('[useScheduling] Item mis à jour en DB')
+      // 2. Update l'item en DB (sauf si skipItemUpdate)
+      if (!skipItemUpdate) {
+        await updateItem(itemId, {
+          state: 'planned',
+          scheduled_at: startDateTime,
+          google_event_id: eventId
+        })
+        console.log('[useScheduling] Item mis à jour en DB')
+      } else {
+        console.log('[useScheduling] Skip item update (événement standalone)')
+      }
 
       return true
 
@@ -329,7 +334,7 @@ export function useScheduling(params: UseSchedulingParams): UseSchedulingReturn 
     } finally {
       setIsLoading(false)
     }
-  }, [selectedSlot, taskContent, itemId])
+  }, [selectedSlot, taskContent, itemId, skipItemUpdate])
 
   // ============================================
   // RETURN

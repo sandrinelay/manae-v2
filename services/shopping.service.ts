@@ -141,6 +141,53 @@ export async function deleteShoppingItem(id: string): Promise<void> {
   if (error) throw error
 }
 
+/**
+ * Supprime tous les articles achetés (état completed)
+ */
+export async function clearCompletedShoppingItems(): Promise<number> {
+  const userId = await getCurrentUserId()
+  const supabase = getSupabase()
+
+  // D'abord compter les items à supprimer
+  const { count } = await supabase
+    .from('items')
+    .select('*', { count: 'exact', head: true })
+    .eq('user_id', userId)
+    .eq('type', 'list_item')
+    .eq('state', 'completed')
+
+  // Supprimer les items
+  const { error } = await supabase
+    .from('items')
+    .delete()
+    .eq('user_id', userId)
+    .eq('type', 'list_item')
+    .eq('state', 'completed')
+
+  if (error) throw error
+  return count || 0
+}
+
+/**
+ * Met à jour uniquement la catégorie d'un article
+ */
+export async function updateShoppingItemCategory(
+  id: string,
+  category: ShoppingCategory
+): Promise<void> {
+  const supabase = getSupabase()
+
+  const { error } = await supabase
+    .from('items')
+    .update({
+      shopping_category: category,
+      updated_at: new Date().toISOString()
+    })
+    .eq('id', id)
+
+  if (error) throw error
+}
+
 // ============ SERVICE OBJECT ============
 
 export const shoppingService = {
@@ -150,6 +197,8 @@ export const shoppingService = {
   addShoppingItem,
   toggleShoppingItem,
   updateShoppingItem,
+  updateShoppingItemCategory,
   renameShoppingList,
-  deleteShoppingItem
+  deleteShoppingItem,
+  clearCompletedShoppingItems
 }

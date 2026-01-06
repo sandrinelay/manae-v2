@@ -40,11 +40,11 @@ export function IconButton({
     default: 'bg-white border border-gray-200 text-text-dark hover:bg-gray-50 hover:border-gray-300',
     primary: 'bg-primary text-white hover:bg-primary-dark',
     ghost: 'bg-transparent text-text-muted hover:bg-gray-100 hover:text-text-dark',
-    success: 'bg-green-50 text-green-500 hover:bg-green-100',
+    success: 'bg-green-100 text-green-500 hover:bg-green-100',
     teal: 'bg-teal-50 text-teal-500 hover:bg-teal-100',
     danger: 'bg-red-50 text-red-500 hover:bg-red-100',
     archive: 'bg-gray-100 text-gray-600 hover:bg-gray-200',
-    plan: 'bg-blue-50 text-blue-600 hover:bg-blue-100'
+    plan: 'bg-blue-300 text-white hover:bg-blue-400'
   }
 
   return (

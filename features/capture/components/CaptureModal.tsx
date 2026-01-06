@@ -93,7 +93,7 @@ const TYPE_CONFIG: Record<ItemType, {
     label: 'Tâche',
     actions: [
       { label: 'Enregistrer', value: 'save', variant: 'save' },
-      { label: 'Planifier', value: 'plan', variant: 'plan', requiresAI: true }
+      { label: 'Caler', value: 'plan', variant: 'plan', requiresAI: true }
     ]
   },
   note: {
@@ -672,7 +672,7 @@ export function CaptureModal({
             disabled={!scheduling.selectedSlot || scheduling.isLoading}
             className="flex-1 px-6 py-3 bg-primary text-white rounded-lg font-medium hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {scheduling.isLoading ? 'Planification...' : 'Planifier'}
+            {scheduling.isLoading ? 'En cours...' : 'Caler'}
           </button>
         </div>
       </div>
@@ -715,7 +715,7 @@ export function CaptureModal({
           )}
 
           <h2 className="text-lg font-bold text-text-dark font-quicksand">
-            {currentStep === 'organize' ? 'Organiser' : 'Planifier la tâche'}
+            {currentStep === 'organize' ? 'Organiser' : 'Caler la tâche'}
           </h2>
 
           <IconButton
@@ -754,7 +754,7 @@ export function CaptureModal({
               disabled={!scheduling.selectedSlot || scheduling.isLoading}
               className="flex-1 px-6 py-3 bg-primary text-white rounded-lg font-medium hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {scheduling.isLoading ? 'Planification...' : 'Planifier'}
+              {scheduling.isLoading ? 'En cours...' : 'Caler'}
             </button>
           </div>
         ) : null}

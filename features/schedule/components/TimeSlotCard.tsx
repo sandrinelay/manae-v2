@@ -63,7 +63,7 @@ export function TimeSlotCard({ slot, rank, isSelected, onSelect }: TimeSlotCardP
 
   // Couleur du score
   const getScoreColor = (score: number) => {
-    if (score >= 80) return 'text-green-600 bg-green-50'
+    if (score >= 80) return 'text-green-600 bg-green-100'
     if (score >= 60) return 'text-orange-600 bg-orange-50'
     return 'text-red-600 bg-red-50'
   }

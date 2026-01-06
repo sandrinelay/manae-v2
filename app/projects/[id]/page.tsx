@@ -245,7 +245,7 @@ export default function ProjectPage() {
                     className={`
                       flex items-start gap-3 p-4 rounded-xl border transition-all
                       ${isCompleted
-                        ? 'bg-green-50 border-green-200'
+                        ? 'bg-green-100 border-green-200'
                         : 'bg-white border-border hover:border-primary/30'
                       }
                     `}

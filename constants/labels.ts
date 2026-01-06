@@ -58,7 +58,7 @@ export const TAB_LABELS = {
  */
 export const TASK_TIME_LABELS = {
   today: 'Aujourd\'hui',
-  overdue: 'En attente',      // PAS "en retard"
+  overdue: 'C\'est fait ?',   // Encourageant, invite à valider
   thisWeek: 'Cette semaine',
   toSchedule: 'À caler',
   later: 'Plus tard'
@@ -105,9 +105,10 @@ export const ACTION_LABELS = {
   save: 'Enregistrer',
   cancel: 'Annuler',
   delete: 'Supprimer',
-  archive: 'Archiver',
+  archive: 'Ranger',
   reactivate: 'Réactiver',
-  plan: 'Planifier',
+  plan: 'Caler',
+  replan: 'Décaler',
   markDone: 'Terminer',
   develop: 'Développer',
   back: 'Retour',

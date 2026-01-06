@@ -54,7 +54,7 @@ export function SuccessModal({ taskContent, scheduledDate, onClose }: SuccessMod
 
         {/* Titre */}
         <h3 className="text-2xl font-bold text-center text-text-dark mb-2 font-quicksand">
-          Tâche planifiée !
+          C'est calé !
         </h3>
 
         {/* Description */}
@@ -62,7 +62,7 @@ export function SuccessModal({ taskContent, scheduledDate, onClose }: SuccessMod
           <span className="font-medium text-text-dark">&quot;{taskContent}&quot;</span>
         </p>
         <p className="text-center text-sm text-text-muted">
-          ajoutée à ton calendrier {scheduledDate}
+          ajouté à ton calendrier {scheduledDate}
         </p>
       </div>
     </div>

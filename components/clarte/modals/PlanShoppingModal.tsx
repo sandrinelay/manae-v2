@@ -1,7 +1,6 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { Item } from '@/types/items'
 import { useScheduling } from '@/features/schedule/hooks/useScheduling'
 import { useGoogleCalendarStatus } from '@/hooks/useGoogleCalendarStatus'
 import { DurationSelector } from '@/features/schedule/components/DurationSelector'
@@ -10,29 +9,28 @@ import { SuccessModal, formatScheduledDate } from '@/features/schedule/component
 import GoogleCalendarCTA from '@/components/capture/GoogleCalendarCTA'
 import {
   XIcon,
-  CalendarIcon
+  ShoppingIcon
 } from '@/components/ui/icons'
 import { ActionButton } from '@/components/ui/ActionButton'
 
-interface PlanTaskModalProps {
-  task: Item
+interface PlanShoppingModalProps {
+  itemCount: number
   onClose: () => void
   onSuccess: () => void
 }
 
-export function PlanTaskModal({ task, onClose, onSuccess }: PlanTaskModalProps) {
+export function PlanShoppingModal({ itemCount, onClose, onSuccess }: PlanShoppingModalProps) {
   const { isConnected: isCalendarConnected } = useGoogleCalendarStatus()
   const [showSuccess, setShowSuccess] = useState(false)
 
-  const isPlanned = task.state === 'planned'
-  const modalTitle = isPlanned ? 'Décaler la tâche' : 'Caler la tâche'
-
-  // Hook de planification
+  // Hook de planification - on utilise un contenu générique pour les courses
+  // skipItemUpdate: true car il n'y a pas d'item à mettre à jour, juste un événement calendar
   const scheduling = useScheduling({
-    itemId: task.id,
-    taskContent: task.content,
-    mood: task.mood || undefined,
-    temporalConstraint: task.ai_analysis?.temporal_constraint || null
+    itemId: 'shopping-trip',
+    taskContent: `Faire les courses (${itemCount} articles)`,
+    mood: undefined,
+    temporalConstraint: null,
+    skipItemUpdate: true
   })
 
   // Charger les créneaux au montage si calendrier connecté
@@ -63,18 +61,14 @@ export function PlanTaskModal({ task, onClose, onSuccess }: PlanTaskModalProps) 
     onClose()
   }
 
-  // Connexion Google Calendar - même processus que CaptureModal
+  // Connexion Google Calendar
   const handleConnectCalendar = () => {
-    // Sauvegarder le contexte de planification pour y revenir après connexion
     const planningContext = {
-      itemId: task.id,
-      content: task.content,
-      mood: task.mood,
-      returnTo: 'clarte-schedule'
+      itemId: 'shopping-trip',
+      content: `Faire les courses (${itemCount} articles)`,
+      returnTo: 'clarte-shopping'
     }
     localStorage.setItem('manae_pending_planning', JSON.stringify(planningContext))
-
-    // Rediriger vers step4 avec indication de retour
     window.location.href = '/onboarding/step4?returnTo=planning'
   }
 
@@ -83,7 +77,7 @@ export function PlanTaskModal({ task, onClose, onSuccess }: PlanTaskModalProps) 
     const dateTimeString = `${scheduling.selectedSlot.date}T${scheduling.selectedSlot.startTime}:00`
     return (
       <SuccessModal
-        taskContent={task.content}
+        taskContent={`Faire les courses (${itemCount} articles)`}
         scheduledDate={formatScheduledDate(dateTimeString)}
         onClose={handleSuccessClose}
       />
@@ -103,8 +97,8 @@ export function PlanTaskModal({ task, onClose, onSuccess }: PlanTaskModalProps) 
         {/* Header */}
         <div className="flex items-center justify-between p-4 border-b border-border flex-shrink-0">
           <div className="flex items-center gap-2 text-primary">
-            <CalendarIcon className="w-5 h-5" />
-            <span className="font-medium">{modalTitle}</span>
+            <ShoppingIcon className="w-5 h-5" />
+            <span className="font-medium">Caler les courses</span>
           </div>
           <button
             onClick={onClose}
@@ -118,12 +112,20 @@ export function PlanTaskModal({ task, onClose, onSuccess }: PlanTaskModalProps) 
         {/* Contenu scrollable */}
         <div className="p-4 overflow-y-auto flex-1 min-h-0">
           <div className="space-y-6">
-            {/* Tâche (lecture seule) */}
+            {/* Résumé courses */}
             <div className="p-4 bg-mint rounded-xl border border-border">
-              <p className="text-text-dark whitespace-pre-wrap">{task.content}</p>
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-primary/10 rounded-xl flex items-center justify-center">
+                  <ShoppingIcon className="w-5 h-5 text-primary" />
+                </div>
+                <div>
+                  <p className="font-medium text-text-dark">Faire les courses</p>
+                  <p className="text-sm text-text-muted">{itemCount} article{itemCount > 1 ? 's' : ''} à acheter</p>
+                </div>
+              </div>
             </div>
 
-            {/* Durée estimée */}
+            {/* Durée estimée - par défaut 60 min pour les courses */}
             <DurationSelector
               value={scheduling.estimatedDuration}
               onChange={(duration) => scheduling.setDuration(duration as 15 | 30 | 60)}
@@ -131,7 +133,7 @@ export function PlanTaskModal({ task, onClose, onSuccess }: PlanTaskModalProps) 
             />
 
             <div className="border-t border-border pt-6">
-              {/* Google Calendar non connecté ou session expirée */}
+              {/* Google Calendar non connecté */}
               {(!isCalendarConnected || scheduling.error === 'calendar_session_expired' || scheduling.error === 'calendar_not_connected') && (
                 <div className="space-y-4">
                   {scheduling.error === 'calendar_session_expired' && (
@@ -175,28 +177,7 @@ export function PlanTaskModal({ task, onClose, onSuccess }: PlanTaskModalProps) 
                 </div>
               )}
 
-              {/* Erreur service fermé (médecin, banque, etc.) */}
-              {scheduling.error === 'service_closed' && scheduling.serviceFilterInfo && (
-                <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 text-center mb-4">
-                  <div className="text-2xl mb-2">🏥</div>
-                  <p className="text-amber-800 font-medium">
-                    {scheduling.serviceFilterInfo.type === 'medical' && 'Les créneaux chez le médecin sont limités'}
-                    {scheduling.serviceFilterInfo.type === 'administrative' && 'Les services administratifs ont des horaires restreints'}
-                    {scheduling.serviceFilterInfo.type === 'commercial' && 'Les commerces ont des horaires d\'ouverture'}
-                  </p>
-                  <p className="text-amber-700 text-sm mt-2">
-                    {scheduling.serviceFilterInfo.reason}
-                  </p>
-                  <button
-                    onClick={() => scheduling.loadSlots(true)}
-                    className="mt-3 px-4 py-2 bg-amber-600 text-white rounded-lg text-sm hover:bg-amber-700 transition-colors"
-                  >
-                    Voir tous les créneaux quand même
-                  </button>
-                </div>
-              )}
-
-              {/* Erreur (autres que calendar, network et service_closed) */}
+              {/* Erreur (autres) */}
               {scheduling.error && !['network_error', 'calendar_not_connected', 'calendar_session_expired', 'service_closed'].includes(scheduling.error) && (
                 <div className="bg-red-50 border border-red-200 rounded-lg p-4 text-center">
                   <p className="text-red-800 text-sm">{scheduling.error}</p>
@@ -206,21 +187,11 @@ export function PlanTaskModal({ task, onClose, onSuccess }: PlanTaskModalProps) 
               {/* Créneaux */}
               {isCalendarConnected && !scheduling.isLoading && scheduling.bestSlot && !scheduling.error && (
                 <div className="space-y-3">
-                  {/* Indicateur mode forcé */}
-                  {scheduling.isForceMode && scheduling.serviceFilterInfo && (
-                    <div className="bg-amber-50 border border-amber-200 rounded-lg p-2 flex items-center gap-2 text-sm">
-                      <span>⚠️</span>
-                      <span className="text-amber-700">
-                        Créneaux affichés sans filtrage horaire ({scheduling.serviceFilterInfo.type === 'medical' ? 'médecin' : scheduling.serviceFilterInfo.type === 'administrative' ? 'administration' : 'commerce'})
-                      </span>
-                    </div>
-                  )}
-
                   <h3 className="font-semibold text-text-dark mb-3">
                     {scheduling.showAlternatives ? 'Créneaux suggérés' : 'Meilleur moment suggéré'}
                   </h3>
 
-                  {/* Meilleur créneau (toujours visible) */}
+                  {/* Meilleur créneau */}
                   <TimeSlotCard
                     slot={scheduling.bestSlot}
                     rank={!scheduling.showAlternatives ? 1 : undefined}
@@ -231,7 +202,7 @@ export function PlanTaskModal({ task, onClose, onSuccess }: PlanTaskModalProps) 
                     onSelect={() => scheduling.selectSlot(scheduling.bestSlot)}
                   />
 
-                  {/* Créneaux alternatifs (visibles si showAlternatives) */}
+                  {/* Créneaux alternatifs */}
                   {scheduling.showAlternatives && scheduling.alternativeSlots.map((slot) => (
                     <TimeSlotCard
                       key={`${slot.date}-${slot.startTime}`}
@@ -244,7 +215,7 @@ export function PlanTaskModal({ task, onClose, onSuccess }: PlanTaskModalProps) 
                     />
                   ))}
 
-                  {/* Bouton "Voir plus" / "Voir moins" */}
+                  {/* Bouton "Voir plus" */}
                   {scheduling.alternativeSlots.length > 0 && (
                     <button
                       onClick={scheduling.toggleAlternatives}
@@ -253,7 +224,7 @@ export function PlanTaskModal({ task, onClose, onSuccess }: PlanTaskModalProps) 
                       {scheduling.showAlternatives ? (
                         '← Voir uniquement le meilleur'
                       ) : (
-                        `Voir d'autres créneaux (${scheduling.alternativeSlots.length} ${scheduling.alternativeSlots.length === 1 ? 'disponible' : 'disponibles'})`
+                        `Voir d'autres créneaux (${scheduling.alternativeSlots.length} disponibles)`
                       )}
                     </button>
                   )}
@@ -265,9 +236,6 @@ export function PlanTaskModal({ task, onClose, onSuccess }: PlanTaskModalProps) 
                 <div className="bg-orange-50 border border-orange-200 rounded-lg p-4 text-center">
                   <p className="text-orange-800 text-sm">
                     Aucun créneau disponible sur les 7 prochains jours
-                  </p>
-                  <p className="text-orange-600 text-xs mt-2">
-                    Essaie de modifier la durée ou tes contraintes horaires
                   </p>
                 </div>
               )}
@@ -285,7 +253,7 @@ export function PlanTaskModal({ task, onClose, onSuccess }: PlanTaskModalProps) 
           />
 
           <ActionButton
-            label={scheduling.isLoading ? 'En cours...' : (isPlanned ? 'Décaler' : 'Caler')}
+            label={scheduling.isLoading ? 'En cours...' : 'Caler'}
             variant="plan"
             onClick={handleSchedule}
             disabled={!scheduling.selectedSlot || scheduling.isLoading}

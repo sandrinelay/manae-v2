@@ -64,7 +64,7 @@ export const SHOPPING_CATEGORY_CONFIG: Record<ShoppingCategory, ShoppingCategory
     icon: AppleIcon,
     label: 'Fruits & Légumes',
     colorClass: 'text-green-600',
-    bgClass: 'bg-green-50',
+    bgClass: 'bg-green-100',
     keywords: ['pomme', 'banane', 'orange', 'citron', 'fraise', 'framboise', 'raisin', 'poire', 'pêche', 'abricot', 'cerise', 'mangue', 'ananas', 'kiwi', 'melon', 'pastèque', 'tomate', 'salade', 'laitue', 'carotte', 'courgette', 'aubergine', 'poivron', 'oignon', 'ail', 'pomme de terre', 'patate', 'haricot', 'petit pois', 'brocoli', 'chou', 'épinard', 'concombre', 'avocat', 'champignon', 'poireau', 'céleri', 'radis', 'betterave', 'navet', 'courge', 'citrouille']
   },
   grocery: {

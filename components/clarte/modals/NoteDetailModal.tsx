@@ -180,7 +180,7 @@ export function NoteDetailModal({ note, onClose, onEdit, onArchive, onDelete }: 
                 className="flex-1"
               />
               <ActionButton
-                label="Archiver"
+                label="Ranger"
                 icon={<ArchiveIcon />}
                 variant="archive"
                 onClick={() => onArchive(note.id)}

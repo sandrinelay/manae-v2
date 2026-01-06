@@ -233,7 +233,7 @@ export function TaskActiveModal({
                 </>
               ) : (
                 <>
-                  {/* Fait */}
+                  {/* Fait - déjà sur la carte
                   <ActionButton
                     label="Fait"
                     icon={<CheckIcon />}
@@ -244,8 +244,9 @@ export function TaskActiveModal({
                     }}
                     className="flex-1"
                   />
+                  */}
 
-                  {/* Caler / Décaler */}
+                  {/* Caler / Décaler - déjà sur la carte
                   <ActionButton
                     label={planButtonLabel}
                     icon={<CalendarIcon />}
@@ -256,6 +257,7 @@ export function TaskActiveModal({
                     }}
                     className="flex-1"
                   />
+                  */}
 
                   {/* Modifier (si onEdit est fourni) */}
                   {onEdit && (
@@ -264,6 +266,7 @@ export function TaskActiveModal({
                       icon={<EditIcon />}
                       variant="secondary"
                       onClick={() => setIsEditMode(true)}
+                      className="flex-1"
                     />
                   )}
 
@@ -276,6 +279,7 @@ export function TaskActiveModal({
                       onStore(task.id)
                       onClose()
                     }}
+                    className="flex-1"
                   />
 
                   {/* Supprimer */}

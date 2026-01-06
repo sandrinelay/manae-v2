@@ -1,20 +1,27 @@
 'use client'
 
+import { useRef, useCallback } from 'react'
 import { Item } from '@/types/items'
-import { SHOPPING_CATEGORY_CONFIG, ShoppingCategory } from '@/config/shopping-categories'
+import { SHOPPING_CATEGORY_CONFIG, type ShoppingCategory } from '@/config/shopping-categories'
 import { CheckIcon } from '@/components/ui/icons'
 
 interface ShoppingItemRowProps {
   item: Item
   onToggle: (id: string) => void
   onTap?: (id: string) => void
+  onLongPress?: (id: string) => void
 }
 
-export function ShoppingItemRow({ item, onToggle, onTap }: ShoppingItemRowProps) {
+const LONG_PRESS_DURATION = 500 // ms
+
+export function ShoppingItemRow({ item, onToggle, onTap, onLongPress }: ShoppingItemRowProps) {
   const isCompleted = item.state === 'completed'
   const category = (item.shopping_category || 'other') as ShoppingCategory
   const categoryConfig = SHOPPING_CATEGORY_CONFIG[category]
-  const CategoryIcon = categoryConfig.icon
+  const CategoryIcon = categoryConfig?.icon
+
+  const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const isLongPressing = useRef(false)
 
   const handleToggle = (e: React.MouseEvent) => {
     e.stopPropagation()
@@ -22,14 +29,57 @@ export function ShoppingItemRow({ item, onToggle, onTap }: ShoppingItemRowProps)
   }
 
   const handleTap = () => {
+    // Ne pas déclencher le tap si on vient de faire un long press
+    if (isLongPressing.current) {
+      isLongPressing.current = false
+      return
+    }
     if (onTap) {
       onTap(item.id)
     }
   }
 
+  // Handlers pour le long press (touch)
+  const handleTouchStart = useCallback(() => {
+    if (!onLongPress) return
+
+    longPressTimer.current = setTimeout(() => {
+      isLongPressing.current = true
+      onLongPress(item.id)
+    }, LONG_PRESS_DURATION)
+  }, [onLongPress, item.id])
+
+  const handleTouchMove = useCallback(() => {
+    // Annuler le long press si l'utilisateur bouge (scroll)
+    if (longPressTimer.current) {
+      clearTimeout(longPressTimer.current)
+      longPressTimer.current = null
+    }
+  }, [])
+
+  const cancelLongPress = useCallback(() => {
+    if (longPressTimer.current) {
+      clearTimeout(longPressTimer.current)
+      longPressTimer.current = null
+    }
+  }, [])
+
+  // Handler clic droit (desktop)
+  const handleContextMenu = useCallback((e: React.MouseEvent) => {
+    if (onLongPress) {
+      e.preventDefault()
+      onLongPress(item.id)
+    }
+  }, [onLongPress, item.id])
+
   return (
     <div
       onClick={handleTap}
+      onTouchStart={onLongPress ? handleTouchStart : undefined}
+      onTouchMove={onLongPress ? handleTouchMove : undefined}
+      onTouchEnd={cancelLongPress}
+      onTouchCancel={cancelLongPress}
+      onContextMenu={handleContextMenu}
       role="button"
       tabIndex={0}
       onKeyDown={(e) => {
@@ -76,9 +126,9 @@ export function ShoppingItemRow({ item, onToggle, onTap }: ShoppingItemRowProps)
       {/* Icône catégorie */}
       <div className={`
         shrink-0 w-8 h-8 rounded-lg flex items-center justify-center
-        ${categoryConfig.bgClass}
+        ${categoryConfig?.bgClass}
       `}>
-        <CategoryIcon className={`w-4 h-4 ${categoryConfig.colorClass}`} />
+       {CategoryIcon && <CategoryIcon className={`w-4 h-4 ${categoryConfig?.colorClass}`} />}
       </div>
     </div>
   )

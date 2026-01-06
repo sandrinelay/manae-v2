@@ -8,7 +8,7 @@ import { ICON_SIZES } from '@/components/ui/icons'
  *
  * Variantes sémantiques pour les actions :
  * - save: Action principale (teal/primary)
- * - plan: Planification (bleu)
+ * - plan: Caler/Décaler (bleu)
  * - done: Marquer comme fait (vert)
  * - archive: Ranger/archiver (gris)
  * - delete: Supprimer (rouge, bordure)
@@ -30,8 +30,8 @@ interface ActionButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement
 // Styles par variante sémantique
 const VARIANT_STYLES: Record<ActionVariant, string> = {
   save: 'bg-primary text-white hover:bg-primary/90',
-  plan: 'bg-blue-50 text-blue-600 hover:bg-blue-100',
-  done: 'bg-green-50 text-green-600 hover:bg-green-100',
+  plan: 'bg-blue-300 text-white hover:bg-blue-400',
+  done: 'bg-green-100 text-green-600 hover:bg-green-100',
   archive: 'bg-gray-100 text-gray-600 hover:bg-gray-200',
   delete: 'bg-red-50 text-red-500 hover:bg-red-100',
   secondary: 'border-2 border-border text-text-dark hover:border-primary hover:text-primary'

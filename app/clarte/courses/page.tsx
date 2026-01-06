@@ -183,14 +183,14 @@ export default function CoursesPage() {
                 </div>
               )}
 
-              {/* Bouton planifier */}
+              {/* Bouton caler */}
               {items.length > 0 && (
                 <button
                   onClick={handlePlanShopping}
-                  className="w-full py-3 px-4 bg-primary text-white rounded-xl font-medium flex items-center justify-center gap-2 hover:bg-primary-dark transition-colors"
+                  className="w-full py-3 px-4 bg-blue-350 text-white rounded-xl font-medium flex items-center justify-center gap-2 hover:bg-blue-600 transition-colors"
                 >
                   <Calendar className="w-5 h-5" />
-                  Planifier les courses
+                  Caler les courses
                 </button>
               )}
             </div>

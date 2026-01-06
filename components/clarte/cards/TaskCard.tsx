@@ -115,7 +115,7 @@ export function TaskCard({ item, mode = 'active', onMarkDone, onPlan, onTap }: T
         }
       }}
       className={`
-        w-full text-left bg-white rounded-2xl p-4 border border-gray-100
+        relative w-full text-left bg-white rounded-2xl p-4 border border-gray-100
         transition-all duration-200 hover:shadow-md cursor-pointer
         ${cardOpacity}
       `}
@@ -183,7 +183,7 @@ export function TaskCard({ item, mode = 'active', onMarkDone, onPlan, onTap }: T
               <IconButton
                 icon={<CalendarIcon />}
                 label={planButtonLabel}
-                variant="teal"
+                variant="plan"
                 size="sm"
                 onClick={(e) => {
                   e.stopPropagation()
