@@ -203,6 +203,8 @@ export function useScheduling(params: UseSchedulingParams): UseSchedulingReturn 
       if (top3.length > 0) {
         setBestSlot(top3[0])
         setAlternativeSlots(top3.slice(1)) // Les 2 autres (ou 1 si seulement 2 dispo)
+        // Présélectionner automatiquement le meilleur créneau
+        setSelectedSlot(top3[0])
       }
 
       if (top3.length === 0) {
