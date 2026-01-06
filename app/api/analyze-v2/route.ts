@@ -2,9 +2,9 @@ import { NextRequest, NextResponse } from 'next/server'
 import OpenAI from 'openai'
 import { createClient } from '@/lib/supabase/server'
 import {
-  SYSTEM_PROMPT,
   buildAnalysisPrompt,
-  analyzeWithRules
+  analyzeWithRules,
+  ANALYZE_CONFIG
 } from '@/services/ai/analysis.service'
 import type { OpenAIAnalysisResponse } from '@/services/ai/analysis.service'
 import type { AIAnalyzedItem, ItemType, ItemState } from '@/types/items'
@@ -63,13 +63,13 @@ export async function POST(request: NextRequest) {
     while (retries <= maxRetries) {
       try {
         completion = await openai.chat.completions.create({
-          model: 'gpt-4o-mini',
+          model: ANALYZE_CONFIG.model,
           messages: [
-            { role: 'system', content: SYSTEM_PROMPT },
+            { role: 'system', content: ANALYZE_CONFIG.system },
             { role: 'user', content: buildAnalysisPrompt(rawText, historyContext) }
           ],
-          temperature: 0.5,
-          max_tokens: 1500
+          temperature: ANALYZE_CONFIG.temperature,
+          max_tokens: ANALYZE_CONFIG.maxTokens
         })
         break
       } catch (error: unknown) {
@@ -97,6 +97,12 @@ export async function POST(request: NextRequest) {
     let aiResponse: OpenAIAnalysisResponse
     try {
       aiResponse = JSON.parse(cleanContent)
+      // Log pour debug des contraintes temporelles
+      console.log('[analyze-v2] AI response items:', JSON.stringify(aiResponse.items?.map(i => ({
+        content: i.content,
+        type: i.type,
+        temporal_constraint: i.temporal_constraint
+      })), null, 2))
     } catch (parseError) {
       console.error('Failed to parse AI response:', cleanContent)
       // Fallback sur règles basiques
@@ -125,7 +131,6 @@ export async function POST(request: NextRequest) {
         }
 
         // Transformer temporal_constraint (snake_case API → camelCase interne)
-        console.log('[analyze-v2] Item temporal_constraint brut:', JSON.stringify(item.temporal_constraint, null, 2))
         const temporalConstraint = item.temporal_constraint
           ? {
               type: item.temporal_constraint.type,
@@ -136,7 +141,6 @@ export async function POST(request: NextRequest) {
               rawPattern: item.temporal_constraint.raw_pattern
             }
           : null
-        console.log('[analyze-v2] temporalConstraint transformé:', JSON.stringify(temporalConstraint, null, 2))
 
         return {
           content: item.content,

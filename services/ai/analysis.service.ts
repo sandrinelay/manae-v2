@@ -1,241 +1,39 @@
+/**
+ * Service d'analyse IA des pensées capturées
+ * Utilise les prompts centralisés dans /prompts
+ */
+
 import type {
-  ItemType,
-  ItemState,
-  ItemContext,
-  AIAnalysis,
   AIAnalyzedItem,
-  AIAnalysisResult,
-  TemporalConstraint,
-  TemporalConstraintType,
-  TemporalUrgency
+  AIAnalysisResult
 } from '@/types/items'
 import {
   cleanShoppingItemContent,
   detectShoppingCategory
 } from '@/config/shopping-categories'
+import {
+  ANALYZE_CONFIG,
+  buildAnalyzePrompt,
+  SYSTEM_PROMPT as PROMPTS_SYSTEM
+} from '@/prompts'
+import type { AnalysisResponseAPI } from '@/prompts'
 
 // ============================================
-// TYPES INTERNES
+// RE-EXPORTS POUR COMPATIBILITÉ
 // ============================================
 
-interface OpenAIAnalysisResponse {
-  items: Array<{
-    content: string
-    type: ItemType
-    state: ItemState
-    context?: ItemContext
-    confidence: number
-    extracted_data?: {
-      date?: string
-      time?: string
-      location?: string
-      items?: string[]
-      category?: string
-    }
-    suggestions?: string[]
-    reasoning?: string
-    temporal_constraint?: {
-      type: TemporalConstraintType
-      date?: string
-      start_date?: string
-      end_date?: string
-      urgency: TemporalUrgency
-      raw_pattern?: string
-    } | null
-  }>
-}
+export const SYSTEM_PROMPT = PROMPTS_SYSTEM
+export type OpenAIAnalysisResponse = AnalysisResponseAPI
 
-// ============================================
-// PROMPTS
-// ============================================
-
-const SYSTEM_PROMPT = `Tu es un assistant d'organisation pour parents débordés.
-Tu analyses des pensées capturées et les catégorises selon le nouveau schéma.
-
-RÈGLES IMPORTANTES :
-- TYPE = Nature de l'item (ce que c'est)
-- STATE = Étape dans le cycle de vie (où ça en est)
-
-Ne confonds JAMAIS type et state.`
-
-function buildAnalysisPrompt(rawText: string, historyContext?: string): string {
-  // Calculer la date actuelle pour le contexte temporel
-  const today = new Date()
-  const todayStr = today.toISOString().split('T')[0]
-  const dayOfWeek = today.toLocaleDateString('fr-FR', { weekday: 'long' })
-
-  // Calculer les prochains jours de la semaine
-  const weekDays: string[] = []
-  for (let i = 0; i < 7; i++) {
-    const d = new Date(today)
-    d.setDate(d.getDate() + i)
-    const dayName = d.toLocaleDateString('fr-FR', { weekday: 'long' })
-    const dateStr = d.toISOString().split('T')[0]
-    weekDays.push(`${dayName} = ${dateStr}`)
-  }
-
-  return `Analyse cette pensée capturée et découpe-la en items distincts si nécessaire.
-
-PENSÉE À ANALYSER :
-"${rawText}"
-
-CONTEXTE TEMPOREL :
-- Aujourd'hui : ${todayStr} (${dayOfWeek})
-- Demain : ${new Date(today.getTime() + 24 * 60 * 60 * 1000).toISOString().split('T')[0]}
-- Jours de la semaine :
-  ${weekDays.join('\n  ')}
-
-${historyContext || ''}
-
-Pour chaque item détecté, détermine :
-
-1. TYPE (nature de la chose - IMMUTABLE) :
-   - "task" : Action concrète à faire (ex: "Appeler le dentiste", "Prendre RDV")
-   - "note" : Information/mémo à retenir (ex: "Léa adore les licornes", "Code WiFi: abc123")
-   - "idea" : Envie floue, projet pas structuré (ex: "Partir au Japon", "Refaire la cuisine")
-   - "list_item" : Article de courses → NETTOYER le contenu (voir règle LIST_ITEM ci-dessous)
-
-2. STATE (étape cycle de vie - MUTABLE) :
-   - "captured" : Vient d'être saisi, nécessite clarification
-   - "active" : Clarifié, prêt à être utilisé
-
-3. CONTEXT (domaine de vie) :
-   - "personal" : Personnel
-   - "family" : Famille/enfants
-   - "work" : Professionnel
-   - "health" : Santé
-
-4. EXTRACTED DATA (si détectable) :
-   - date : Si une date est mentionnée (format ISO)
-   - time : Si une heure est mentionnée
-   - location : Si un lieu est mentionné
-   - items : Si plusieurs articles détectés (pour list_item)
-   - category : Catégorie de l'article (pour list_item uniquement) parmi :
-     "bakery" (pain, baguette, croissant)
-     "dairy" (lait, yaourt, fromage, beurre, œufs)
-     "meat" (poulet, bœuf, poisson, jambon)
-     "produce" (fruits, légumes, tomates, carottes)
-     "grocery" (pâtes, riz, conserves, sauce, sucre)
-     "frozen" (surgelés, glaces)
-     "hygiene" (savon, dentifrice, shampoing)
-     "household" (lessive, éponge, sacs poubelle)
-     "drinks" (eau, jus, café, thé, vin, bière)
-     "other" (si aucune catégorie ne correspond)
-
-5. TEMPORAL CONSTRAINT (contrainte temporelle - CRITIQUE pour la planification) :
-   Détecte les indicateurs de QUAND la tâche doit être faite.
-
-   TYPES DE CONTRAINTES :
-   - "deadline" : Date limite → utilise "date" ("avant lundi", "au plus tard vendredi", "d'ici mardi", "avant demain 11h")
-   - "fixed_date" : Jour précis → utilise "date" ("lundi", "mardi prochain", "le 15 janvier", "réunion mardi 14h", "jeudi à 10h")
-   - "start_date" : Date de début → utilise "start_date" ("à partir de mardi", "après le 10", "dès lundi")
-   - "time_range" : Période avec début ET fin → utilise "start_date" ET "end_date" ("entre lundi et mercredi", "cette semaine", "du 5 au 10")
-   - "asap" : Urgent ("urgent", "dès que possible", "asap", "au plus vite", "rapidement")
-
-   URGENCE :
-   - "critical" : urgent/asap/au plus vite
-   - "high" : deadline proche (< 3 jours)
-   - "medium" : contrainte normale
-   - "low" : contrainte souple
-
-   FORMAT DATE AVEC HEURE OU MOMENT DE LA JOURNÉE :
-   ⚠️ RÈGLE ABSOLUE : Si une HEURE ou un MOMENT DE JOURNÉE est mentionné, tu DOIS OBLIGATOIREMENT l'inclure dans "date" au format ISO complet avec l'heure : "YYYY-MM-DDTHH:MM:00"
-
-   NE JAMAIS retourner "date": "2025-12-30" si l'utilisateur a dit "lundi après-midi" !
-   Tu DOIS retourner "date": "2025-12-30T14:00:00" avec le T et l'heure !
-
-   Heures explicites :
-   - "avant demain 11h" → date: "2025-12-28T11:00:00"
-   - "réunion mardi 14h" → date: "2025-12-30T14:00:00"
-
-   MOMENTS DE LA JOURNÉE → TOUJOURS CONVERTIR EN HEURE DANS LE CHAMP DATE :
-   - "matin" → ajoute T09:00:00 à la date
-   - "fin de matinée" → ajoute T11:00:00 à la date
-   - "midi" → ajoute T12:00:00 à la date
-   - "après-midi" → ajoute T14:00:00 à la date (OBLIGATOIRE !)
-   - "fin d'après-midi" → ajoute T17:00:00 à la date
-   - "soir" → ajoute T19:00:00 à la date
-
-   EXEMPLES CONCRETS (utilise les dates exactes du CONTEXTE TEMPOREL) :
-   - "aller à la pharmacie lundi après-midi" → fixed_date, date: "2025-12-30T14:00:00", raw_pattern: "lundi après-midi"
-   - "mardi après-midi" → fixed_date, date: "2025-12-30T14:00:00", raw_pattern: "mardi après-midi"
-   - "jeudi matin" → fixed_date, date: "2026-01-01T09:00:00", raw_pattern: "jeudi matin"
-   - "demain soir" → fixed_date, date: "2025-12-28T19:00:00", raw_pattern: "demain soir"
-   - "avant lundi" (SANS moment de journée) → deadline, date: "2025-12-30" (date simple OK ici seulement)
-
-   EXEMPLES DE DÉTECTION (utilise les dates du CONTEXTE TEMPOREL ci-dessus) :
-   - "Appeler le pédiatre avant lundi" → deadline, date: [date du lundi], urgency: high
-   - "Appeler tati avant demain 11h" → deadline, date: "[demain]T11:00:00", urgency: high
-   - "Urgent envoyer devis client" → asap, urgency: critical
-   - "Réunion mardi 14h" → fixed_date, date: "[mardi]T14:00:00", urgency: medium
-   - "Réunion jeudi à 10h" → fixed_date, date: "[jeudi]T10:00:00", urgency: medium
-   - "RDV pédiatre jeudi" → fixed_date, date: "[jeudi]", urgency: medium
-   - "À partir de lundi, relancer le dossier" → start_date, start_date: "[lundi]", urgency: medium
-   - "Entre lundi et mercredi" → time_range, start_date: "[lundi]", end_date: "[mercredi]", urgency: medium
-   - "Finir le rapport cette semaine" → time_range, start_date: "[aujourd'hui]", end_date: "[dimanche]", urgency: medium
-
-RÈGLES CRITIQUES :
-- Si c'est une envie future sans action claire → type: "idea", state: "captured"
-- Si c'est actionnable maintenant → type: "task", state: "active"
-- Si c'est une info à retenir (pas d'action) → type: "note", state: "active"
-- Si ce sont des courses/achats → type: "list_item", state: "active"
-- Si "lait pain œufs" ou liste séparée par espaces/virgules → DÉCOUPER en plusieurs list_item
-- confidence : 0.0 à 1.0 (certitude de la classification)
-- temporal_constraint : null si aucune contrainte temporelle détectée
-
-⚠️ RÈGLE LIST_ITEM (TRÈS IMPORTANTE) :
-Pour CHAQUE article de courses, tu DOIS NETTOYER le content :
-1. D'abord DÉCOUPER la liste par virgules ou "et"
-2. Puis pour CHAQUE article obtenu :
-   - Supprimer les verbes : "acheter", "prendre", "il faut", "il me faut", "je dois acheter"
-   - Supprimer les articles : "du", "de la", "des", "de l'", "le", "la", "les", "un", "une"
-   - Mettre une majuscule au début
-   - Garder les qualificatifs importants (ex: "farine complète" → "Farine complète")
-
-EXEMPLES LIST_ITEM (SUIVRE EXACTEMENT CE FORMAT) :
-- "Acheter du lait" → 1 item : content: "Lait", category: "dairy"
-- "Il me faut de la farine" → 1 item : content: "Farine", category: "bakery"
-- "Prendre des œufs" → 1 item : content: "Œufs", category: "dairy"
-- "acheter du pain, des oeufs et de la farine complète" → 3 items :
-  ✓ content: "Pain", category: "bakery" (PAS "acheter du pain")
-  ✓ content: "Oeufs", category: "dairy" (PAS "des oeufs")
-  ✓ content: "Farine complète", category: "bakery" (PAS "de la farine complète")
-- "Pain beurre confiture" → 3 items : "Pain" (bakery), "Beurre" (dairy), "Confiture" (grocery)
-
-EXEMPLES AUTRES TYPES :
-- "Aller au ski en février 2027" → type: "idea", state: "captured", temporal_constraint: null
-- "Appeler le plombier demain" → type: "task", temporal_constraint: { type: "fixed_date", date: demain, urgency: "medium" }
-- "Urgent: rappeler client" → type: "task", temporal_constraint: { type: "asap", urgency: "critical" }
-
-Réponds UNIQUEMENT en JSON valide, sans markdown :
-{
-  "items": [
-    {
-      "content": "texte ORIGINAL COMPLET (ne jamais tronquer ni supprimer les infos temporelles)",
-      "type": "task" | "note" | "idea" | "list_item",
-      "state": "captured" | "active",
-      "context": "personal" | "family" | "work" | "health",
-      "confidence": 0.0-1.0,
-      "extracted_data": {
-        "date": "ISO 8601" ou null,
-        "time": "HH:mm" ou null,
-        "location": "string" ou null,
-        "items": ["item1", "item2"] ou null,
-        "category": "bakery|dairy|meat|produce|grocery|frozen|hygiene|household|drinks|other" ou null
-      },
-      "temporal_constraint": {
-        "type": "deadline" | "fixed_date" | "start_date" | "time_range" | "asap",
-        "date": "ISO 8601" ou null,
-        "start_date": "ISO 8601" ou null,
-        "end_date": "ISO 8601" ou null,
-        "urgency": "critical" | "high" | "medium" | "low",
-        "raw_pattern": "expression originale détectée"
-      } ou null,
-      "suggestions": ["suggestion1", "suggestion2"],
-      "reasoning": "explication courte du choix"
-    }
-  ]
-}`
+/**
+ * Construit le prompt d'analyse (wrapper pour compatibilité)
+ */
+export function buildAnalysisPrompt(rawText: string, historyContext?: string): string {
+  return buildAnalyzePrompt({
+    rawText,
+    today: new Date(),
+    historyContext
+  })
 }
 
 // ============================================
@@ -258,7 +56,7 @@ export async function analyzeCapture(rawText: string): Promise<AIAnalysisResult>
 }
 
 // ============================================
-// ANALYSE FALLBACK (règles basiques)
+// ANALYSE FALLBACK (règles basiques sans IA)
 // ============================================
 
 export function analyzeWithRules(rawText: string): AIAnalysisResult {
@@ -440,8 +238,7 @@ export function analyzeWithRules(rawText: string): AIAnalysisResult {
 }
 
 // ============================================
-// EXPORTS PROMPTS (pour API route)
+// EXPORT CONFIG POUR USAGE EXTERNE
 // ============================================
 
-export { SYSTEM_PROMPT, buildAnalysisPrompt }
-export type { OpenAIAnalysisResponse }
+export { ANALYZE_CONFIG }

@@ -1,12 +1,28 @@
 /**
- * Test E2E des contraintes temporelles
- * Exécuter avec: npx tsx scripts/test-e2e-temporal.ts
- *
- * Prérequis: Le serveur dev doit être lancé (npm run dev)
+ * Test direct de l'analyse IA sans authentification
+ * Appelle OpenAI directement avec le prompt d'analyse
+ * Exécuter avec: npx tsx scripts/test-ai-direct.ts
  */
 
+import OpenAI from 'openai'
+import { readFileSync } from 'fs'
+import { buildAnalyzePrompt, ANALYZE_CONFIG, SYSTEM_PROMPT } from '../prompts'
+
+// Charger les variables d'environnement depuis .env.local
+try {
+  const envContent = readFileSync('.env.local', 'utf-8')
+  envContent.split('\n').forEach(line => {
+    const [key, ...valueParts] = line.split('=')
+    if (key && valueParts.length > 0) {
+      process.env[key.trim()] = valueParts.join('=').trim()
+    }
+  })
+} catch {
+  console.log('Note: .env.local not found, using existing env vars')
+}
+
 // Date de référence pour les tests
-const TODAY = new Date()
+const TODAY = new Date('2026-01-05T10:00:00')
 const TODAY_STR = TODAY.toLocaleDateString('fr-FR', {
   weekday: 'long',
   year: 'numeric',
@@ -22,57 +38,8 @@ interface TestCase {
 }
 
 const testCases: TestCase[] = [
-  // 1. FIXED_DATE (RDV précis)
-  { input: 'Réunion mardi 14h', expectedType: 'task', expectedConstraint: 'fixed_date', description: 'FIXED_DATE - Réunion à heure précise' },
-  { input: 'Appeler le médecin demain 10h', expectedType: 'task', expectedConstraint: 'fixed_date', description: 'FIXED_DATE - Appel demain heure précise' },
-  { input: 'RDV coiffeur vendredi 9h30', expectedType: 'task', expectedConstraint: 'fixed_date', description: 'FIXED_DATE - RDV jour + heure' },
-
-  // 2. TIME_RANGE (Plage horaire sur un jour)
-  { input: 'Réunion mardi avant 14h', expectedType: 'task', expectedConstraint: 'time_range', description: 'TIME_RANGE - Avant une heure sur un jour' },
-  { input: 'RDV banque jeudi après-midi', expectedType: 'task', expectedConstraint: 'time_range', description: 'TIME_RANGE - Après-midi' },
-  { input: 'Appeler comptable lundi matin', expectedType: 'task', expectedConstraint: 'time_range', description: 'TIME_RANGE - Matin' },
-
-  // 3. DEADLINE (Avant une date)
-  { input: 'Finir rapport avant vendredi', expectedType: 'task', expectedConstraint: 'deadline', description: 'DEADLINE - Avant un jour' },
-  { input: 'Payer facture avant le 15', expectedType: 'task', expectedConstraint: 'deadline', description: 'DEADLINE - Avant une date' },
-  { input: 'Rendre dossier avant lundi', expectedType: 'task', expectedConstraint: 'deadline', description: 'DEADLINE - Avant jour de la semaine' },
-
-  // 4. ASAP (Urgent)
-  { input: 'Urgent rappeler client', expectedType: 'task', expectedConstraint: 'asap', description: 'ASAP - Mot urgent' },
-  { input: 'Asap envoyer devis', expectedType: 'task', expectedConstraint: 'asap', description: 'ASAP - Mot asap' },
-  { input: 'Vite répondre mail important', expectedType: 'task', expectedConstraint: 'asap', description: 'ASAP - Mot vite' },
-
-  // 5. FIXED_DATE (Action à faire un jour précis)
-  { input: 'Commencer régime lundi', expectedType: 'task', expectedConstraint: 'fixed_date', description: 'FIXED_DATE - Action prévue lundi' },
-
-  // 6. START_DATE (À partir de)
-  { input: 'Reprendre sport à partir de mardi', expectedType: 'task', expectedConstraint: 'start_date', description: 'START_DATE - À partir de mardi' },
-
-  // 7. Sans contrainte temporelle
-  { input: 'Appeler le dentiste', expectedType: 'task', expectedConstraint: null, description: 'SANS CONTRAINTE - Tâche simple' },
-  { input: 'Ranger le garage', expectedType: 'task', expectedConstraint: null, description: 'SANS CONTRAINTE - Tâche sans date' },
-
-  // 8. Cas limites
-  { input: "Réunion aujourd'hui 18h", expectedType: 'task', expectedConstraint: 'fixed_date', description: 'CAS LIMITE - Aujourd\'hui + heure' },
-  { input: 'Rendez-vous dans 2 semaines', expectedType: 'task', expectedConstraint: 'fixed_date', description: 'CAS LIMITE - Dans X semaines' },
-
-  // 9. Contraintes de service
-  { input: 'Appeler la banque', expectedType: 'task', expectedConstraint: null, description: 'SERVICE - Banque (heures bureau implicites)' },
-  { input: 'RDV médecin', expectedType: 'task', expectedConstraint: null, description: 'SERVICE - Médecin (heures bureau implicites)' },
-  { input: 'Aller à la poste', expectedType: 'task', expectedConstraint: null, description: 'SERVICE - Poste (heures ouverture implicites)' },
-
-  // 10. Notes et idées (pas de contrainte temporelle)
-  { input: 'Léa adore les licornes', expectedType: 'note', expectedConstraint: null, description: 'NOTE - Info famille' },
-  { input: 'Partir au Japon un jour', expectedType: 'idea', expectedConstraint: null, description: 'IDÉE - Projet futur flou' },
-  { input: 'Aller au ski en février 2027', expectedType: 'idea', expectedConstraint: null, description: 'IDÉE - Projet avec date lointaine' },
-  { input: 'Reprendre sport après les vacances', expectedType: 'idea', expectedConstraint: null, description: 'IDÉE - Projet futur flou (date non résoluble)' },
-
-  // 11. Courses (pas de contrainte temporelle)
-  { input: 'Acheter du lait', expectedType: 'list_item', expectedConstraint: null, description: 'COURSES - Produit simple' },
-  { input: 'lait pain oeufs', expectedType: 'list_item', expectedConstraint: null, description: 'COURSES - Liste brute' },
-
   // ============================================
-  // 12. PENSÉES MAMAN (2 enfants : Emma 3 ans, Léo 6 ans)
+  // PENSÉES MAMAN (2 enfants : Emma 3 ans, Léo 6 ans)
   // ============================================
 
   // Tâches quotidiennes
@@ -124,69 +91,81 @@ const testCases: TestCase[] = [
   { input: 'Demander attestation assurance scolaire', expectedType: 'task', expectedConstraint: null, description: 'MAMAN - Admin assurance' },
 ]
 
-interface AnalysisResult {
-  items: Array<{
-    content: string
+interface AIItem {
+  content: string
+  type: string
+  state: string
+  context?: string
+  temporal_constraint?: {
     type: string
-    state: string
-    context?: string
-    ai_analysis?: {
-      temporal_constraint?: {
-        type: string
-        date?: string
-        startDate?: string
-        endDate?: string
-        urgency?: string
-        rawPattern?: string
-      } | null
-    }
-  }>
-  raw_input: string
-  warning?: string
+    date?: string
+    start_date?: string
+    end_date?: string
+    urgency?: string
+    raw_pattern?: string
+  } | null
 }
 
-async function analyzeText(text: string): Promise<AnalysisResult | null> {
+interface AIResponse {
+  items: AIItem[]
+}
+
+async function analyzeText(openai: OpenAI, text: string): Promise<AIResponse | null> {
   try {
-    const response = await fetch('http://localhost:3000/api/analyze-v2', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        // Note: En dev, l'auth est bypassée ou on utilise un token de test
-      },
-      body: JSON.stringify({ rawText: text })
+    const prompt = buildAnalyzePrompt({
+      rawText: text,
+      today: TODAY
     })
 
-    if (!response.ok) {
-      const error = await response.text()
-      console.error(`  ❌ Erreur API: ${response.status} - ${error}`)
-      return null
-    }
+    const completion = await openai.chat.completions.create({
+      model: ANALYZE_CONFIG.model,
+      messages: [
+        { role: 'system', content: SYSTEM_PROMPT },
+        { role: 'user', content: prompt }
+      ],
+      temperature: ANALYZE_CONFIG.temperature,
+      max_tokens: ANALYZE_CONFIG.maxTokens
+    })
 
-    return await response.json()
+    const content = completion.choices[0].message.content || ''
+    const cleanContent = content
+      .replace(/```json\n?/g, '')
+      .replace(/```\n?/g, '')
+      .trim()
+
+    return JSON.parse(cleanContent)
   } catch (error) {
-    console.error(`  ❌ Erreur réseau:`, error)
+    console.error(`  ❌ Erreur:`, error)
     return null
   }
 }
 
-function formatConstraint(constraint: AnalysisResult['items'][0]['ai_analysis']): string {
-  if (!constraint?.temporal_constraint) return 'null'
+function formatConstraint(constraint: AIItem['temporal_constraint']): string {
+  if (!constraint) return 'null'
 
-  const tc = constraint.temporal_constraint
-  let details = `type: ${tc.type}`
-
-  if (tc.date) details += `, date: ${tc.date}`
-  if (tc.startDate) details += `, startDate: ${tc.startDate}`
-  if (tc.endDate) details += `, endDate: ${tc.endDate}`
-  if (tc.urgency) details += `, urgency: ${tc.urgency}`
+  let details = `type: ${constraint.type}`
+  if (constraint.date) details += `, date: ${constraint.date}`
+  if (constraint.start_date) details += `, start_date: ${constraint.start_date}`
+  if (constraint.end_date) details += `, end_date: ${constraint.end_date}`
+  if (constraint.urgency) details += `, urgency: ${constraint.urgency}`
 
   return details
 }
 
 async function runTests() {
+  // Vérifier API key
+  const apiKey = process.env.OPENAI_API_KEY
+  if (!apiKey) {
+    console.error('❌ OPENAI_API_KEY non configurée')
+    console.log('   Exporter la variable: export OPENAI_API_KEY=sk-...')
+    process.exit(1)
+  }
+
+  const openai = new OpenAI({ apiKey })
+
   console.log('='.repeat(80))
-  console.log('TEST E2E DES CONTRAINTES TEMPORELLES')
-  console.log(`Date du test: ${TODAY_STR}`)
+  console.log('TEST DIRECT IA - PENSÉES MAMAN')
+  console.log(`Date de référence: ${TODAY_STR}`)
   console.log('='.repeat(80))
   console.log()
 
@@ -194,50 +173,102 @@ async function runTests() {
   let failed = 0
   let skipped = 0
 
+  const results: Array<{
+    input: string
+    description: string
+    expectedType: string
+    expectedConstraint: string | null
+    actualType: string | null
+    actualConstraint: string | null
+    typeMatch: boolean
+    constraintMatch: boolean
+    status: 'PASSED' | 'FAILED' | 'SKIPPED'
+  }> = []
+
   for (const test of testCases) {
     console.log(`\n${'─'.repeat(60)}`)
     console.log(`📝 "${test.input}"`)
     console.log(`   Attendu: type=${test.expectedType}, constraint=${test.expectedConstraint || 'null'}`)
 
-    const result = await analyzeText(test.input)
+    const result = await analyzeText(openai, test.input)
 
     if (!result) {
       console.log(`   ⏭️  SKIPPED (erreur API)`)
       skipped++
+      results.push({
+        input: test.input,
+        description: test.description,
+        expectedType: test.expectedType,
+        expectedConstraint: test.expectedConstraint,
+        actualType: null,
+        actualConstraint: null,
+        typeMatch: false,
+        constraintMatch: false,
+        status: 'SKIPPED'
+      })
       continue
-    }
-
-    if (result.warning) {
-      console.log(`   ⚠️  Warning: ${result.warning}`)
     }
 
     const item = result.items[0]
     if (!item) {
       console.log(`   ❌ FAILED: Aucun item retourné`)
       failed++
+      results.push({
+        input: test.input,
+        description: test.description,
+        expectedType: test.expectedType,
+        expectedConstraint: test.expectedConstraint,
+        actualType: null,
+        actualConstraint: null,
+        typeMatch: false,
+        constraintMatch: false,
+        status: 'FAILED'
+      })
       continue
     }
 
     const actualType = item.type
-    const actualConstraint = item.ai_analysis?.temporal_constraint?.type || null
+    const actualConstraint = item.temporal_constraint?.type || null
 
     const typeMatch = actualType === test.expectedType
     const constraintMatch = actualConstraint === test.expectedConstraint
 
     if (typeMatch && constraintMatch) {
       console.log(`   ✅ PASSED`)
-      console.log(`      Type: ${actualType}`)
-      console.log(`      Constraint: ${formatConstraint(item.ai_analysis)}`)
+      console.log(`      Type: ${actualType} | Context: ${item.context || 'N/A'}`)
+      console.log(`      Constraint: ${formatConstraint(item.temporal_constraint)}`)
       passed++
+      results.push({
+        input: test.input,
+        description: test.description,
+        expectedType: test.expectedType,
+        expectedConstraint: test.expectedConstraint,
+        actualType,
+        actualConstraint,
+        typeMatch: true,
+        constraintMatch: true,
+        status: 'PASSED'
+      })
     } else {
       console.log(`   ❌ FAILED`)
       console.log(`      Type: ${actualType} ${typeMatch ? '✓' : `✗ (attendu: ${test.expectedType})`}`)
-      console.log(`      Constraint: ${formatConstraint(item.ai_analysis)} ${constraintMatch ? '✓' : `✗ (attendu: ${test.expectedConstraint})`}`)
+      console.log(`      Constraint: ${formatConstraint(item.temporal_constraint)} ${constraintMatch ? '✓' : `✗ (attendu: ${test.expectedConstraint})`}`)
       failed++
+      results.push({
+        input: test.input,
+        description: test.description,
+        expectedType: test.expectedType,
+        expectedConstraint: test.expectedConstraint,
+        actualType,
+        actualConstraint,
+        typeMatch,
+        constraintMatch,
+        status: 'FAILED'
+      })
     }
 
     // Petite pause pour ne pas surcharger l'API
-    await new Promise(resolve => setTimeout(resolve, 500))
+    await new Promise(resolve => setTimeout(resolve, 300))
   }
 
   console.log('\n')
@@ -249,6 +280,23 @@ async function runTests() {
   console.log(`⏭️  Skipped: ${skipped}`)
   console.log(`Total: ${testCases.length}`)
   console.log()
+
+  // Afficher tableau récapitulatif des échecs
+  const failures = results.filter(r => r.status === 'FAILED')
+  if (failures.length > 0) {
+    console.log('='.repeat(80))
+    console.log('ÉCHECS DÉTAILLÉS')
+    console.log('='.repeat(80))
+    console.log()
+    console.log('| Input | Attendu | Obtenu |')
+    console.log('|-------|---------|--------|')
+    for (const f of failures) {
+      const shortInput = f.input.length > 30 ? f.input.substring(0, 27) + '...' : f.input
+      const expected = `${f.expectedType}/${f.expectedConstraint || '-'}`
+      const actual = `${f.actualType || '?'}/${f.actualConstraint || '-'}`
+      console.log(`| ${shortInput.padEnd(30)} | ${expected.padEnd(15)} | ${actual.padEnd(15)} |`)
+    }
+  }
 
   if (failed > 0) {
     process.exit(1)

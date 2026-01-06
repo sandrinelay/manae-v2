@@ -400,11 +400,17 @@ function filterSlotsByTemporalConstraint(
     }
 
     case 'fixed_date': {
-      // Garder UNIQUEMENT les créneaux du jour spécifié
+      // Garder UNIQUEMENT les créneaux du jour spécifié, proches de l'heure demandée
       if (!constraint.date) return slots
 
       // Vérifier si l'heure est incluse (ex: "2025-12-28T14:00:00")
       const hasTime = constraint.date.includes('T')
+
+      console.log('[filterSlotsByTemporalConstraint] fixed_date:', {
+        date: constraint.date,
+        hasTime,
+        slotsCount: slots.length
+      })
 
       if (hasTime) {
         const targetDateTime = new Date(constraint.date)
@@ -412,37 +418,28 @@ function filterSlotsByTemporalConstraint(
         const targetHour = targetDateTime.getHours()
         const targetMinutes = targetHour * 60 + targetDateTime.getMinutes()
 
-        // Déterminer si c'est un "moment de journée" (plage large) ou une heure précise
-        // Heures typiques de moments : 9h (matin), 11h (fin matinée), 12h (midi),
-        // 14h (après-midi), 17h (fin après-midi), 19h (soir)
-        const isTimeOfDay = [9, 11, 12, 14, 17, 19].includes(targetHour) &&
-                           targetDateTime.getMinutes() === 0
+        console.log('[filterSlotsByTemporalConstraint] fixed_date details:', {
+          targetDateStr,
+          targetHour,
+          targetMinutes,
+          slotsForDate: slots.filter(s => s.date === targetDateStr).length
+        })
 
-        // Définir les plages horaires pour chaque moment
-        const timeRanges: Record<number, { start: number; end: number }> = {
-          9: { start: 8 * 60, end: 12 * 60 },      // matin: 8h-12h
-          11: { start: 10 * 60, end: 12 * 60 },    // fin matinée: 10h-12h
-          12: { start: 11 * 60 + 30, end: 14 * 60 }, // midi: 11h30-14h
-          14: { start: 12 * 60, end: 18 * 60 },    // après-midi: 12h-18h
-          17: { start: 16 * 60, end: 19 * 60 },    // fin après-midi: 16h-19h
-          19: { start: 18 * 60, end: 22 * 60 }     // soir: 18h-22h
-        }
-
-        return slots.filter(slot => {
+        // Pour un RDV précis (ex: "réunion mardi 14h"), on veut un créneau
+        // qui commence à cette heure ou dans les 60 minutes qui suivent
+        const filteredSlots = slots.filter(slot => {
           if (slot.date !== targetDateStr) return false
           const slotStart = timeToMinutes(slot.startTime)
-          const slotEnd = timeToMinutes(slot.endTime)
-
-          if (isTimeOfDay && timeRanges[targetHour]) {
-            // Plage large pour les moments de journée
-            const range = timeRanges[targetHour]
-            return slotStart >= range.start && slotEnd <= range.end
-          } else {
-            // Heure précise : le créneau doit inclure ou être proche de l'heure cible
-            return (slotStart <= targetMinutes && targetMinutes <= slotEnd) ||
-                   Math.abs(slotStart - targetMinutes) <= 30
-          }
+          const diff = slotStart - targetMinutes
+          return diff >= 0 && diff <= 60
         })
+
+        console.log('[filterSlotsByTemporalConstraint] fixed_date filtered:', {
+          targetMinutes,
+          filteredCount: filteredSlots.length
+        })
+
+        return filteredSlots
       }
 
       // Sans heure dans la date ISO, essayer de détecter le moment depuis rawPattern
@@ -476,15 +473,39 @@ function filterSlotsByTemporalConstraint(
     }
 
     case 'time_range': {
-      // Garder les créneaux dans la plage
+      // Garder les créneaux dans la plage date ET heure
+      // Exemple: "mardi avant 14h" → start_date=mardi 08:00, end_date=mardi 14:00
       const rangeStart = constraint.startDate ? new Date(constraint.startDate) : today
       const rangeEnd = constraint.endDate ? new Date(constraint.endDate) : new Date(today.getTime() + 7 * 24 * 60 * 60 * 1000)
-      rangeStart.setHours(0, 0, 0, 0)
-      rangeEnd.setHours(23, 59, 59, 999)
+
+      // Extraire les dates et heures limites
+      const rangeStartDate = rangeStart.toISOString().split('T')[0]
+      const rangeEndDate = rangeEnd.toISOString().split('T')[0]
+      const rangeStartTime = rangeStart.toTimeString().slice(0, 5) // "08:00"
+      const rangeEndTime = rangeEnd.toTimeString().slice(0, 5)     // "14:00"
+
+      console.log('[filterSlotsByTemporalConstraint] time_range:', {
+        rangeStartDate, rangeStartTime, rangeEndDate, rangeEndTime
+      })
 
       return slots.filter(slot => {
-        const slotDate = new Date(slot.date)
-        return slotDate >= rangeStart && slotDate <= rangeEnd
+        // Vérifier la date d'abord
+        if (slot.date < rangeStartDate || slot.date > rangeEndDate) {
+          return false
+        }
+
+        // Si même jour que start, vérifier que le créneau ne commence pas trop tôt
+        if (slot.date === rangeStartDate && slot.startTime < rangeStartTime) {
+          return false
+        }
+
+        // Si même jour que end, vérifier que le créneau se termine avant la limite
+        // Le créneau doit FINIR avant l'heure limite (pas juste commencer)
+        if (slot.date === rangeEndDate && slot.endTime > rangeEndTime) {
+          return false
+        }
+
+        return true
       })
     }
 
@@ -568,20 +589,36 @@ export async function findAvailableSlots(params: FindSlotsParams): Promise<FindS
   const slots: TimeSlot[] = []
   const currentDate = new Date(startDate)
 
+  // Déterminer si on doit ignorer les contraintes utilisateur
+  // Quand il y a une contrainte temporelle explicite (fixed_date, time_range),
+  // l'utilisateur a explicitement demandé ce moment, donc on ignore ses indispos
+  const hasExplicitTimeConstraint = temporalConstraint &&
+    (temporalConstraint.type === 'fixed_date' || temporalConstraint.type === 'time_range')
+
   // Parcourir chaque jour de la période
   while (currentDate <= endDate) {
     const dateStr = formatDate(currentDate)
 
-    // 1. Récupérer les contraintes du jour (HARD)
-    const dayConstraints = getConstraintsForDay(constraints, currentDate)
+    // 1. Récupérer les contraintes du jour (work, school, etc.)
+    // Ces contraintes représentent les moments où l'utilisateur est OCCUPÉ
+    // SAUF si une contrainte temporelle explicite est définie
+    const dayConstraints = hasExplicitTimeConstraint
+      ? [] // Ignorer les indispos utilisateur si contrainte temporelle explicite
+      : getConstraintsForDay(constraints, currentDate)
     const constraintBlocks = constraintsToBlocks(dayConstraints)
 
-    // 2. Récupérer les événements du jour (HARD)
+    // 2. Récupérer les événements du jour (HARD) - événements Google Calendar
+    // Les événements calendar sont TOUJOURS respectés (ce sont des vrais RDV)
     const dayEvents = getEventsForDay(calendarEvents, currentDate)
     const eventBlocks = eventsToBlocks(dayEvents)
 
     // 3. Combiner tous les blocs busy
     const allBusyBlocks = [...constraintBlocks, ...eventBlocks]
+
+    // Log pour debug
+    if (dayConstraints.length > 0 || eventBlocks.length > 0) {
+      console.log(`[slots.service] ${formatDate(currentDate)}: ${dayConstraints.length} contraintes, ${eventBlocks.length} événements calendar`)
+    }
 
     // 4. Calculer les créneaux libres
     const freeBlocks = findFreeBlocks(allBusyBlocks, dayBounds)
@@ -720,14 +757,15 @@ interface ServiceConstraints {
  */
 function detectServiceConstraints(taskContent: string): ServiceConstraints | null {
   const content = taskContent.toLowerCase()
-  
+
   // Services médicaux (fermés week-end, 9h-18h)
   const medicalKeywords = [
     'médecin', 'dentiste', 'pédiatre', 'docteur', 'rdv médical',
     'clinique', 'hôpital', 'cabinet', 'ophtalmo', 'dermato',
-    'kiné', 'ostéo', 'radiologue', 'labo', 'laboratoire'
+    'kiné', 'ostéo', 'radiologue', 'labo', 'laboratoire',
+    'vétérinaire', 'véto'
   ]
-  
+
   if (medicalKeywords.some(k => content.includes(k))) {
     return {
       type: 'medical',
@@ -735,27 +773,59 @@ function detectServiceConstraints(taskContent: string): ServiceConstraints | nul
       openHours: { start: '09:00', end: '18:00' }
     }
   }
-  
-  // Services administratifs (fermés week-end, 9h-17h)
+
+  // Services administratifs (fermés dimanche, 9h-16h30)
   const adminKeywords = [
     'mairie', 'préfecture', 'caf', 'pôle emploi', 'sécurité sociale',
-    'banque', 'notaire', 'avocat', 'assurance', 'impôts'
+    'banque', 'notaire', 'avocat', 'assurance', 'impôts',
+    'poste', 'la poste', 'bureau de poste',
+    'carte d\'identité', 'passeport', 'permis'
   ]
-  
+
   if (adminKeywords.some(k => content.includes(k))) {
     return {
       type: 'administrative',
-      openDays: ['monday', 'tuesday', 'wednesday', 'thursday', 'friday'],
-      openHours: { start: '09:00', end: '17:00' }
+      openDays: ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'],
+      openHours: { start: '09:00', end: '16:30' }
     }
   }
-  
-  // Commerces (fermés dimanche, certains samedi)
+
+  // Écoles et périscolaire (Lun-Ven, 8h-18h)
+  const schoolKeywords = [
+    'école', 'crèche', 'périscolaire', 'cantine', 'garderie',
+    'maternelle', 'primaire', 'collège', 'lycée'
+  ]
+
+  if (schoolKeywords.some(k => content.includes(k))) {
+    return {
+      type: 'administrative',
+      openDays: ['monday', 'tuesday', 'wednesday', 'thursday', 'friday'],
+      openHours: { start: '08:00', end: '18:00' }
+    }
+  }
+
+  // Garages et auto (Lun-Sam, 8h-18h)
+  // Note: "garage" seul est ambigu (peut être "ranger le garage")
+  // On ne matche que les termes explicitement liés aux services auto
+  const garageKeywords = [
+    'garagiste', 'contrôle technique', 'mécanicien',
+    'carrossier', 'pneus', 'vidange', 'garage auto', 'garage voiture'
+  ]
+
+  if (garageKeywords.some(k => content.includes(k))) {
+    return {
+      type: 'commercial',
+      openDays: ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'],
+      openHours: { start: '08:00', end: '18:00' }
+    }
+  }
+
+  // Commerces (fermés dimanche, 9h-19h)
   const commercialKeywords = [
     'magasin', 'boutique', 'acheter', 'courses', 'supermarché',
     'boulangerie', 'pharmacie', 'pressing', 'coiffeur'
   ]
-  
+
   if (commercialKeywords.some(k => content.includes(k))) {
     return {
       type: 'commercial',
@@ -763,7 +833,7 @@ function detectServiceConstraints(taskContent: string): ServiceConstraints | nul
       openHours: { start: '09:00', end: '19:00' }
     }
   }
-  
+
   // Pas de contrainte détectée
   return null
 }

@@ -60,10 +60,33 @@ export function CaptureFlow({ userId, onSuccess }: CaptureFlowProps) {
         try {
           const context = JSON.parse(savedContext)
 
-          // Restaurer le contexte
-          if (context.content) setContent(context.content)
-          if (context.mood) setSelectedMood(context.mood)
-          if (context.captureResult) setCaptureResult(context.captureResult)
+          // Vérifier si c'est un contexte multi-capture
+          if (context.isMultiCapture && context.multiCaptureContext) {
+            console.log('[CaptureFlow] Restauration contexte multi-capture:', context.multiCaptureContext)
+
+            // Restaurer les items multi-capture (en filtrant ceux déjà traités)
+            const remainingItems = context.multiCaptureContext.items
+              .filter((item: { saved?: boolean; deleted?: boolean }) => !item.saved && !item.deleted)
+              .map((item: { content: string; type: ItemType; context?: ItemContext; ai_analysis?: unknown }) => ({
+                content: item.content,
+                type: item.type,
+                context: item.context,
+                ai_analysis: item.ai_analysis
+              }))
+
+            if (remainingItems.length > 0) {
+              setMultiItems(remainingItems)
+              // Mettre le contenu de la première pensée restante
+              setContent(remainingItems[0].content)
+            }
+
+            if (context.mood) setSelectedMood(context.mood)
+          } else {
+            // Contexte simple (une seule pensée)
+            if (context.content) setContent(context.content)
+            if (context.mood) setSelectedMood(context.mood)
+            if (context.captureResult) setCaptureResult(context.captureResult)
+          }
 
           // Marquer comme restauré pour éviter les boucles
           setResumedPlanning(true)
@@ -178,7 +201,7 @@ export function CaptureFlow({ userId, onSuccess }: CaptureFlowProps) {
             content: items[0] || content,
             state,
             mood: convertMoodToItemMood(selectedMood),
-            context,
+            context: context || captureResult?.suggestedContext,
             aiAnalysis: captureResult?.aiAnalysis
           })
         }
@@ -194,7 +217,7 @@ export function CaptureFlow({ userId, onSuccess }: CaptureFlowProps) {
         content,
         state,
         mood: convertMoodToItemMood(selectedMood),
-        context,
+        context: context || captureResult?.suggestedContext,
         aiAnalysis: captureResult?.aiAnalysis
       })
 

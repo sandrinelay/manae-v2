@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { CaptureModal, type ActionType } from './CaptureModal'
+import { CaptureModal, type ActionType, type MultiCaptureContext } from './CaptureModal'
 import type { ItemType, ItemContext } from '@/types/items'
 import type { MultiThoughtItem } from '@/services/capture'
 import { ChevronLeftIcon, ChevronRightIcon, XIcon } from '@/components/ui/icons'
@@ -64,7 +64,17 @@ export function MultiCaptureModal({
         return
       }
 
-      // Sauvegarder
+      // Pour l'action 'plan', la tâche a déjà été sauvegardée par useScheduling.scheduleTask()
+      // On ne fait que marquer comme sauvegardée et passer à la suivante
+      if (action === 'plan') {
+        const updated = [...pensées]
+        updated[currentIndex].saved = true
+        setPensées(updated)
+        goToNextOrClose()
+        return
+      }
+
+      // Sauvegarder (pour les autres actions: 'save', 'develop')
       await onSave(currentIndex, type, action, context)
 
       // Marquer comme sauvegardée
@@ -160,7 +170,7 @@ export function MultiCaptureModal({
       />
 
       {/* Modal Container - positionné au-dessus du BottomNav */}
-      <div className="fixed inset-x-0 bottom-20 z-50 bg-white rounded-t-3xl shadow-2xl animate-slide-up max-h-[75vh] overflow-hidden flex flex-col">
+      <div className="fixed inset-x-0 bottom-20 z-50 bg-white rounded-t-3xl shadow-2xl animate-slide-up flex flex-col" style={{ maxHeight: 'calc(100vh - 120px)' }}>
 
         {/* Header - Compteur de pensées */}
         <div className="px-6 py-4 border-b border-border flex items-center justify-between shrink-0">
@@ -218,7 +228,7 @@ export function MultiCaptureModal({
 
         {/* Contenu - Réutilise CaptureModal en mode embedded */}
         {/* key={currentIndex} force le remontage pour réinitialiser le type sélectionné */}
-        <div className="p-6 overflow-y-auto flex-1">
+        <div className="px-6 pb-6 overflow-y-auto flex-1 min-h-0">
           <CaptureModal
             key={currentIndex}
             content={currentPensée.content}
@@ -226,6 +236,7 @@ export function MultiCaptureModal({
               success: true,
               aiUsed: true,
               suggestedType: currentPensée.type,
+              suggestedContext: currentPensée.context,
               aiAnalysis: currentPensée.ai_analysis,
               creditsRemaining
             }}
@@ -234,6 +245,17 @@ export function MultiCaptureModal({
             onSave={handleSave}
             onClose={onClose}
             isEmbedded={true}
+            multiCaptureContext={{
+              items: pensées.map(p => ({
+                content: p.content,
+                type: p.type,
+                context: p.context,
+                ai_analysis: p.ai_analysis,
+                saved: p.saved,
+                deleted: p.deleted
+              })),
+              currentIndex
+            }}
           />
         </div>
 

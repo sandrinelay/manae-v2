@@ -25,6 +25,14 @@ RÈGLES FONDAMENTALES :
 - STATE = Étape dans le cycle de vie (captured, active)
 - Ne confonds JAMAIS type et state
 
+RÈGLE ABSOLUE POUR list_item :
+Si type = "list_item", alors content = NOM DU PRODUIT SEULEMENT.
+Tu dois EXTRAIRE le produit et SUPPRIMER tout le reste.
+- "ajouter à la liste de course du dentifrice" → content: "Dentifrice"
+- "acheter du lait" → content: "Lait"
+- "prendre 6 oeufs" → content: "6 œufs"
+INTERDIT : content ne doit JAMAIS contenir "ajouter", "acheter", "prendre", "liste", "course"
+
 ${JSON_ONLY_RULE}`
 
 /**

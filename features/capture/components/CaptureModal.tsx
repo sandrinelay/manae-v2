@@ -45,6 +45,19 @@ function convertMoodToItemMood(mood: Mood | null): ItemMood | undefined {
 }
 type ModalStep = 'organize' | 'schedule'
 
+// Contexte multi-capture pour préserver l'état lors de la connexion Google Calendar
+export interface MultiCaptureContext {
+  items: Array<{
+    content: string
+    type: ItemType
+    context?: ItemContext
+    ai_analysis?: CaptureResult['aiAnalysis']
+    saved?: boolean
+    deleted?: boolean
+  }>
+  currentIndex: number
+}
+
 interface CaptureModalProps {
   content: string
   captureResult: CaptureResult
@@ -54,6 +67,7 @@ interface CaptureModalProps {
   onClose: () => void
   onSuccess?: () => void
   isEmbedded?: boolean
+  multiCaptureContext?: MultiCaptureContext
 }
 
 export type ActionType = 'save' | 'plan' | 'develop' | 'add_to_list' | 'delete'
@@ -127,12 +141,15 @@ export function CaptureModal({
   onSave,
   onClose,
   onSuccess,
-  isEmbedded = false
+  isEmbedded = false,
+  multiCaptureContext
 }: CaptureModalProps) {
   const hasAIQuota = !captureResult.quotaExceeded
 
-  // Contexte suggéré par l'IA
-  const suggestedContext = (captureResult.aiAnalysis?.extracted_data?.context as ItemContext) || 'personal'
+  // Contexte suggéré par l'IA (priorité: suggestedContext > extracted_data.context > fallback)
+  const suggestedContext = captureResult.suggestedContext
+    || (captureResult.aiAnalysis?.extracted_data?.context as ItemContext)
+    || 'personal'
 
   // État de la modal
   const [currentStep, setCurrentStep] = useState<ModalStep>('organize')
@@ -246,6 +263,14 @@ export function CaptureModal({
       const success = await scheduling.scheduleTask()
 
       if (success) {
+        // En mode embedded (multi-capture), notifier le parent et passer à la suite
+        if (isEmbedded) {
+          // Appeler onSave avec 'plan' pour marquer comme sauvegardée dans MultiCaptureModal
+          onSave('task', 'plan')
+          return
+        }
+
+        // Mode normal : afficher la modal de succès
         const dateLabel = formatScheduledDate(`${slotToSchedule.date}T${slotToSchedule.startTime}:00`)
         setSuccessData({ task: content, date: dateLabel })
         setShowSuccessModal(true)
@@ -263,13 +288,28 @@ export function CaptureModal({
 
   const handleConnectCalendar = () => {
     // Sauvegarder le contexte de planification pour y revenir après connexion
-    const planningContext = {
+    const planningContext: {
+      itemId: string | null
+      content: string
+      mood: Mood | null
+      captureResult: CaptureResult
+      returnTo: string
+      isMultiCapture?: boolean
+      multiCaptureContext?: MultiCaptureContext
+    } = {
       itemId: savedItemId,
       content,
       mood,
       captureResult,
       returnTo: 'schedule'
     }
+
+    // Si on est en mode multi-capture, sauvegarder tout le contexte
+    if (multiCaptureContext) {
+      planningContext.isMultiCapture = true
+      planningContext.multiCaptureContext = multiCaptureContext
+    }
+
     localStorage.setItem('manae_pending_planning', JSON.stringify(planningContext))
 
     // Rediriger vers step4 avec indication de retour
@@ -606,7 +646,37 @@ export function CaptureModal({
   // ============================================
 
   if (isEmbedded) {
-    return currentStep === 'organize' ? <OrganizeContent /> : <ScheduleContent />
+    if (currentStep === 'organize') {
+      return <OrganizeContent />
+    }
+
+    // Mode embedded + schedule : inclure les boutons d'action
+    return (
+      <div className="flex flex-col">
+        {/* Contenu scrollable */}
+        <div className="flex-1 overflow-y-auto" style={{ maxHeight: 'calc(100vh - 350px)' }}>
+          <ScheduleContent />
+        </div>
+
+        {/* Footer Actions - toujours visible en bas */}
+        <div className="mt-4 pt-4 border-t border-border flex gap-3 bg-white sticky bottom-0">
+          <button
+            onClick={handleBack}
+            className="flex-1 px-6 py-3 border-2 border-border rounded-lg font-medium text-text-dark hover:bg-gray-50 transition-colors"
+          >
+            Annuler
+          </button>
+
+          <button
+            onClick={handleSchedule}
+            disabled={!scheduling.selectedSlot || scheduling.isLoading}
+            className="flex-1 px-6 py-3 bg-primary text-white rounded-lg font-medium hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {scheduling.isLoading ? 'Planification...' : 'Planifier'}
+          </button>
+        </div>
+      </div>
+    )
   }
 
   // Afficher la modal de succès après planification
@@ -629,9 +699,9 @@ export function CaptureModal({
       />
 
       {/* Modal - positionné au-dessus du BottomNav */}
-      <div className="fixed z-50 bg-white shadow-2xl animate-slide-up flex flex-col inset-x-0 bottom-[80px] rounded-t-3xl" style={{ maxHeight: 'calc(100vh - 140px)' }}>
-        {/* Header */}
-        <div className="flex items-center justify-between p-4 border-b border-border flex-shrink-0">
+      <div className="fixed z-[60] inset-x-0 bottom-[80px] rounded-t-3xl bg-white shadow-2xl animate-slide-up" style={{ maxHeight: 'calc(100vh - 140px)' }}>
+        {/* Header - hauteur fixe */}
+        <div className="h-[60px] flex items-center justify-between px-4 border-b border-border bg-white rounded-t-3xl">
           {currentStep === 'schedule' ? (
             <IconButton
               icon={<ArrowLeftIcon />}
@@ -657,14 +727,21 @@ export function CaptureModal({
           />
         </div>
 
-        {/* Content - avec overflow scroll */}
-        <div className="p-6 overflow-y-auto flex-1 min-h-0" style={{ maxHeight: 'calc(100vh - 140px - 140px)' }}>
+        {/* Content - scrollable */}
+        <div
+          className="p-6 overflow-y-auto"
+          style={{
+            maxHeight: currentStep === 'schedule'
+              ? 'calc(100vh - 300px)' // Réserve large pour header + footer + marges
+              : 'calc(100vh - 220px)'
+          }}
+        >
           {currentStep === 'organize' ? OrganizeContent() : ScheduleContent()}
         </div>
 
-        {/* Footer Actions - Schedule step only - TOUJOURS VISIBLE */}
-        {currentStep === 'schedule' && (
-          <div className="flex gap-3 p-4 border-t border-border bg-white flex-shrink-0" style={{ position: 'sticky', bottom: 0 }}>
+        {/* Footer Actions - Schedule step only */}
+        {currentStep === 'schedule' ? (
+          <div className="p-4 border-t border-border bg-white flex gap-3">
             <button
               onClick={handleBack}
               className="flex-1 px-6 py-3 border-2 border-border rounded-lg font-medium text-text-dark hover:bg-gray-50 transition-colors"
@@ -680,7 +757,7 @@ export function CaptureModal({
               {scheduling.isLoading ? 'Planification...' : 'Planifier'}
             </button>
           </div>
-        )}
+        ) : null}
       </div>
     </>
   )

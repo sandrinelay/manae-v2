@@ -24,6 +24,7 @@ export interface CaptureResult {
   multiple?: boolean
   items?: MultiThoughtItem[]
   suggestedType?: ItemType
+  suggestedContext?: 'personal' | 'family' | 'work' | 'health' | 'other'
   aiAnalysis?: AIAnalysis
   creditsRemaining?: number | null
   quotaExceeded?: boolean
@@ -108,6 +109,7 @@ export async function captureThought(
             success: true,
             aiUsed: true,
             suggestedType: firstItem.type,
+            suggestedContext: firstItem.context,
             aiAnalysis: firstItem.ai_analysis,
             creditsRemaining: quota.creditsRemaining ? quota.creditsRemaining - 1 : null
           }

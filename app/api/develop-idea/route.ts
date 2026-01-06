@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import OpenAI from 'openai'
 import { createClient } from '@/lib/supabase/server'
+import { buildDevelopIdeaPrompt, DEVELOP_IDEA_CONFIG } from '@/prompts'
+import type { DevelopIdeaResponseAPI } from '@/prompts'
 
 // ============================================
 // TYPES
@@ -15,91 +17,10 @@ interface RequestBody {
   blockers?: IdeaBlocker[]
 }
 
-interface AIResponse {
-  refined_title: string
-  steps: string[]
-  estimated_time: string
-  budget: string | null
-  motivation: string
-}
-
 interface DevelopmentContext {
   idea_age: IdeaAge
   blockers?: IdeaBlocker[]
   developed_at: string
-}
-
-// ============================================
-// PROMPT BUILDER
-// ============================================
-
-function buildPrompt(ideaText: string, ideaAge: IdeaAge, blockers?: IdeaBlocker[]): string {
-  let contextSection = ''
-
-  if (ideaAge === 'fresh') {
-    contextSection = `
-CONTEXTE : Idée fraîche, capturée récemment.
-OBJECTIF : Structurer en projet motivant et concret.
-TON : Enthousiaste, encourageant, dynamique.
-`
-  } else {
-    const blockerLabels: Record<IdeaBlocker, string> = {
-      time: 'Manque de temps',
-      budget: 'Budget limité',
-      fear: 'Peur de mal faire / doutes',
-      energy: "Manque d'énergie"
-    }
-
-    const blockersList = blockers?.length
-      ? blockers.map(b => blockerLabels[b]).join(', ')
-      : 'Non précisé'
-
-    contextSection = `
-CONTEXTE : Idée qui existe depuis longtemps mais n'avance pas.
-BLOCAGES IDENTIFIÉS : ${blockersList}
-OBJECTIF : Débloquer et relancer cette idée.
-TON : Rassurant, empathique, pas culpabilisant.
-
-ADAPTATION DES ÉTAPES SELON LES BLOCAGES :
-- Si blocage temps → Micro-étapes (5-15min max chacune)
-- Si blocage budget → Étapes gratuites ou peu coûteuses en priorité
-- Si blocage peur/doutes → Étapes de validation rapide, feedback tôt
-- Si blocage énergie → Étapes légères, sans urgence
-`
-  }
-
-  return `Tu es un coach en organisation pour adultes mentalement surchargés.
-
-L'utilisateur a cette idée : "${ideaText}"
-
-${contextSection}
-
-TÂCHES :
-1. Reformule l'idée en titre clair et engageant (max 60 caractères)
-2. Décompose en 3-5 étapes concrètes et actionnables
-3. Estime le temps total réaliste
-4. Estime le budget si applicable (sinon null)
-5. Ajoute une phrase de motivation encourageante
-
-RÈGLES IMPORTANTES :
-- Chaque étape DOIT commencer par un verbe d'action à l'infinitif
-- Étapes adaptées à une personne avec une charge mentale élevée
-- La 1ère étape DOIT être faisable en moins de 15 minutes
-- Pas de jargon, langage simple et direct
-- Budget en euros avec fourchette si applicable
-
-Réponds UNIQUEMENT en JSON valide, sans markdown ni commentaires :
-{
-  "refined_title": "Titre clair du projet",
-  "steps": [
-    "Verbe + action concrète 1",
-    "Verbe + action concrète 2",
-    "Verbe + action concrète 3"
-  ],
-  "estimated_time": "Durée totale réaliste (ex: 3h sur 2 semaines)",
-  "budget": "Fourchette en euros (ex: 50-100€) ou null",
-  "motivation": "Phrase encourageante courte (max 100 caractères)"
-}`
 }
 
 // ============================================
@@ -173,19 +94,20 @@ export async function POST(request: NextRequest) {
     }
 
     // 5. Construire et envoyer le prompt à OpenAI
-    const prompt = buildPrompt(item.content, idea_age, blockers)
+    const prompt = buildDevelopIdeaPrompt({
+      ideaText: item.content,
+      ideaAge: idea_age,
+      blockers
+    })
 
     const completion = await openai.chat.completions.create({
-      model: 'gpt-4o-mini',
+      model: DEVELOP_IDEA_CONFIG.model,
       messages: [
-        {
-          role: 'system',
-          content: 'Tu es un coach en organisation. Tu réponds UNIQUEMENT en JSON valide, sans aucun texte avant ou après.'
-        },
+        { role: 'system', content: DEVELOP_IDEA_CONFIG.system },
         { role: 'user', content: prompt }
       ],
-      temperature: 0.8,
-      max_tokens: 1500
+      temperature: DEVELOP_IDEA_CONFIG.temperature,
+      max_tokens: DEVELOP_IDEA_CONFIG.maxTokens
     })
 
     // 6. Parser la réponse IA
@@ -195,7 +117,7 @@ export async function POST(request: NextRequest) {
       .replace(/```\n?/g, '')
       .trim()
 
-    let aiResponse: AIResponse
+    let aiResponse: DevelopIdeaResponseAPI
     try {
       aiResponse = JSON.parse(cleanContent)
     } catch (parseError) {
