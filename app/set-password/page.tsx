@@ -17,10 +17,50 @@ export default function SetPasswordPage() {
   const [isValidSession, setIsValidSession] = useState(false)
   const [isCheckingSession, setIsCheckingSession] = useState(true)
 
-  // Vérifier que l'utilisateur vient d'un lien d'invitation
+  // Vérifier que l'utilisateur vient d'un lien d'invitation ou de reset
   useEffect(() => {
     const checkSession = async () => {
       const supabase = createClient()
+
+      // Cas 1: Token dans le hash (invitation Supabase)
+      // URL format: /set-password#access_token=xxx&refresh_token=xxx&type=invite
+      if (window.location.hash) {
+        const hashParams = new URLSearchParams(window.location.hash.substring(1))
+        const accessToken = hashParams.get('access_token')
+        const refreshToken = hashParams.get('refresh_token')
+
+        if (accessToken && refreshToken) {
+          const { error } = await supabase.auth.setSession({
+            access_token: accessToken,
+            refresh_token: refreshToken
+          })
+
+          if (!error) {
+            setIsValidSession(true)
+            setIsCheckingSession(false)
+            // Nettoyer le hash de l'URL
+            window.history.replaceState(null, '', window.location.pathname)
+            return
+          }
+        }
+      }
+
+      // Cas 2: Code dans les query params (reset password)
+      // URL format: /set-password?code=xxx
+      const urlParams = new URLSearchParams(window.location.search)
+      const code = urlParams.get('code')
+
+      if (code) {
+        const { error } = await supabase.auth.exchangeCodeForSession(code)
+
+        if (!error) {
+          setIsValidSession(true)
+          setIsCheckingSession(false)
+          return
+        }
+      }
+
+      // Cas 3: Session déjà existante
       const { data: { session } } = await supabase.auth.getSession()
 
       if (session?.user) {
