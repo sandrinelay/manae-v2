@@ -148,13 +148,23 @@ function ProfilPageContent() {
 
   const handleLogout = async () => {
     const supabase = createClient()
-    await supabase.auth.signOut()
+
+    // Déconnexion globale (invalide la session côté serveur aussi)
+    await supabase.auth.signOut({ scope: 'global' })
 
     // Nettoyer le localStorage
     localStorage.removeItem('google_tokens')
     localStorage.removeItem('manae_onboarding')
 
-    router.push('/login')
+    // Supprimer tous les items Supabase du localStorage
+    Object.keys(localStorage).forEach(key => {
+      if (key.startsWith('sb-') || key.includes('supabase')) {
+        localStorage.removeItem(key)
+      }
+    })
+
+    // Force refresh pour nettoyer les cookies côté serveur
+    window.location.href = '/login'
   }
 
   // États de chargement

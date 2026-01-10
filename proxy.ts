@@ -14,7 +14,7 @@ const PUBLIC_ROUTES = [
 // Routes d'authentification (rediriger si déjà connecté)
 const AUTH_ROUTES = ['/login', '/forgot-password']
 
-export async function middleware(request: NextRequest) {
+export async function proxy(request: NextRequest) {
   let supabaseResponse = NextResponse.next({
     request,
   })
