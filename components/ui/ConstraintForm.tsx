@@ -159,23 +159,29 @@ export const ConstraintForm: React.FC<ConstraintFormProps> = ({
                 </div>
 
                 {/* Horaires */}
-                <div className="grid grid-cols-2 gap-3">
-                    <Input
-                        id="start_time"
-                        name="start_time"
-                        type="time"
-                        label="DÉBUT"
-                        value={formData.start_time}
-                        onChange={(e) => setFormData(prev => ({ ...prev, start_time: e.target.value }))}
-                    />
-                    <Input
-                        id="end_time"
-                        name="end_time"
-                        type="time"
-                        label="FIN"
-                        value={formData.end_time}
-                        onChange={(e) => setFormData(prev => ({ ...prev, end_time: e.target.value }))}
-                    />
+                <div>
+                    <label className="text-xs font-medium text-text-muted uppercase tracking-wide mb-2 block">
+                        HORAIRES
+                    </label>
+                    <div className="flex items-center gap-3">
+                        <input
+                            id="start_time"
+                            name="start_time"
+                            type="time"
+                            value={formData.start_time}
+                            onChange={(e) => setFormData(prev => ({ ...prev, start_time: e.target.value }))}
+                            className="flex-1 min-w-0 px-3 py-2 text-sm text-text-dark bg-white border-2 border-border rounded-xl focus:border-primary outline-none"
+                        />
+                        <span className="text-text-muted text-sm shrink-0">à</span>
+                        <input
+                            id="end_time"
+                            name="end_time"
+                            type="time"
+                            value={formData.end_time}
+                            onChange={(e) => setFormData(prev => ({ ...prev, end_time: e.target.value }))}
+                            className="flex-1 min-w-0 px-3 py-2 text-sm text-text-dark bg-white border-2 border-border rounded-xl focus:border-primary outline-none"
+                        />
+                    </div>
                 </div>
 
                 {/* Pause déjeuner */}

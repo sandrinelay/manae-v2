@@ -14,9 +14,9 @@ export default function BottomNav() {
   ]
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 bg-white border-t border-border z-50 safe-area-bottom">
-      {/* Safe area padding for iOS */}
-      <div className="max-w-lg mx-auto flex items-center justify-around px-4 py-2 pb-[env(safe-area-inset-bottom,8px)]">
+    <nav className="fixed bottom-0 left-0 right-0 bg-white border-t border-border z-50 safe-area-bottom pb-[env(safe-area-inset-bottom,0px)]">
+      {/* Safe area padding for iOS - contenu remonté au-dessus de la home indicator */}
+      <div className="max-w-lg mx-auto flex items-center justify-around px-4 pt-2 pb-3">
         {navItems.map((item) => {
           const isActive = pathname === item.href
           const Icon = item.icon
