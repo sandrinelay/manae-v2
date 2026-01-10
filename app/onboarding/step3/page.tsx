@@ -11,6 +11,7 @@ import { ConflictModal } from '@/components/ui/ConflictModal';
 import { DeleteConfirmModal } from '@/components/ui/DeleteConfirmModal';
 import { saveConstraints, getConstraints, updateUserProfile } from '@/services/supabaseService';
 import { PlusIcon } from '@/components/ui/icons';
+import { generateUUID } from '@/lib/utils/uuid';
 
 export default function OnboardingStep3() {
     const router = useRouter();
@@ -19,7 +20,7 @@ export default function OnboardingStep3() {
 
     // Contrainte "Travail" pré-remplie
     const defaultConstraint: Constraint = {
-        id: crypto.randomUUID(),
+        id: generateUUID(),
         name: 'Travail',
         category: 'work',
         days: ['monday', 'tuesday', 'wednesday', 'thursday', 'friday'],
@@ -86,7 +87,7 @@ export default function OnboardingStep3() {
             console.log('✅ Pas de conflit, ajout direct');
             const newConstraint: Constraint = {
                 ...data,
-                id: crypto.randomUUID()
+                id: generateUUID()
             };
             setConstraints(prev => [...prev, newConstraint]);
             setShowForm(false);
@@ -201,7 +202,7 @@ export default function OnboardingStep3() {
                 // Mode ajout
                 const newConstraint: Constraint = {
                     ...pendingConstraint,
-                    id: crypto.randomUUID()
+                    id: generateUUID()
                 };
                 setConstraints(prev => [...prev, newConstraint]);
             }

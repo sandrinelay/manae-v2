@@ -9,6 +9,7 @@ import { DeleteConfirmModal } from '@/components/ui/DeleteConfirmModal'
 import { ActionButton } from '@/components/ui/ActionButton'
 import { detectConflict } from '@/utils/conflictDetector'
 import type { Constraint } from '@/types'
+import { generateUUID } from '@/lib/utils/uuid'
 
 interface ConstraintsModalProps {
   constraints: Constraint[]
@@ -41,7 +42,7 @@ export function ConstraintsModal({
     } else {
       const newConstraint: Constraint = {
         ...data,
-        id: crypto.randomUUID()
+        id: generateUUID()
       }
       setConstraints(prev => [...prev, newConstraint])
       setShowForm(false)
@@ -102,7 +103,7 @@ export function ConstraintsModal({
       } else {
         const newConstraint: Constraint = {
           ...pendingConstraint,
-          id: crypto.randomUUID()
+          id: generateUUID()
         }
         setConstraints(prev => [...prev, newConstraint])
       }
