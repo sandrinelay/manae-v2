@@ -22,8 +22,8 @@ export default function SetPasswordPage() {
     const checkSession = async () => {
       const supabase = createClient()
 
-      // Cas 1: Token dans le hash (invitation Supabase)
-      // URL format: /set-password#access_token=xxx&refresh_token=xxx&type=invite
+      // Cas 1: Token dans le hash (invitation ou recovery Supabase)
+      // URL format: /set-password#access_token=xxx&refresh_token=xxx&type=invite|recovery
       if (window.location.hash) {
         const hashParams = new URLSearchParams(window.location.hash.substring(1))
         const accessToken = hashParams.get('access_token')
@@ -104,8 +104,14 @@ export default function SetPasswordPage() {
         return
       }
 
-      // Succès ! Rediriger vers l'onboarding
-      router.push('/onboarding')
+      // Vérifier si l'utilisateur a déjà fait l'onboarding
+      const { data: user } = await supabase
+        .from('users')
+        .select('onboarding_completed')
+        .single()
+
+      // Rediriger selon l'état de l'onboarding
+      router.push(user?.onboarding_completed ? '/clarte' : '/onboarding')
     } catch (err) {
       console.error('Set password error:', err)
       setError('Une erreur est survenue. Réessaie.')
