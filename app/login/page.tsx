@@ -67,7 +67,7 @@ function LoginForm() {
 
   return (
     <AuthLayout
-      title="Content de te revoir !"
+      title="Bienvenue sur Manae !"
       subtitle="Connecte-toi pour retrouver ta clarté"
     >
       <form onSubmit={handleSubmit}>

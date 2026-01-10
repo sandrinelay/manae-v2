@@ -12,7 +12,8 @@ const PUBLIC_ROUTES = [
 ]
 
 // Routes d'authentification (rediriger si déjà connecté)
-const AUTH_ROUTES = ['/login', '/forgot-password']
+// Note: On ne redirige PAS depuis /login pour permettre la déconnexion
+const AUTH_ROUTES = ['/forgot-password']
 
 export async function proxy(request: NextRequest) {
   let supabaseResponse = NextResponse.next({
