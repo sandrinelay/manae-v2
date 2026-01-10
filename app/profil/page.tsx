@@ -1,7 +1,7 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
-import { useRouter } from 'next/navigation'
+import { useState, useEffect, useCallback, Suspense } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { useAuth } from '@/hooks/useAuth'
 import { AppHeader } from '@/components/layout'
 import BottomNav from '@/components/layout/BottomNav'
@@ -22,9 +22,13 @@ interface UserProfileData {
   energyMoments: string[]
 }
 
-export default function ProfilPage() {
+function ProfilPageContent() {
   const router = useRouter()
+  const searchParams = useSearchParams()
   const { user, isLoading: authLoading } = useAuth()
+
+  // Vérifier si on vient d'un flux de connexion calendar
+  const connectCalendar = searchParams.get('connectCalendar') === 'true'
 
   const [profile, setProfile] = useState<UserProfileData | null>(null)
   const [constraints, setConstraints] = useState<Constraint[]>([])
@@ -116,12 +120,31 @@ export default function ProfilPage() {
     setConstraints(newConstraints)
   }
 
-  const handleGoogleConnect = () => {
-    // Rediriger vers le flow OAuth Google Calendar
-    // On sauvegarde la page de retour
-    localStorage.setItem('manae_redirect_after_oauth', '/profil')
-    router.push('/onboarding/step4')
-  }
+
+  // Callback après connexion Google Calendar réussie
+  const handleCalendarConnectSuccess = useCallback(() => {
+    // Vérifier si on a un contexte de planification en attente
+    const pendingPlanning = localStorage.getItem('manae_pending_planning')
+
+    if (pendingPlanning && connectCalendar) {
+      try {
+        const context = JSON.parse(pendingPlanning)
+
+        // NE PAS supprimer le contexte ici - CaptureFlow en a besoin pour restaurer l'état
+        // Le nettoyage sera fait par CaptureFlow après restauration
+
+        // Rediriger vers la bonne page selon le contexte
+        if (context.returnTo === 'clarte-schedule' || context.returnTo === 'clarte-shopping') {
+          router.push('/clarte?resumePlanning=true')
+        } else {
+          router.push('/capture?resumePlanning=true')
+        }
+      } catch {
+        // En cas d'erreur, rester sur profil
+        console.error('Erreur parsing pending planning context')
+      }
+    }
+  }, [connectCalendar, router])
 
   const handleLogout = async () => {
     const supabase = createClient()
@@ -174,7 +197,7 @@ export default function ProfilPage() {
 
   return (
     <div className="min-h-screen bg-mint flex flex-col">
-      <AppHeader userName={profile?.firstName || user.email?.split('@')[0]} />
+      <AppHeader userName={profile?.firstName || undefined} />
 
       <div className="flex-1 pb-24">
         <div className="max-w-2xl mx-auto px-4">
@@ -204,9 +227,7 @@ export default function ProfilPage() {
             />
 
             {/* Connexions */}
-            <ConnectionsSection
-              onGoogleConnect={handleGoogleConnect}
-            />
+            <ConnectionsSection onConnectSuccess={handleCalendarConnectSuccess} />
 
             {/* Plus */}
             <MoreSection />
@@ -219,5 +240,17 @@ export default function ProfilPage() {
 
       <BottomNav />
     </div>
+  )
+}
+
+export default function ProfilPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-mint flex items-center justify-center">
+        <div className="animate-spin h-8 w-8 border-4 border-primary border-t-transparent rounded-full" />
+      </div>
+    }>
+      <ProfilPageContent />
+    </Suspense>
   )
 }

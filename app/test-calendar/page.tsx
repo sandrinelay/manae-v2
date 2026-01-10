@@ -330,12 +330,12 @@ export default function TestCalendarPage() {
             </Button>
 
             <Button
-              onClick={() => window.location.href = '/onboarding/step4'}
+              onClick={() => window.location.href = '/profil'}
               variant="secondary"
               className="flex-1"
               disabled={isLoading}
             >
-              🔗 Aller à onboarding
+              🔗 Aller au profil
             </Button>
           </div>
         </div>
@@ -345,7 +345,7 @@ export default function TestCalendarPage() {
           <h3 className="font-semibold text-blue-900 mb-2">📖 Instructions</h3>
           <ol className="text-sm text-blue-800 space-y-1 list-decimal list-inside">
             <li>Clique sur &quot;🔑 Vérifier tokens&quot; pour voir si Google Calendar est connecté</li>
-            <li>Si non connecté, va dans &quot;Aller à onboarding&quot; pour connecter</li>
+            <li>Si non connecté, va dans &quot;Aller au profil&quot; pour connecter</li>
             <li>Une fois connecté, clique sur &quot;📋 Récupérer événements&quot;</li>
             <li>Puis teste &quot;➕ Créer événement test&quot; et vérifie dans ton Google Calendar</li>
             <li>Utilise &quot;🔌 Déconnecter Calendar&quot; pour tester les erreurs de tokens manquants</li>

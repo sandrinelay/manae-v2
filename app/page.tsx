@@ -37,11 +37,11 @@ export default function Dashboard() {
   const handleContinueOnboarding = () => {
     if (onboardingStep === 0) {
       router.push('/onboarding');
-    } else if (onboardingStep < 4) {
+    } else if (onboardingStep < 3) {
       router.push(`/onboarding/step${onboardingStep + 1}`);
     } else {
-      // Should not happen if logic is correct, but safe fallback
-      router.push('/onboarding/step4');
+      // Onboarding terminé, aller vers capture
+      router.push('/capture');
     }
   };
 
@@ -72,7 +72,7 @@ export default function Dashboard() {
         </header>
 
         <main>
-          {onboardingStep >= 4 ? (
+          {onboardingStep >= 3 ? (
             <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 text-center">
               <div className="text-4xl mb-4">🎉</div>
               <h2 className="text-2xl font-bold text-text-dark mb-2">

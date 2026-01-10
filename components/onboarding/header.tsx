@@ -7,9 +7,10 @@ export default function OnboardingHeader() {
     const isStep1 = pathname === '/onboarding';
     const isStep2 = pathname === '/onboarding/step2';
     const isStep3 = pathname === '/onboarding/step3';
-    const isStep4 = pathname === '/onboarding/step4';
 
-    const stepNumber = isStep1 ? 1 : isStep2 ? 2 : isStep3 ? 3 : isStep4 ? 4 : 1;
+    // 3 étapes maintenant (Google Calendar se fait via profil)
+    const stepNumber = isStep1 ? 1 : isStep2 ? 2 : isStep3 ? 3 : 1;
+    const totalSteps = 3;
 
     return (
         <>
@@ -19,14 +20,14 @@ export default function OnboardingHeader() {
             </h1>
 
             <span className="text-sm font-medium text-text-muted bg-white px-3 py-1 rounded-full">
-                Étape {stepNumber} / 4
+                Étape {stepNumber} / {totalSteps}
             </span>
         </header>
 
         <div className="w-full h-1 bg-gray-light rounded-full mb-8 overflow-hidden">
             <div
                 className="h-full bg-gradient-to-r from-primary to-secondary"
-                style={{ width: `${(stepNumber / 4) * 100}%` }}
+                style={{ width: `${(stepNumber / totalSteps) * 100}%` }}
             />
         </div>
         </>

@@ -75,8 +75,8 @@ export function PlanTaskModal({ task, onClose, onSuccess }: PlanTaskModalProps) 
     }
     localStorage.setItem('manae_pending_planning', JSON.stringify(planningContext))
 
-    // Rediriger vers step4 avec indication de retour
-    window.location.href = '/onboarding/step4?returnTo=planning'
+    // Rediriger vers profil pour connexion Google Calendar
+    window.location.href = '/profil?connectCalendar=true'
   }
 
   // Modal de succès

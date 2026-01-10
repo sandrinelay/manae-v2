@@ -6,11 +6,28 @@ import type { User } from '@supabase/supabase-js'
 
 export function useAuth() {
     const [user, setUser] = useState<User | null>(null)
+    const [firstName, setFirstName] = useState<string | null>(null)
     const [isLoading, setIsLoading] = useState(true)
     const [isAnonymous, setIsAnonymous] = useState(false)
 
     useEffect(() => {
         const supabase = createClient()
+
+        const fetchUserProfile = async (userId: string) => {
+            try {
+                const { data: profile } = await supabase
+                    .from('users')
+                    .select('first_name')
+                    .eq('id', userId)
+                    .single()
+
+                if (profile?.first_name) {
+                    setFirstName(profile.first_name)
+                }
+            } catch (error) {
+                console.error('Error fetching user profile:', error)
+            }
+        }
 
         const initAuth = async () => {
             try {
@@ -20,6 +37,8 @@ export function useAuth() {
                 if (currentUser) {
                     setUser(currentUser)
                     setIsAnonymous(currentUser.is_anonymous ?? false)
+                    // Récupérer le prénom
+                    await fetchUserProfile(currentUser.id)
                 } else {
                     // Sign in anonymously if no user
                     const { data, error } = await supabase.auth.signInAnonymously()
@@ -45,8 +64,11 @@ export function useAuth() {
                 if (session?.user) {
                     setUser(session.user)
                     setIsAnonymous(session.user.is_anonymous ?? false)
+                    // Récupérer le prénom lors des changements d'auth
+                    await fetchUserProfile(session.user.id)
                 } else {
                     setUser(null)
+                    setFirstName(null)
                     setIsAnonymous(false)
                 }
             }
@@ -57,5 +79,5 @@ export function useAuth() {
         }
     }, [])
 
-    return { user, isLoading, isAnonymous }
+    return { user, firstName, isLoading, isAnonymous }
 }

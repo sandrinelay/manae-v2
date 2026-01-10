@@ -311,8 +311,8 @@ export function CaptureModal({
 
     localStorage.setItem('manae_pending_planning', JSON.stringify(planningContext))
 
-    // Rediriger vers step4 avec indication de retour
-    window.location.href = '/onboarding/step4?returnTo=planning'
+    // Rediriger vers profil pour connexion Google Calendar
+    window.location.href = '/profil?connectCalendar=true'
   }
 
   const handleAction = (type: ItemType, action: ActionType) => {

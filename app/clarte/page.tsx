@@ -36,7 +36,7 @@ import type { ContextFilterType } from '@/components/ui/ContextFilterTabs'
 function ClartePageContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
-  const { user, isLoading: authLoading } = useAuth()
+  const { user, firstName, isLoading: authLoading } = useAuth()
 
   const [activeFilter, setActiveFilter] = useState<FilterType>('all')
   const [activeContext, setActiveContext] = useState<ContextFilterType>('all')
@@ -323,7 +323,7 @@ function ClartePageContent() {
 
   return (
     <div className="min-h-screen bg-mint flex flex-col">
-      <AppHeader userName={user.email?.split('@')[0]} />
+      <AppHeader userName={firstName || undefined} />
       <div className="flex-1 pb-24">
         <div className="max-w-2xl mx-auto px-4">
           <ClarteHeader

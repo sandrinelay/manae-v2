@@ -2,13 +2,16 @@
 
 import { useState, useEffect } from 'react'
 import { CalendarIcon, LinkIcon, UnlinkIcon, CheckCircleIcon } from '@/components/ui/icons'
+import { openGoogleAuthPopup, exchangeCodeForToken } from '@/lib/googleCalendar'
 
 interface ConnectionsSectionProps {
-  onGoogleConnect: () => void
+  onConnectSuccess?: () => void
 }
 
-export function ConnectionsSection({ onGoogleConnect }: ConnectionsSectionProps) {
+export function ConnectionsSection({ onConnectSuccess }: ConnectionsSectionProps) {
   const [isGoogleConnected, setIsGoogleConnected] = useState(false)
+  const [isLoading, setIsLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
     // Vérifier si Google Calendar est connecté
@@ -32,6 +35,38 @@ export function ConnectionsSection({ onGoogleConnect }: ConnectionsSectionProps)
       window.removeEventListener('storage', handleConnectionChange)
     }
   }, [])
+
+  const handleConnect = async () => {
+    setIsLoading(true)
+    setError(null)
+
+    try {
+      const code = await openGoogleAuthPopup()
+      const tokens = await exchangeCodeForToken(code)
+
+      // Calculer expires_at à partir de expires_in (en secondes)
+      const tokensWithExpiry = {
+        ...tokens,
+        expires_at: Date.now() + (tokens.expires_in * 1000)
+      }
+
+      // Sauvegarder les tokens
+      localStorage.setItem('google_tokens', JSON.stringify(tokensWithExpiry))
+
+      // Dispatch event pour notifier les autres composants
+      window.dispatchEvent(new CustomEvent('calendar-connection-changed'))
+
+      setIsGoogleConnected(true)
+
+      // Callback après connexion réussie
+      onConnectSuccess?.()
+    } catch (err) {
+      console.error('Erreur connexion Google:', err)
+      setError('Erreur lors de la connexion à Google Calendar')
+    } finally {
+      setIsLoading(false)
+    }
+  }
 
   const handleDisconnect = () => {
     // Suppression locale uniquement (recommandation beta)
@@ -71,14 +106,26 @@ export function ConnectionsSection({ onGoogleConnect }: ConnectionsSectionProps)
           </button>
         ) : (
           <button
-            onClick={onGoogleConnect}
-            className="flex items-center gap-2 px-4 py-2 rounded-xl bg-primary text-white hover:bg-primary/90 transition-colors"
+            onClick={handleConnect}
+            disabled={isLoading}
+            className="flex items-center gap-2 px-4 py-2 rounded-xl bg-primary text-white hover:bg-primary/90 transition-colors disabled:opacity-50"
           >
             <LinkIcon className="w-4 h-4" />
-            <span className="text-sm font-medium">Connecter</span>
+            <span className="text-sm font-medium">
+              {isLoading ? 'Connexion...' : 'Connecter'}
+            </span>
           </button>
         )}
       </div>
+
+      {/* Message d'erreur */}
+      {error && (
+        <div className="px-4 pb-3">
+          <div className="text-sm text-red-600 bg-red-50 px-3 py-2 rounded-lg">
+            {error}
+          </div>
+        </div>
+      )}
 
       {/* Indicateur de statut si connecté */}
       {isGoogleConnected && (

@@ -8,6 +8,7 @@ const PUBLIC_ROUTES = [
   '/forgot-password',
   '/set-password',
   '/api/auth',
+  '/auth/google/callback',
 ]
 
 // Routes d'authentification (rediriger si déjà connecté)

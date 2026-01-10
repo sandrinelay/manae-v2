@@ -9,7 +9,7 @@ import { Constraint } from '@/types';
 import { detectConflict } from '@/utils/conflictDetector';
 import { ConflictModal } from '@/components/ui/ConflictModal';
 import { DeleteConfirmModal } from '@/components/ui/DeleteConfirmModal';
-import { saveConstraints, getConstraints } from '@/services/supabaseService';
+import { saveConstraints, getConstraints, updateUserProfile } from '@/services/supabaseService';
 import { PlusIcon } from '@/components/ui/icons';
 
 export default function OnboardingStep3() {
@@ -162,6 +162,11 @@ export default function OnboardingStep3() {
             }));
             await saveConstraints(constraintsForDb);
 
+            // Marquer l'onboarding comme terminé dans Supabase
+            await updateUserProfile({
+                onboarding_completed: true
+            });
+
             // Garder aussi en localStorage
             const existingData = localStorage.getItem('manae_onboarding');
             const parsedData = existingData ? JSON.parse(existingData) : {};
@@ -173,8 +178,9 @@ export default function OnboardingStep3() {
             };
             localStorage.setItem('manae_onboarding', JSON.stringify(payload));
 
-            console.log('Saved to Supabase and localStorage');
-            router.push('/onboarding/step4');
+            console.log('Onboarding completed, saved to Supabase');
+            // Rediriger vers capture (connexion Google Calendar se fait via profil)
+            router.push('/capture');
         } catch (error) {
             console.error('Error saving:', error);
             alert('Erreur lors de la sauvegarde');

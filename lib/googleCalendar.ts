@@ -19,7 +19,7 @@ export const openGoogleAuthPopup = (): Promise<string> => {
         // URL d'autorisation Google
         const authUrl = new URL('https://accounts.google.com/o/oauth2/v2/auth');
         authUrl.searchParams.append('client_id', GOOGLE_CLIENT_ID || '');
-        authUrl.searchParams.append('redirect_uri', `${window.location.origin}/onboarding/step4/callback`);
+        authUrl.searchParams.append('redirect_uri', `${window.location.origin}/auth/google/callback`);
         authUrl.searchParams.append('response_type', 'code');
         authUrl.searchParams.append('scope', SCOPES);
         authUrl.searchParams.append('access_type', 'offline');
@@ -69,7 +69,7 @@ export const openGoogleAuthPopup = (): Promise<string> => {
  * Le client_secret reste côté serveur
  */
 export const exchangeCodeForToken = async (code: string) => {
-    const redirectUri = `${window.location.origin}/onboarding/step4/callback`;
+    const redirectUri = `${window.location.origin}/auth/google/callback`;
 
     const response = await fetch('/api/auth/google', {
         method: 'POST',

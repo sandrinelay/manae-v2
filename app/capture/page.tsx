@@ -6,7 +6,7 @@ import { AppHeader } from '@/components/layout'
 import BottomNav from '@/components/layout/BottomNav'
 
 export default function CapturePage() {
-  const { user, isLoading } = useAuth()
+  const { user, firstName, isLoading } = useAuth()
 
   // Loading state
   if (isLoading) {
@@ -34,7 +34,7 @@ export default function CapturePage() {
   // Authenticated - show Header + CaptureFlow + BottomNav
   return (
     <div className="min-h-screen bg-mint flex flex-col">
-      <AppHeader userName={user.email?.split('@')[0]} />
+      <AppHeader userName={firstName || undefined} />
       <CaptureFlow
         userId={user.id}
         onSuccess={() => {

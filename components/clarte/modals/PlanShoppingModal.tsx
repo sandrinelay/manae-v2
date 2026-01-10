@@ -70,7 +70,7 @@ export function PlanShoppingModal({ itemCount, onClose, onSuccess }: PlanShoppin
       returnTo: 'clarte-shopping'
     }
     localStorage.setItem('manae_pending_planning', JSON.stringify(planningContext))
-    window.location.href = '/onboarding/step4?returnTo=planning'
+    window.location.href = '/profil?connectCalendar=true'
   }
 
   // Modal de succès
