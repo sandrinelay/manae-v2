@@ -92,7 +92,7 @@ async function getWaitlistUsers(): Promise<WaitlistUser[]> {
 
 async function inviteUser(email: string): Promise<boolean> {
   try {
-    const { data, error } = await supabaseAdmin.auth.admin.inviteUserByEmail(
+    const { error } = await supabaseAdmin.auth.admin.inviteUserByEmail(
       email,
       {
         redirectTo: `${APP_URL}/set-password`

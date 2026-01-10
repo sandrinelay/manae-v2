@@ -1,20 +1,13 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
-import type { Item, ItemType, ItemState, ItemFilters, UpdateItemInput } from '@/types/items'
+import type { Item, ItemState, ItemFilters, UpdateItemInput } from '@/types/items'
 import {
   getItems,
   getItem,
   getItemsCount,
-  getCapturedItems,
-  getActiveItems,
-  getPlannedItems,
-  getChildItems,
   updateItem,
   updateItemState,
-  markItemActive,
-  markItemCompleted,
-  markItemArchived,
   scheduleItem,
   deleteItem,
   deleteItems
@@ -246,7 +239,8 @@ export function useItems(options: UseItemsOptions = {}): UseItemsReturn {
     if (autoLoad) {
       loadItems(initialFilters)
     }
-  }, [autoLoad]) // Intentionally not including initialFilters to prevent loops
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autoLoad]) // Intentionally not including initialFilters/loadItems to prevent loops
 
   return {
     isLoading,

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, type ReactNode } from 'react'
+import { useState, useEffect } from 'react'
 import type { ItemType, ItemContext } from '@/types/items'
 import type { CaptureResult } from '@/services/capture'
 import { useScheduling } from '@/features/schedule/hooks/useScheduling'
@@ -156,7 +156,6 @@ export function CaptureModal({
   const [selectedType, setSelectedType] = useState<ItemType>(captureResult.suggestedType || 'task')
   const [selectedContext, setSelectedContext] = useState<ItemContext>(suggestedContext)
   const [savedItemId, setSavedItemId] = useState<string | null>(null)
-  const [showSuccessModal, setShowSuccessModal] = useState(false)
   const [successData, setSuccessData] = useState<{ task: string; date: string } | null>(null)
   const [isSaving, setIsSaving] = useState(false)
   const [showDevelopPanel, setShowDevelopPanel] = useState(false)
@@ -183,6 +182,7 @@ export function CaptureModal({
     if (currentStep === 'schedule' && savedItemId && isCalendarConnected) {
       scheduling.loadSlots()
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentStep, savedItemId, isCalendarConnected])
 
   // ============================================
@@ -273,7 +273,6 @@ export function CaptureModal({
         // Mode normal : afficher la modal de succès
         const dateLabel = formatScheduledDate(`${slotToSchedule.date}T${slotToSchedule.startTime}:00`)
         setSuccessData({ task: content, date: dateLabel })
-        setShowSuccessModal(true)
       }
     } catch (error) {
       console.error('Erreur planification:', error)
@@ -281,7 +280,7 @@ export function CaptureModal({
   }
 
   const handleSuccessClose = () => {
-    setShowSuccessModal(false)
+    setSuccessData(null)
     onSuccess?.()
     onClose()
   }

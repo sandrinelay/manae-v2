@@ -120,7 +120,7 @@ export async function POST(request: NextRequest) {
     let aiResponse: DevelopIdeaResponseAPI
     try {
       aiResponse = JSON.parse(cleanContent)
-    } catch (parseError) {
+    } catch {
       console.error('Failed to parse AI response:', cleanContent)
       return NextResponse.json(
         { error: 'Réponse IA invalide, veuillez réessayer' },

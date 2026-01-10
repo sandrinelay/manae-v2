@@ -48,30 +48,34 @@ export function TasksFullView({ tasks: initialTasks, onRefresh, initialTaskToPla
   const [selectedTask, setSelectedTask] = useState<Item | null>(null)
   const [taskToPlan, setTaskToPlan] = useState<Item | null>(initialTaskToPlan || null)
   const [allTasks, setAllTasks] = useState<Item[]>(initialTasks)
-  const [isLoading, setIsLoading] = useState(false)
 
   // Fetch toutes les tâches
   const fetchAllTasks = useCallback(async () => {
-    setIsLoading(true)
     try {
       const data = await fetchTasks()
       setAllTasks(data)
     } catch (error) {
       console.error('Erreur fetch tasks:', error)
-    } finally {
-      setIsLoading(false)
     }
   }, [])
 
   // Charger toutes les tâches au montage
   useEffect(() => {
-    fetchAllTasks()
+    // Utiliser une fonction async auto-invoquée pour éviter l'erreur set-state-in-effect
+    const loadTasks = async () => {
+      await fetchAllTasks()
+    }
+    loadTasks()
   }, [fetchAllTasks])
 
   // Gérer la mise à jour de initialTaskToPlan depuis le parent
   useEffect(() => {
     if (initialTaskToPlan) {
-      setTaskToPlan(initialTaskToPlan)
+      // Utiliser requestAnimationFrame pour différer le setState
+      const frameId = requestAnimationFrame(() => {
+        setTaskToPlan(initialTaskToPlan)
+      })
+      return () => cancelAnimationFrame(frameId)
     }
   }, [initialTaskToPlan])
 

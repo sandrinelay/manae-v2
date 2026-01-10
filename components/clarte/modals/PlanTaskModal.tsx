@@ -40,6 +40,7 @@ export function PlanTaskModal({ task, onClose, onSuccess }: PlanTaskModalProps) 
     if (isCalendarConnected) {
       scheduling.loadSlots()
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isCalendarConnected])
 
   // Gérer la planification

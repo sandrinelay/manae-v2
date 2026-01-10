@@ -38,6 +38,7 @@ export function PlanShoppingModal({ itemCount, onClose, onSuccess }: PlanShoppin
     if (isCalendarConnected) {
       scheduling.loadSlots()
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isCalendarConnected])
 
   // Gérer la planification

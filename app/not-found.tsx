@@ -16,7 +16,7 @@ export default function NotFound() {
       </h2>
 
       <p className="text-text-muted mb-8 text-center max-w-sm">
-        Cette page n'existe pas ou a été déplacée.
+        Cette page n&apos;existe pas ou a été déplacée.
         Pas de panique, on te ramène au bon endroit !
       </p>
 
@@ -24,7 +24,7 @@ export default function NotFound() {
         href="/clarte"
         className="px-6 py-3 bg-primary text-white rounded-xl font-medium hover:bg-primary/90 transition-colors"
       >
-        Retour à l'accueil
+        Retour à l&apos;accueil
       </Link>
     </div>
   )

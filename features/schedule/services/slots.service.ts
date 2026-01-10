@@ -31,16 +31,6 @@ const DEFAULT_DAY_BOUNDS: DayBounds = {
 
 const MIN_SLOT_DURATION = 30 // minutes minimum pour un créneau
 
-const DAY_MAP: Record<string, number> = {
-  sunday: 0,
-  monday: 1,
-  tuesday: 2,
-  wednesday: 3,
-  thursday: 4,
-  friday: 5,
-  saturday: 6
-}
-
 // Pondération du scoring selon l'urgence
 // Plus l'urgence est élevée, moins on optimise les préférences
 const URGENCY_WEIGHTS: Record<TemporalUrgency, { energy: number; mood: number }> = {

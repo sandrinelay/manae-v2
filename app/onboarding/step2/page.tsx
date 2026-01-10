@@ -103,7 +103,7 @@ export default function OnboardingStep2() {
                         Tes moments d&apos;énergie
                     </h2>
                     <p className="text-base text-text-medium mb-6 leading-relaxed">
-                        Quand préfères-tu avancer sur tes tâches ?
+                        Quand préfères-tu avancer sur tes tâches ? ()
                     </p>
 
                     <form onSubmit={handleSubmit}>
@@ -121,13 +121,6 @@ export default function OnboardingStep2() {
                                 />
                             ))}
                         </div>
-
-                        {/* Message d'aide si rien sélectionné */}
-                        {selectedMoments.length === 0 && (
-                            <p className="text-sm text-text-muted text-center mb-6">
-                                💡 Sélectionne au moins un créneau
-                            </p>
-                        )}
 
                         {/* Boutons navigation */}
                         <div className="flex gap-3 pt-4">

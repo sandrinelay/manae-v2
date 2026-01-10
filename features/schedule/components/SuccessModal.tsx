@@ -54,7 +54,7 @@ export function SuccessModal({ taskContent, scheduledDate, onClose }: SuccessMod
 
         {/* Titre */}
         <h3 className="text-2xl font-bold text-center text-text-dark mb-2 font-quicksand">
-          C'est calé !
+          C&apos;est calé !
         </h3>
 
         {/* Description */}

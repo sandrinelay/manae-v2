@@ -84,8 +84,6 @@ export function TaskCard({ item, mode = 'active', onMarkDone, onPlan, onTap }: T
   const cardOpacity = mode === 'stored' ? 'opacity-70' : ''
 
   // En mode active, la carte est cliquable pour ouvrir la modal
-  // En mode done/stored, aussi cliquable
-  const isClickable = !!onTap
   const showActions = mode === 'active'
 
   // Boutons selon l'état :

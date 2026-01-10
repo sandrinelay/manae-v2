@@ -22,7 +22,8 @@ interface IdeaDevelopPanelProps {
 
 export function IdeaDevelopPanel({
   itemId,
-  itemContent,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  itemContent: _itemContent,
   onClose,
   onDeveloped
 }: IdeaDevelopPanelProps) {

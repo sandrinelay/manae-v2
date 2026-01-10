@@ -12,11 +12,10 @@ interface ShoppingBlockProps {
   items: Item[]
   totalCount: number
   onToggleItem: (id: string) => void
-  onPlanShopping?: () => void
   onShowFullView?: () => void
 }
 
-export function ShoppingBlock({ items, totalCount, onToggleItem, onPlanShopping, onShowFullView }: ShoppingBlockProps) {
+export function ShoppingBlock({ items, totalCount, onToggleItem, onShowFullView }: ShoppingBlockProps) {
   const [isExpanded, setIsExpanded] = useState(false)
 
   // Nombre d'items visibles

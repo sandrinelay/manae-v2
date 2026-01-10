@@ -54,7 +54,7 @@ export function PreferencesSection({
           <div className="flex items-center gap-3">
             <ZapIcon className="w-5 h-5 text-amber-500" />
             <div className="text-left">
-              <p className="text-sm text-text-muted">Créneaux d'énergie</p>
+              <p className="text-sm text-text-muted">Créneaux d&apos;énergie</p>
               <p className="text-text-dark text-sm">{energySummary}</p>
             </div>
           </div>

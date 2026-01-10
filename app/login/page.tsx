@@ -1,13 +1,13 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { AuthLayout } from '@/components/auth/AuthLayout'
 import { Input } from '@/components/ui/Input'
 import { Button } from '@/components/ui/Button'
 import { createClient } from '@/lib/supabase/client'
 
-export default function LoginPage() {
+function LoginForm() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const redirectTo = searchParams.get('redirect') || '/clarte'
@@ -123,17 +123,33 @@ export default function LoginPage() {
         <p className="text-xs text-text-muted text-center">
           Accès réservé aux beta-testeurs invités.
           <br />
-          Tu n'as pas reçu d'invitation ?{' '}
+          Tu n&apos;as pas reçu d&apos;invitation ?{' '}
           <a
             href="https://manae.app"
             target="_blank"
             rel="noopener noreferrer"
             className="text-primary hover:underline"
           >
-            Rejoins la liste d'attente
+            Rejoins la liste d&apos;attente
           </a>
         </p>
       </div>
     </AuthLayout>
+  )
+}
+
+function LoginLoading() {
+  return (
+    <div className="min-h-screen bg-mint flex items-center justify-center">
+      <div className="animate-spin h-8 w-8 border-4 border-primary border-t-transparent rounded-full" />
+    </div>
+  )
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense fallback={<LoginLoading />}>
+      <LoginForm />
+    </Suspense>
   )
 }

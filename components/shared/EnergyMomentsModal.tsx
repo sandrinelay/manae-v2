@@ -73,7 +73,7 @@ export function EnergyMomentsModal({
         <div className="flex items-center justify-between p-4 border-b border-gray-100 shrink-0">
           <div>
             <h2 className="text-lg font-semibold text-text-dark">
-              Créneaux d'énergie
+              Créneaux d&apos;énergie
             </h2>
             <p className="text-sm text-text-muted">
               Quand préfères-tu avancer sur tes tâches ?

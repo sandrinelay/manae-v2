@@ -224,10 +224,6 @@ function ClartePageContent() {
     }
   }, [data, refetch])
 
-  const handlePlanShopping = useCallback(() => {
-    console.log('Plan shopping')
-  }, [])
-
   const handleSearch = useCallback((query: string) => {
     setSearchQuery(query)
   }, [])
@@ -407,7 +403,6 @@ function ClartePageContent() {
                     items={filteredShopping}
                     totalCount={filteredShopping.length}
                     onToggleItem={handleToggleShoppingItem}
-                    onPlanShopping={handlePlanShopping}
                     onShowFullView={() => setActiveFilter('shopping')}
                   />
                 )

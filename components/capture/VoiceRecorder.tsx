@@ -13,9 +13,10 @@ export default function VoiceRecorder({ onTranscription }: VoiceRecorderProps) {
     const chunksRef = useRef<Blob[]>([])
     const startTimeRef = useRef<number>(0)
 
-    const processTranscription = useCallback(async (audioBlob: Blob) => {
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const processTranscription = useCallback(async (_audioBlob: Blob) => {
         try {
-            // TODO: Replace with real Whisper API call
+            // TODO: Replace with real Whisper API call using _audioBlob
             // For now, simulate transcription
             await new Promise(resolve => setTimeout(resolve, 1000))
 

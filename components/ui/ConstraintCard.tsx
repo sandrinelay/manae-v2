@@ -1,5 +1,5 @@
 import React from 'react';
-import { Constraint, CATEGORY_CONFIG, DAYS_OF_WEEK } from '@/types';
+import { Constraint, DAYS_OF_WEEK } from '@/types';
 import {
     BriefcaseIcon,
     GraduationCapIcon,
@@ -36,7 +36,6 @@ export const ConstraintCard: React.FC<ConstraintCardProps> = ({
     onDelete
 }) => {
     const Icon = CATEGORY_ICONS[constraint.category];
-    const categoryInfo = CATEGORY_CONFIG[constraint.category];
     const selectedDays = DAYS_OF_WEEK.filter(day =>
         constraint.days.includes(day.id)
     ).map(day => day.label).join(' ');

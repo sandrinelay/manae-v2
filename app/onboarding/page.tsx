@@ -7,8 +7,6 @@ import { Button } from '@/components/ui/Button';
 import { OnboardingData, ValidationErrors } from '@/types';
 import { getOrCreateUserProfile, updateUserProfile } from '@/services/supabaseService';
 
-const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-
 export default function OnboardingStep1() {
     const router = useRouter();
     const [isLoading, setIsLoading] = useState(true);

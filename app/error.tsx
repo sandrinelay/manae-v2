@@ -22,7 +22,7 @@ export default function Error({ error, reset }: ErrorProps) {
 
       <p className="text-text-muted mb-8 text-center max-w-sm">
         Pas de panique, ça arrive parfois.
-        Tu peux réessayer ou revenir à l'accueil.
+        Tu peux réessayer ou revenir à l&apos;accueil.
       </p>
 
       <div className="flex gap-3">

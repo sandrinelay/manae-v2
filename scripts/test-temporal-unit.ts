@@ -267,7 +267,6 @@ for (const test of testCases) {
 
   // Extraire les dates du prompt
   const dateMatch = prompt.match(/AUJOURD'HUI : (\d{4}-\d{2}-\d{2})/)
-  const daysMatch = prompt.match(/JOURS : (.+)/)
 
   if (dateMatch) {
     console.log(`   📆 Aujourd'hui dans prompt: ${dateMatch[1]}`)

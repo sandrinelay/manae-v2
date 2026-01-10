@@ -6,8 +6,6 @@ import { CONTEXT_CONFIG } from '@/config/contexts'
 import {
   TaskIcon,
   XIcon,
-  CheckIcon,
-  CalendarIcon,
   ArchiveIcon,
   TrashIcon,
   EditIcon
@@ -19,8 +17,8 @@ import { formatRelativeTime, formatScheduledDateFull } from '@/lib/date-utils'
 interface TaskActiveModalProps {
   task: Item
   onClose: () => void
-  onMarkDone: (id: string) => void
-  onPlan: (id: string) => void
+  onMarkDone?: (id: string) => void
+  onPlan?: (id: string) => void
   onStore: (id: string) => void
   onDelete: (id: string) => void
   onEdit?: (id: string, content: string, context: ItemContext) => void
@@ -29,8 +27,11 @@ interface TaskActiveModalProps {
 export function TaskActiveModal({
   task,
   onClose,
-  onMarkDone,
-  onPlan,
+  // Props optionnelles conservées pour l'API mais non utilisées dans ce composant
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  onMarkDone: _onMarkDone,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  onPlan: _onPlan,
   onStore,
   onDelete,
   onEdit
@@ -46,7 +47,6 @@ export function TaskActiveModal({
   const ContextIcon = contextConfig.icon
 
   const isPlanned = task.state === 'planned'
-  const planButtonLabel = isPlanned ? 'Décaler' : 'Caler'
 
   // Liste des contextes pour le sélecteur
   const contexts: ItemContext[] = ['personal', 'family', 'work', 'health', 'other']

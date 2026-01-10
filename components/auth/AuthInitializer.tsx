@@ -10,8 +10,9 @@ export default function AuthInitializer() {
 
             if (!session) {
                 console.log('Initializing dev auth...')
-                const email = 'dev@manae.app'
-                const password = 'dev123456'
+                // Utilise ton vrai email ici pour le dev
+                const email = process.env.NEXT_PUBLIC_DEV_EMAIL || 'dev@manae.app'
+                const password = process.env.NEXT_PUBLIC_DEV_PASSWORD || 'dev123456'
 
                 // Try to sign in
                 const { error: signInError } = await supabase.auth.signInWithPassword({

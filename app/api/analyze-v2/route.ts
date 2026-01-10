@@ -103,7 +103,7 @@ export async function POST(request: NextRequest) {
         type: i.type,
         temporal_constraint: i.temporal_constraint
       })), null, 2))
-    } catch (parseError) {
+    } catch {
       console.error('Failed to parse AI response:', cleanContent)
       // Fallback sur règles basiques
       const fallbackResult = analyzeWithRules(rawText)

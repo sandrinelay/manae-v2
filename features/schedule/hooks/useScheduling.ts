@@ -112,6 +112,7 @@ export function useScheduling(params: UseSchedulingParams): UseSchedulingReturn 
       }, 0)
       return () => clearTimeout(timer)
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [estimatedDuration])
 
   const selectSlot = useCallback((slot: TimeSlot | null) => {

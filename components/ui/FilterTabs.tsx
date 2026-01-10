@@ -17,7 +17,8 @@ interface FilterTabsProps {
 
 export function FilterTabs({
   activeFilter,
-  counts,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  counts: _counts,
   onFilterChange,
   showIndicator = true,
   className = ''
@@ -27,7 +28,6 @@ export function FilterTabs({
       {FILTER_CONFIG.map((filter) => {
         const isActive = activeFilter === filter.id
         const Icon = filter.icon
-        const count = filter.countKey && counts ? counts[filter.countKey] : null
 
         return (
           <button

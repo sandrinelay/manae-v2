@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { CaptureModal, type ActionType, type MultiCaptureContext } from './CaptureModal'
+import { CaptureModal, type ActionType } from './CaptureModal'
 import type { ItemType, ItemContext } from '@/types/items'
 import type { MultiThoughtItem } from '@/services/capture'
 import { ChevronLeftIcon, ChevronRightIcon, XIcon } from '@/components/ui/icons'

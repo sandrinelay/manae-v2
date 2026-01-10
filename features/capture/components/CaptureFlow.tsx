@@ -10,7 +10,7 @@ import type { CaptureResult, MultiThoughtItem } from '@/services/capture'
 import type { ItemType, ItemContext, Mood as ItemMood } from '@/types/items'
 import type { ActionType } from './CaptureModal'
 import { useAIQuota } from '@/hooks/useAIQuota'
-import { MicrophoneIcon, CameraIcon, SpinnerIcon, SendIcon } from '@/components/ui/icons'
+import { SpinnerIcon, SendIcon } from '@/components/ui/icons'
 
 // Conversion des moods UI vers les moods DB
 function convertMoodToItemMood(mood: Mood | null): ItemMood | undefined {
