@@ -23,8 +23,8 @@ export function NoteRow({ item, onTap }: NoteRowProps) {
       <div className="flex items-start gap-2">
         <NoteIcon className="w-5 h-5 text-primary flex-shrink-0 mt-0.5" />
         <div className="flex-1 min-w-0">
-          <p className="text-text-dark truncate">{item.content}</p>
-          <div className={`flex items-center gap-1.5 text-xs mt-1 ${contextConfig.colorClass}`}>
+          <p className="typo-card-title truncate">{item.content}</p>
+          <div className={`flex items-center gap-1.5 typo-metadata mt-1 ${contextConfig.colorClass}`}>
             <ContextIcon className="w-3.5 h-3.5" />
             <span>{contextConfig.label}</span>
             <span className="text-text-muted">•</span>

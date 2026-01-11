@@ -54,7 +54,7 @@ export function IdeaCard({ item, onTap }: IdeaCardProps) {
         </div>
 
         {/* Titre (16px, max 3 lignes) */}
-        <h3 className="flex-1 text-base font-medium text-text-dark line-clamp-3 leading-snug">
+        <h3 className="flex-1 typo-card-title line-clamp-3">
           {title}
         </h3>
 

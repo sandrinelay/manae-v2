@@ -30,7 +30,7 @@ export function NotesBlock({ notes, totalCount, onTapNote, onShowFullView }: Not
         onClick={onShowFullView}
         className="w-full flex items-center justify-between mb-3 group"
       >
-        <h2 className="text-xs font-semibold text-primary uppercase tracking-wider group-hover:text-primary/80 transition-colors">
+        <h2 className="typo-section-label group-hover:text-primary/80 transition-colors">
           Notes
         </h2>
         <div className="flex items-center gap-2">

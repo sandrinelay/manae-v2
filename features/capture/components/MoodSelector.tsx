@@ -62,9 +62,14 @@ export function MoodSelector({ selectedMood, onSelectMood, disabled }: MoodSelec
 
   return (
     <div className="space-y-3">
-      <p className="text-xs font-semibold text-text-dark uppercase tracking-wide">
-        {SECTION_LABELS.moodQuestion}
-      </p>
+      <div>
+        <p className="typo-form-label">
+          {SECTION_LABELS.moodQuestion}
+        </p>
+        <p className="typo-hint mt-1">
+          {SECTION_LABELS.moodHint}
+        </p>
+      </div>
       <div className="flex gap-3">
         {MOODS.map((mood) => {
           const isSelected = selectedMood === mood.value

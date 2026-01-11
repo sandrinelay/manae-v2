@@ -4,6 +4,7 @@ import { useRef, useEffect } from 'react'
 import { useIdeaDevelop } from '../hooks/useIdeaDevelop'
 import { BLOCKER_CONFIG } from '../types'
 import type { IdeaBlocker } from '../types'
+import { ActionButton } from '@/components/ui/ActionButton'
 
 // ============================================
 // TYPES
@@ -152,15 +153,13 @@ export function IdeaDevelopPanel({
           )}
 
           {/* Bouton créer le projet */}
-          <button
+          <ActionButton
+            label="Créer mon projet"
+            variant="save"
             onClick={develop}
             disabled={!canDevelop || isLoading}
-            className="w-full py-3 px-4 bg-primary text-white rounded-xl
-                       font-medium hover:opacity-90 transition-colors
-                       disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            Créer mon projet
-          </button>
+            fullWidth
+          />
         </div>
       )}
 
@@ -249,19 +248,15 @@ export function IdeaDevelopPanel({
 
           {/* Actions finales */}
           <div className="flex gap-3 pt-2">
-            <button
+            <ActionButton
+              label="Fermer"
+              variant="secondary"
               onClick={onClose}
-              className="flex-1 py-3 px-4 border border-border rounded-xl
-                         text-sm font-medium text-text-dark hover:bg-gray-light
-                         transition-colors"
-            >
-              Fermer
-            </button>
+              className="flex-1"
+            />
             <a
               href={`/projects/${result.project.id}`}
-              className="flex-1 py-3 px-4 bg-primary text-white rounded-xl
-                         text-sm font-medium text-center hover:opacity-90
-                         transition-colors"
+              className="flex-1 h-12 px-5 rounded-xl font-medium flex items-center justify-center bg-primary text-white hover:bg-primary/90 transition-all"
             >
               Voir le projet
             </a>

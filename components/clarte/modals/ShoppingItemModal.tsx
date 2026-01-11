@@ -37,7 +37,6 @@ export function ShoppingItemModal({
   const [editCategory, setEditCategory] = useState<ShoppingCategory>(
     (item.shopping_category as ShoppingCategory) || 'other'
   )
-  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const inputRef = useRef<HTMLInputElement>(null)
 
   const isCompleted = item.state === 'completed'
@@ -91,169 +90,141 @@ export function ShoppingItemModal({
 
       {/* Modal */}
       <div className="fixed inset-x-4 top-1/2 -translate-y-1/2 z-50 bg-white rounded-2xl shadow-2xl max-w-lg mx-auto animate-scale-in">
-        {/* Confirmation de suppression */}
-        {showDeleteConfirm ? (
-          <div className="p-6 space-y-4">
-            <h3 className="text-lg font-medium text-text-dark">
-              Supprimer cet article ?
-            </h3>
-            <p className="text-sm text-text-muted">
-              Cette action est irréversible.
-            </p>
-            <div className="flex gap-3 pt-2">
-              <button
-                onClick={() => setShowDeleteConfirm(false)}
-                className="flex-1 py-2.5 px-4 rounded-xl border border-border hover:bg-gray-50 transition-colors text-text-dark"
-              >
-                Annuler
-              </button>
-              <button
-                onClick={handleDelete}
-                className="flex-1 py-2.5 px-4 rounded-xl bg-red-500 text-white hover:bg-red-600 transition-colors"
-              >
-                Supprimer
-              </button>
-            </div>
+        {/* Header */}
+        <div className="flex items-center justify-between p-4 border-b border-border">
+          <div className="flex items-center gap-2 text-primary">
+            <ShoppingIcon className="w-5 h-5" />
+            <span className="font-medium">
+              {isEditMode ? 'Modifier l\'article' : 'Article'}
+            </span>
           </div>
-        ) : (
-          <>
-            {/* Header */}
-            <div className="flex items-center justify-between p-4 border-b border-border">
-              <div className="flex items-center gap-2 text-primary">
-                <ShoppingIcon className="w-5 h-5" />
-                <span className="font-medium">
-                  {isEditMode ? 'Modifier l\'article' : 'Article'}
-                </span>
+          <button
+            onClick={isEditMode ? handleCancel : onClose}
+            aria-label={isEditMode ? 'Annuler' : 'Fermer'}
+            className="p-2 hover:bg-gray-100 rounded-full transition-colors"
+          >
+            <XIcon className="w-5 h-5 text-text-muted" />
+          </button>
+        </div>
+
+        {/* Contenu */}
+        <div className="p-4">
+          {isEditMode ? (
+            <>
+              {/* Input éditable */}
+              <input
+                ref={inputRef}
+                type="text"
+                value={editContent}
+                onChange={(e) => setEditContent(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && isContentValid && hasChanges) {
+                    handleSave()
+                  }
+                }}
+                className="input-field text-lg"
+                placeholder="Nom de l'article..."
+              />
+
+              {/* Sélecteur de catégorie */}
+              <div className="mt-4">
+                <p className="text-sm text-text-muted mb-2">Catégorie</p>
+                <div className="flex flex-wrap gap-2">
+                  {SHOPPING_CATEGORIES.map((cat) => {
+                    const catConfig = SHOPPING_CATEGORY_CONFIG[cat]
+                    const CatIcon = catConfig.icon
+                    const isSelected = editCategory === cat
+
+                    return (
+                      <button
+                        key={cat}
+                        onClick={() => setEditCategory(cat)}
+                        className={`
+                          flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm transition-colors
+                          ${isSelected
+                            ? `${catConfig.bgClass} ${catConfig.colorClass} border-2 border-current`
+                            : 'bg-gray-100 text-text-muted border-2 border-transparent hover:bg-gray-200'
+                          }
+                        `}
+                      >
+                        <CatIcon className="w-4 h-4" />
+                        <span>{catConfig.label}</span>
+                      </button>
+                    )
+                  })}
+                </div>
               </div>
-              <button
-                onClick={isEditMode ? handleCancel : onClose}
-                aria-label={isEditMode ? 'Annuler' : 'Fermer'}
-                className="p-2 hover:bg-gray-100 rounded-full transition-colors"
-              >
-                <XIcon className="w-5 h-5 text-text-muted" />
-              </button>
-            </div>
+            </>
+          ) : (
+            <>
+              {/* Affichage lecture seule */}
+              <p className={`typo-modal-content ${isCompleted ? 'line-through text-text-muted' : ''}`}>
+                {item.content}
+              </p>
 
-            {/* Contenu */}
-            <div className="p-4">
-              {isEditMode ? (
-                <>
-                  {/* Input éditable */}
-                  <input
-                    ref={inputRef}
-                    type="text"
-                    value={editContent}
-                    onChange={(e) => setEditContent(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter' && isContentValid && hasChanges) {
-                        handleSave()
-                      }
-                    }}
-                    className="w-full text-text-dark text-lg border border-border rounded-xl p-3 focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary"
-                    placeholder="Nom de l'article..."
-                  />
+              <div className={`flex items-center gap-1.5 text-sm mt-4 ${categoryConfig.colorClass}`}>
+                <CategoryIcon className="w-4 h-4" />
+                <span>{categoryConfig.label}</span>
+                {isCompleted && (
+                  <>
+                    <span className="text-text-muted">•</span>
+                    <span className="text-text-muted">Acheté</span>
+                  </>
+                )}
+              </div>
+            </>
+          )}
+        </div>
 
-                  {/* Sélecteur de catégorie */}
-                  <div className="mt-4">
-                    <p className="text-sm text-text-muted mb-2">Catégorie</p>
-                    <div className="flex flex-wrap gap-2">
-                      {SHOPPING_CATEGORIES.map((cat) => {
-                        const catConfig = SHOPPING_CATEGORY_CONFIG[cat]
-                        const CatIcon = catConfig.icon
-                        const isSelected = editCategory === cat
+        {/* Actions */}
+        <div className="flex gap-2 p-4 border-t border-border">
+          {isEditMode ? (
+            <>
+              <ActionButton
+                label="Annuler"
+                variant="secondary"
+                onClick={handleCancel}
+                className="flex-1"
+              />
+              <ActionButton
+                label="Enregistrer"
+                variant="save"
+                onClick={handleSave}
+                disabled={!isContentValid || !hasChanges}
+                className="flex-1"
+              />
+            </>
+          ) : (
+            <>
+              {/* Acheté / Non acheté */}
+              <ActionButton
+                label={isCompleted ? 'Non acheté' : 'Acheté'}
+                icon={<CheckIcon />}
+                variant={isCompleted ? 'secondary' : 'done'}
+                onClick={handleToggle}
+                className="flex-1"
+              />
 
-                        return (
-                          <button
-                            key={cat}
-                            onClick={() => setEditCategory(cat)}
-                            className={`
-                              flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm transition-colors
-                              ${isSelected
-                                ? `${catConfig.bgClass} ${catConfig.colorClass} border-2 border-current`
-                                : 'bg-gray-100 text-text-muted border-2 border-transparent hover:bg-gray-200'
-                              }
-                            `}
-                          >
-                            <CatIcon className="w-4 h-4" />
-                            <span>{catConfig.label}</span>
-                          </button>
-                        )
-                      })}
-                    </div>
-                  </div>
-                </>
-              ) : (
-                <>
-                  {/* Affichage lecture seule */}
-                  <p className={`text-lg ${isCompleted ? 'line-through text-text-muted' : 'text-text-dark'}`}>
-                    {item.content}
-                  </p>
+              {/* Modifier */}
+              <ActionButton
+                label="Modifier"
+                icon={<EditIcon />}
+                variant="secondary"
+                onClick={() => setIsEditMode(true)}
+                className="flex-1"
+              />
 
-                  <div className={`flex items-center gap-1.5 text-sm mt-4 ${categoryConfig.colorClass}`}>
-                    <CategoryIcon className="w-4 h-4" />
-                    <span>{categoryConfig.label}</span>
-                    {isCompleted && (
-                      <>
-                        <span className="text-text-muted">•</span>
-                        <span className="text-text-muted">Acheté</span>
-                      </>
-                    )}
-                  </div>
-                </>
-              )}
-            </div>
-
-            {/* Actions */}
-            <div className="flex gap-2 p-4 border-t border-border">
-              {isEditMode ? (
-                <>
-                  <ActionButton
-                    label="Annuler"
-                    variant="secondary"
-                    onClick={handleCancel}
-                    className="flex-1"
-                  />
-                  <ActionButton
-                    label="Enregistrer"
-                    variant="save"
-                    onClick={handleSave}
-                    disabled={!isContentValid || !hasChanges}
-                    className="flex-1"
-                  />
-                </>
-              ) : (
-                <>
-                  {/* Acheté / Non acheté */}
-                  <ActionButton
-                    label={isCompleted ? 'Non acheté' : 'Acheté'}
-                    icon={<CheckIcon />}
-                    variant={isCompleted ? 'secondary' : 'done'}
-                    onClick={handleToggle}
-                    className="flex-1"
-                  />
-
-                  {/* Modifier */}
-                  <ActionButton
-                    label="Modifier"
-                    icon={<EditIcon />}
-                    variant="secondary"
-                    onClick={() => setIsEditMode(true)}
-                    className="flex-1"
-                  />
-
-                  {/* Supprimer */}
-                  <IconButton
-                    icon={<TrashIcon />}
-                    label="Supprimer"
-                    variant="danger"
-                    size="md"
-                    onClick={() => setShowDeleteConfirm(true)}
-                  />
-                </>
-              )}
-            </div>
-          </>
-        )}
+              {/* Supprimer */}
+              <IconButton
+                icon={<TrashIcon />}
+                label="Supprimer"
+                variant="danger"
+                size="md"
+                onClick={handleDelete}
+              />
+            </>
+          )}
+        </div>
       </div>
     </>
   )

@@ -2,7 +2,7 @@
 
 import React, { useEffect, useSyncExternalStore } from 'react';
 import { createPortal } from 'react-dom';
-import { Button } from './Button';
+import { ActionButton } from './ActionButton';
 
 interface DeleteConfirmModalProps {
     itemName: string;
@@ -101,8 +101,7 @@ export const DeleteConfirmModal: React.FC<DeleteConfirmModalProps> = ({
                 onClick={handleModalClick}
             >
                 {/* Header */}
-                <div className="flex items-center gap-3 mb-4">
-                    <span className="text-3xl">🗑️</span>
+                <div className="mb-4">
                     <h3 className="text-xl font-bold text-text-dark">
                         Supprimer l&apos;indisponibilité ?
                     </h3>
@@ -116,28 +115,27 @@ export const DeleteConfirmModal: React.FC<DeleteConfirmModalProps> = ({
 
                     <div className="bg-red-50 border-l-4 border-red-500 p-3 rounded-lg">
                         <p className="text-sm text-red-700 leading-relaxed">
-                            ⚠️ Cette action est irréversible.
+                            Cette action est irréversible.
                         </p>
                     </div>
                 </div>
 
                 {/* Boutons */}
                 <div className="flex gap-3">
-                    <Button
+                    <ActionButton
                         type="button"
+                        label="Annuler"
                         variant="secondary"
                         onClick={handleCancel}
                         className="flex-1"
-                    >
-                        Annuler
-                    </Button>
-                    <Button
+                    />
+                    <ActionButton
                         type="button"
+                        label="Supprimer"
+                        variant="delete"
                         onClick={handleConfirm}
-                        className="flex-1 bg-red-500 hover:bg-red-600 text-white"
-                    >
-                        Supprimer
-                    </Button>
+                        className="flex-1"
+                    />
                 </div>
             </div>
         </div>

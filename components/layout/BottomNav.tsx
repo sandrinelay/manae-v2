@@ -35,7 +35,7 @@ export default function BottomNav() {
                   : 'text-text-muted hover:bg-gray-light'
                 }
               `}>
-                <Icon className="w-[22px] h-[22px]" />
+                <Icon className="w-6 h-6" />
               </div>
               {/* Label */}
               <span className={`

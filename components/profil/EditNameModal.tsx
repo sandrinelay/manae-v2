@@ -73,7 +73,7 @@ export function EditNameModal({
               value={newFirstName}
               onChange={(e) => setNewFirstName(e.target.value)}
               placeholder="Ton prénom"
-              className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all"
+              className="input-field"
               autoFocus
             />
           </div>
@@ -88,7 +88,7 @@ export function EditNameModal({
               value={newLastName}
               onChange={(e) => setNewLastName(e.target.value)}
               placeholder="Ton nom"
-              className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all"
+              className="input-field"
             />
           </div>
         </div>

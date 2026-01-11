@@ -60,16 +60,18 @@ export function useAuth() {
 
         // Listen for auth changes
         const { data: { subscription } } = supabase.auth.onAuthStateChange(
-            async (event, session) => {
+            (_event, session) => {
                 if (session?.user) {
                     setUser(session.user)
                     setIsAnonymous(session.user.is_anonymous ?? false)
-                    // Récupérer le prénom lors des changements d'auth
-                    await fetchUserProfile(session.user.id)
+                    setIsLoading(false) // Immédiatement après avoir le user
+                    // Récupérer le prénom en arrière-plan (non bloquant)
+                    fetchUserProfile(session.user.id)
                 } else {
                     setUser(null)
                     setFirstName(null)
                     setIsAnonymous(false)
+                    setIsLoading(false)
                 }
             }
         )

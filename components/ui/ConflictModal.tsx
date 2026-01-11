@@ -2,7 +2,7 @@
 
 import React, { useEffect, useSyncExternalStore } from 'react';
 import { createPortal } from 'react-dom';
-import { Button } from './Button';
+import { ActionButton } from './ActionButton';
 import { Constraint } from '@/types';
 
 interface ConflictModalProps {
@@ -110,8 +110,7 @@ export const ConflictModal: React.FC<ConflictModalProps> = ({
                 onClick={handleModalClick}
             >
                 {/* Header */}
-                <div className="flex items-center gap-3 mb-4">
-                    <span className="text-3xl">⚠️</span>
+                <div className="mb-4">
                     <h3 className="text-xl font-bold text-text-dark">
                         Chevauchement détecté
                     </h3>
@@ -127,7 +126,7 @@ export const ConflictModal: React.FC<ConflictModalProps> = ({
 
                     <div className="bg-mint border-l-4 border-primary p-3 rounded-lg">
                         <p className="text-sm text-text-medium leading-relaxed">
-                            💡 Tu peux avoir 2 indisponibilités en même temps, mais l&apos;IA ne pourra pas
+                            Tu peux avoir 2 indisponibilités en même temps, mais l&apos;IA ne pourra pas
                             suggérer de tâches pendant ces créneaux.
                         </p>
                     </div>
@@ -155,21 +154,20 @@ export const ConflictModal: React.FC<ConflictModalProps> = ({
 
                 {/* Boutons */}
                 <div className="flex gap-3">
-                    <Button
+                    <ActionButton
                         type="button"
+                        label="← Modifier"
                         variant="secondary"
                         onClick={handleCancel}
                         className="flex-1"
-                    >
-                        ← Modifier
-                    </Button>
-                    <Button
+                    />
+                    <ActionButton
                         type="button"
+                        label="Ajouter quand même →"
+                        variant="save"
                         onClick={handleConfirm}
                         className="flex-1"
-                    >
-                        Ajouter quand même →
-                    </Button>
+                    />
                 </div>
             </div>
         </div>

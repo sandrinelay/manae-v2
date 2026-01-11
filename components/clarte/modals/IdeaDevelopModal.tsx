@@ -23,10 +23,7 @@ export function IdeaDevelopModal({ idea, onClose, onDeveloped }: IdeaDevelopModa
       <div className="fixed inset-x-4 top-1/2 -translate-y-1/2 z-50 bg-white rounded-2xl shadow-2xl max-w-lg mx-auto animate-scale-in max-h-[85vh] overflow-y-auto">
         {/* Header */}
         <div className="sticky top-0 bg-white flex items-center justify-between p-4 border-b border-border rounded-t-2xl">
-          <div className="flex items-center gap-2 text-primary">
-            <span className="text-xl">✨</span>
-            <span className="font-medium">Développer l&apos;idée</span>
-          </div>
+          <span className="font-medium text-primary">Développer l&apos;idée</span>
           <button
             onClick={onClose}
             aria-label="Fermer"

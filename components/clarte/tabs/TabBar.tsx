@@ -24,7 +24,7 @@ export function TabBar({ tabs, activeTab, onTabChange, className = '' }: TabBarP
             key={tab.id}
             onClick={() => onTabChange(tab.id)}
             className={`
-              pb-2 text-sm font-medium transition-colors
+              pb-2 typo-tab transition-colors
               border-b-2
               ${isActive
                 ? 'text-secondary border-secondary'

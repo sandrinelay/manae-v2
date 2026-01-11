@@ -32,10 +32,7 @@ export function IdeaDetailModal({ idea, onClose, onDevelop, onArchive, onDelete 
       <div className="fixed inset-x-4 top-1/2 -translate-y-1/2 z-50 bg-white rounded-2xl shadow-2xl max-w-lg mx-auto animate-scale-in">
         {/* Header */}
         <div className="flex items-center justify-between p-4 border-b border-border">
-          <div className="flex items-center gap-2 text-primary">
-            <span className="text-xl">💡</span>
-            <span className="font-medium">Idée</span>
-          </div>
+          <span className="font-medium text-primary">Idée</span>
           <button
             onClick={onClose}
             aria-label="Fermer"

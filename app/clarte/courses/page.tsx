@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { ChevronLeft, Plus, Trash2, Calendar, Edit2 } from 'lucide-react'
 import BottomNav from '@/components/layout/BottomNav'
+import { ActionButton } from '@/components/ui/ActionButton'
 import {
   fetchActiveShoppingList,
   fetchShoppingListItems,
@@ -141,16 +142,15 @@ export default function CoursesPage() {
                     value={newItemText}
                     onChange={(e) => setNewItemText(e.target.value)}
                     placeholder="Ajouter un article..."
-                    className="w-full pl-10 pr-4 py-3 bg-white border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary"
+                    className="input-field pl-10 pr-4"
                   />
                 </div>
-                <button
+                <ActionButton
                   type="submit"
+                  label="Ajouter"
+                  variant="save"
                   disabled={!newItemText.trim() || isAdding}
-                  className="px-4 py-3 bg-primary text-white rounded-xl font-medium disabled:opacity-50 disabled:cursor-not-allowed hover:bg-primary-dark transition-colors"
-                >
-                  Ajouter
-                </button>
+                />
               </form>
 
               {/* Liste des items */}

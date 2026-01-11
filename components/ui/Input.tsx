@@ -22,13 +22,10 @@ export const Input: React.FC<InputProps> = ({
             <input
                 {...props}
                 className={`
-          w-full px-4 py-3.5 
-          text-base text-text-dark placeholder-text-muted
-          bg-white border-2 rounded-xl 
-          transition-all duration-200 outline-none
+          input-field py-3.5
           ${error
                         ? 'border-red-400 focus:border-red-500 focus:ring-2 focus:ring-red-100'
-                        : 'border-border focus:border-primary focus:ring-2 focus:ring-primary/10'
+                        : ''
                     }
           disabled:bg-gray-light disabled:cursor-not-allowed disabled:opacity-60
           ${className}

@@ -11,6 +11,7 @@ import type { ItemType, ItemContext, Mood as ItemMood } from '@/types/items'
 import type { ActionType } from './CaptureModal'
 import { useAIQuota } from '@/hooks/useAIQuota'
 import { SpinnerIcon, SendIcon } from '@/components/ui/icons'
+import { ActionButton } from '@/components/ui/ActionButton'
 
 // Conversion des moods UI vers les moods DB
 function convertMoodToItemMood(mood: Mood | null): ItemMood | undefined {
@@ -248,7 +249,7 @@ export function CaptureFlow({ userId, onSuccess }: CaptureFlowProps) {
         <h1 className="text-xl font-bold text-text-dark mb-1">
           Qu&apos;as-tu en tête ?
         </h1>
-        <p className="text-sm text-text-muted mb-4">
+        <p className="typo-hint mb-4">
           Tâches, notes, idées, courses... Dépose tout ici.
         </p>
 
@@ -259,7 +260,7 @@ export function CaptureFlow({ userId, onSuccess }: CaptureFlowProps) {
           onChange={(e) => setContent(e.target.value)}
           placeholder="Ex: Acheter du café, améliorer ma routine du matin, penser à envoyer le mail à Lena, réserver un créneau sport"
           rows={4}
-          className="w-full p-4 text-base border border-border rounded-2xl focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all resize-none text-text-dark placeholder:text-text-muted bg-white"
+          className="input-field p-4 rounded-2xl resize-none"
           disabled={isCapturing}
         />
 
@@ -335,12 +336,12 @@ export function CaptureFlow({ userId, onSuccess }: CaptureFlowProps) {
                 Tes pensées seront enregistrées sans analyse automatique.
                 Tu pourras les trier manuellement dans &quot;Ma Liste&quot;.
               </p>
-              <button
+              <ActionButton
+                label="Passer au forfait Plus"
+                variant="save"
                 onClick={handleUpgrade}
-                className="mt-3 px-4 py-2 bg-primary text-white text-sm font-medium rounded-lg hover:bg-primary/90 transition-colors"
-              >
-                Passer au forfait Plus
-              </button>
+                className="mt-3"
+              />
             </div>
           )}
         </div>
@@ -366,7 +367,7 @@ export function CaptureFlow({ userId, onSuccess }: CaptureFlowProps) {
           </>
         ) : (
           <>
-            Capturer mes pensées
+            Je dépose
             <SendIcon className="w-5 h-5" />
           </>
         )}

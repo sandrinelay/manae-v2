@@ -9,7 +9,10 @@ import {
   updateItemState
 } from '@/services/items.service'
 import type { Item, ItemState } from '@/types/items'
-import { ArrowLeftIcon, CheckIcon, CircleIcon } from '@/components/ui/icons'
+import { ArrowLeftIcon, CheckIcon, CircleIcon, ArchiveIcon, TrashIcon } from '@/components/ui/icons'
+import { IconButton } from '@/components/ui/IconButton'
+import { ActionButton } from '@/components/ui/ActionButton'
+import { archiveItem, deleteItem } from '@/services/items.service'
 
 // ============================================
 // TYPES
@@ -31,6 +34,7 @@ export default function ProjectPage() {
   const [project, setProject] = useState<ProjectWithSteps | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
 
   const projectId = params.id as string
 
@@ -74,9 +78,8 @@ export default function ProjectPage() {
       router.push('/login')
       return
     }
-
     loadProject()
-  }, [isAuthLoading, user, router, loadProject])
+  }, [isAuthLoading, user, router, loadProject, projectId])
 
   // ============================================
   // HANDLERS
@@ -114,6 +117,24 @@ export default function ProjectPage() {
       })
     }
   }, [project])
+
+  const handleArchive = useCallback(async () => {
+    try {
+      await archiveItem(projectId)
+      router.push('/clarte')
+    } catch (err) {
+      console.error('Erreur archivage:', err)
+    }
+  }, [projectId, router])
+
+  const handleDelete = useCallback(async () => {
+    try {
+      await deleteItem(projectId)
+      router.push('/clarte')
+    } catch (err) {
+      console.error('Erreur suppression:', err)
+    }
+  }, [projectId, router])
 
   // ============================================
   // RENDER
@@ -158,7 +179,7 @@ export default function ProjectPage() {
   return (
     <div className="min-h-screen bg-background pb-24">
       {/* Header */}
-      <header className="bg-white border-b border-border p-4">
+      <header className="bg-white border-b border-border p-4 flex items-center justify-between">
         <button
           onClick={() => router.back()}
           className="flex items-center gap-2 text-text-muted hover:text-text-dark"
@@ -166,6 +187,22 @@ export default function ProjectPage() {
           <ArrowLeftIcon className="w-6 h-6" />
           <span>Retour</span>
         </button>
+        <div className="flex items-center gap-2">
+          <IconButton
+            icon={<ArchiveIcon className="w-5 h-5" />}
+            label="Ranger"
+            variant="ghost"
+            size="md"
+            onClick={handleArchive}
+          />
+          <IconButton
+            icon={<TrashIcon className="w-5 h-5" />}
+            label="Supprimer"
+            variant="danger"
+            size="md"
+            onClick={() => setShowDeleteConfirm(true)}
+          />
+        </div>
       </header>
 
       <main className="p-6 space-y-6">
@@ -284,6 +321,40 @@ export default function ProjectPage() {
         </div>
 
       </main>
+
+      {/* Modal de confirmation de suppression */}
+      {showDeleteConfirm && (
+        <>
+          <div
+            className="fixed inset-0 bg-black/50 z-40"
+            onClick={() => setShowDeleteConfirm(false)}
+          />
+          <div className="fixed inset-x-4 top-1/2 -translate-y-1/2 z-50 bg-white rounded-2xl shadow-2xl max-w-sm mx-auto">
+            <div className="p-6 space-y-4">
+              <h3 className="text-lg font-semibold text-text-dark">
+                Supprimer ce projet ?
+              </h3>
+              <p className="text-sm text-text-muted">
+                Le projet et toutes ses étapes seront supprimés. Cette action est irréversible.
+              </p>
+            </div>
+            <div className="flex gap-3 p-4 border-t border-gray-100">
+              <ActionButton
+                label="Annuler"
+                variant="secondary"
+                onClick={() => setShowDeleteConfirm(false)}
+                className="flex-1"
+              />
+              <ActionButton
+                label="Supprimer"
+                variant="delete"
+                onClick={handleDelete}
+                className="flex-1"
+              />
+            </div>
+          </div>
+        </>
+      )}
     </div>
   )
 }

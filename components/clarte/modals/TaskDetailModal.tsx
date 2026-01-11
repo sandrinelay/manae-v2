@@ -81,7 +81,7 @@ export function TaskDetailModal({
         {/* Confirmation de suppression */}
         {showDeleteConfirm ? (
           <div className="p-6 space-y-4">
-            <h3 className="text-lg font-medium text-text-dark">
+            <h3 className="text-lg font-semibold text-text-dark">
               Supprimer cette tâche ?
             </h3>
             <p className="text-sm text-text-muted">
@@ -121,7 +121,7 @@ export function TaskDetailModal({
 
             {/* Contenu */}
             <div className="p-4">
-              <p className="text-text-dark text-lg">{task.content}</p>
+              <p className="typo-modal-content">{task.content}</p>
 
               <div className={`flex items-center gap-1.5 text-sm mt-4 ${contextConfig.colorClass}`}>
                 <ContextIcon className="w-4 h-4" />

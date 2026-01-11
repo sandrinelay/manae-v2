@@ -103,7 +103,7 @@ export function NoteDetailModal({ note, onClose, onEdit, onArchive, onDelete }: 
                 ref={textareaRef}
                 value={editContent}
                 onChange={handleContentChange}
-                className="w-full text-text-dark text-lg resize-none border border-border rounded-xl p-3 focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary"
+                className="input-field text-lg resize-none"
                 style={{ minHeight: '80px', maxHeight: '200px' }}
                 placeholder="Contenu de la note..."
               />
@@ -140,7 +140,7 @@ export function NoteDetailModal({ note, onClose, onEdit, onArchive, onDelete }: 
           ) : (
             <>
               {/* Affichage lecture seule */}
-              <p className="text-text-dark text-lg whitespace-pre-wrap">{note.content}</p>
+              <p className="typo-modal-content whitespace-pre-wrap">{note.content}</p>
 
               <div className={`flex items-center gap-1.5 text-sm mt-4 ${contextConfig.colorClass}`}>
                 <ContextIcon className="w-4 h-4" />

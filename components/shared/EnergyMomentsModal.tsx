@@ -117,14 +117,14 @@ export function EnergyMomentsModal({
             label="Annuler"
             variant="secondary"
             onClick={onClose}
-            className="flex-1 !h-9 !text-sm !px-3"
+            className="flex-1"
           />
           <ActionButton
             label={isSaving ? 'Enregistrement...' : 'Enregistrer'}
             variant="save"
             onClick={handleSave}
             disabled={selected.length === 0 || !hasChanges || isSaving}
-            className="flex-1 !h-9 !text-sm !px-3"
+            className="flex-1"
           />
         </div>
       </div>

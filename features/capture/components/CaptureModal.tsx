@@ -659,20 +659,19 @@ export function CaptureModal({
 
         {/* Footer Actions - toujours visible en bas */}
         <div className="mt-4 pt-4 border-t border-border flex gap-3 bg-white sticky bottom-0">
-          <button
+          <ActionButton
+            label="Annuler"
+            variant="secondary"
             onClick={handleBack}
-            className="flex-1 px-6 py-3 border-2 border-border rounded-lg font-medium text-text-dark hover:bg-gray-50 transition-colors"
-          >
-            Annuler
-          </button>
-
-          <button
+            className="flex-1"
+          />
+          <ActionButton
+            label={scheduling.isLoading ? 'En cours...' : 'Caler'}
+            variant="plan"
             onClick={handleSchedule}
             disabled={!scheduling.selectedSlot || scheduling.isLoading}
-            className="flex-1 px-6 py-3 bg-primary text-white rounded-lg font-medium hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {scheduling.isLoading ? 'En cours...' : 'Caler'}
-          </button>
+            className="flex-1"
+          />
         </div>
       </div>
     )
@@ -741,20 +740,19 @@ export function CaptureModal({
         {/* Footer Actions - Schedule step only */}
         {currentStep === 'schedule' ? (
           <div className="p-4 border-t border-border bg-white flex gap-3">
-            <button
+            <ActionButton
+              label="Annuler"
+              variant="secondary"
               onClick={handleBack}
-              className="flex-1 px-6 py-3 border-2 border-border rounded-lg font-medium text-text-dark hover:bg-gray-50 transition-colors"
-            >
-              Annuler
-            </button>
-
-            <button
+              className="flex-1"
+            />
+            <ActionButton
+              label={scheduling.isLoading ? 'En cours...' : 'Caler'}
+              variant="plan"
               onClick={handleSchedule}
               disabled={!scheduling.selectedSlot || scheduling.isLoading}
-              className="flex-1 px-6 py-3 bg-primary text-white rounded-lg font-medium hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {scheduling.isLoading ? 'En cours...' : 'Caler'}
-            </button>
+              className="flex-1"
+            />
           </div>
         ) : null}
       </div>

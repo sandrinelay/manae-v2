@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { LogOutIcon, XIcon } from '@/components/ui/icons'
+import { LogOutIcon } from '@/components/ui/icons'
 import { ActionButton } from '@/components/ui/ActionButton'
 
 interface LogoutButtonProps {
@@ -44,23 +44,12 @@ export function LogoutButton({ onLogout }: LogoutButtonProps) {
 
           {/* Modal */}
           <div className="fixed inset-x-4 top-1/2 -translate-y-1/2 z-50 bg-white rounded-2xl shadow-2xl max-w-sm mx-auto">
-            {/* Header */}
-            <div className="flex items-center justify-between p-4 border-b border-gray-100">
-              <h2 className="text-lg font-semibold text-text-dark">
-                Se déconnecter ?
-              </h2>
-              <button
-                onClick={() => setShowConfirm(false)}
-                className="p-2 rounded-full hover:bg-gray-100 transition-colors"
-                aria-label="Fermer"
-              >
-                <XIcon className="w-5 h-5 text-text-muted" />
-              </button>
-            </div>
-
             {/* Content */}
-            <div className="p-4">
-              <p className="text-text-muted text-center">
+            <div className="p-6 space-y-4">
+              <h3 className="text-lg font-semibold text-text-dark">
+                Se déconnecter ?
+              </h3>
+              <p className="text-sm text-text-muted">
                 Tu pourras te reconnecter à tout moment avec ton compte.
               </p>
             </div>

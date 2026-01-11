@@ -1,15 +1,10 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono, Quicksand } from "next/font/google";
+import { Nunito, Quicksand } from "next/font/google";
 import "../styles/globals.css";
 import { ServiceWorkerRegistration } from "@/components/pwa/ServiceWorkerRegistration";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
-});
-
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
+const nunito = Nunito({
+  variable: "--font-nunito",
   subsets: ["latin"],
 });
 
@@ -67,7 +62,7 @@ export default function RootLayout({
         <meta name="theme-color" content="#14B8A6" />
       </head>
       <body
-        className={`${geistSans.variable} ${geistMono.variable} ${quicksand.variable} antialiased`}
+        className={`${nunito.variable} ${quicksand.variable} antialiased`}
       >
         <ServiceWorkerRegistration />
         <div className="app-container">

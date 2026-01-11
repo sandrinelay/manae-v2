@@ -35,8 +35,7 @@
   --color-mood-tired: #8E9AAF;
 
   /* === FONTS === */
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --font-sans: var(--font-nunito);
   --font-quicksand: var(--font-quicksand);
 
   /* === BORDER RADIUS === */
@@ -95,7 +94,7 @@
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-nunito), Arial, Helvetica, sans-serif;
 }
 
 /* Container responsive - Mobile first */
@@ -290,4 +289,115 @@ body {
 
 .animate-scale-in {
   animation: scale-in 0.3s ease-out;
+}
+
+/* === TYPOGRAPHY SYSTEM === */
+
+/* Titres principaux (h1, h2 des pages) */
+.typo-title {
+  font-family: var(--font-quicksand), sans-serif;
+  font-weight: 700; /* font-bold */
+  color: var(--color-text-dark);
+}
+
+.typo-title-lg {
+  font-family: var(--font-quicksand), sans-serif;
+  font-size: 1.5rem; /* text-2xl */
+  font-weight: 700;
+  color: var(--color-text-dark);
+}
+
+.typo-title-md {
+  font-family: var(--font-quicksand), sans-serif;
+  font-size: 1.25rem; /* text-xl */
+  font-weight: 600;
+  color: var(--color-text-dark);
+}
+
+.typo-title-sm {
+  font-family: var(--font-quicksand), sans-serif;
+  font-size: 1.125rem; /* text-lg */
+  font-weight: 600;
+  color: var(--color-text-dark);
+}
+
+/* Labels de section (Tâches, Notes, Idées, etc.) */
+.typo-section-label {
+  font-family: var(--font-quicksand), sans-serif;
+  font-size: 0.75rem; /* text-xs */
+  font-weight: 600; /* font-semibold */
+  text-transform: uppercase;
+  letter-spacing: 0.05em; /* tracking-wider */
+  color: var(--color-primary);
+}
+
+/* Labels de question/formulaire */
+.typo-form-label {
+  font-family: var(--font-quicksand), sans-serif;
+  font-size: 0.75rem; /* text-xs */
+  font-weight: 600; /* font-semibold */
+  text-transform: uppercase;
+  letter-spacing: 0.025em; /* tracking-wide */
+  color: var(--color-text-dark);
+}
+
+/* Textes d'aide/hint (Nunito - corps) */
+.typo-hint {
+  font-size: 0.75rem; /* text-xs */
+  color: var(--color-text-muted);
+}
+
+/* Titres de cartes (TaskCard, NoteRow, IdeaCard) */
+.typo-card-title {
+  font-size: 1rem; /* text-base */
+  font-weight: 500; /* font-medium */
+  color: var(--color-text-dark);
+  line-height: 1.375; /* leading-snug */
+}
+
+/* Contenu principal dans les modales (Nunito - corps) */
+.typo-modal-content {
+  font-size: 1.125rem; /* text-lg */
+  color: var(--color-text-dark);
+}
+
+/* Métadonnées (contexte, date, etc.) */
+.typo-metadata {
+  font-size: 0.75rem; /* text-xs */
+  color: var(--color-text-muted);
+}
+
+/* Onglets et filtres */
+.typo-tab {
+  font-size: 0.875rem; /* text-sm */
+  font-weight: 500; /* font-medium */
+}
+
+/* Messages vides (empty states) */
+.typo-empty {
+  font-size: 0.875rem; /* text-sm */
+  color: var(--color-text-muted);
+}
+
+/* Champs de saisie (textarea, input) */
+.input-field {
+  width: 100%;
+  padding-block: 0.75rem; /* py-3 */
+  padding-inline: 1rem; /* px-4 */
+  font-size: 1rem; /* text-base */
+  color: var(--color-text-dark);
+  background-color: white;
+  border: 1px solid var(--color-border);
+  border-radius: 0.75rem; /* rounded-xl */
+  outline: none;
+  transition: all 0.2s;
+}
+
+.input-field::placeholder {
+  color: var(--color-text-muted);
+}
+
+.input-field:focus {
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 2px rgba(74, 116, 136, 0.2); /* ring-primary/20 */
 }

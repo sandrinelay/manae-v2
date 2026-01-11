@@ -3,7 +3,7 @@
 import React, { useState } from 'react';
 import { Constraint, DAYS_OF_WEEK } from '@/types';
 import { Input } from './Input';
-import { Button } from './Button';
+import { ActionButton } from './ActionButton';
 import {
     BriefcaseIcon,
     GraduationCapIcon,
@@ -199,12 +199,20 @@ export const ConstraintForm: React.FC<ConstraintFormProps> = ({
 
                 {/* Boutons */}
                 <div className="flex gap-3 pt-2">
-                    <Button type="button" variant="secondary" onClick={onCancel} className="flex-1">
-                        Annuler
-                    </Button>
-                    <Button type="submit" disabled={!isValid} className="flex-1">
-                        {constraint ? 'Sauvegarder' : 'Ajouter'}
-                    </Button>
+                    <ActionButton
+                        type="button"
+                        label="Annuler"
+                        variant="secondary"
+                        onClick={onCancel}
+                        className="flex-1"
+                    />
+                    <ActionButton
+                        type="submit"
+                        label={constraint ? 'Sauvegarder' : 'Ajouter'}
+                        variant="save"
+                        disabled={!isValid}
+                        className="flex-1"
+                    />
                 </div>
             </form >
         </div >

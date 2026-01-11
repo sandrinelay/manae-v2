@@ -22,6 +22,7 @@ import {
   CalendarIcon,
   TrashIcon
 } from '@/components/ui/icons'
+import { ActionButton } from '@/components/ui/ActionButton'
 import {
   type ShoppingCategory,
   cleanShoppingItemContent,
@@ -249,14 +250,14 @@ export function ShoppingFullView({
     <>
       {/* Bouton principal */}
       <div className="mb-4">
-        <button
+        <ActionButton
+          label="Faire les courses"
+          icon={<CalendarIcon className="w-5 h-5" />}
+          variant="plan"
           onClick={() => setShowPlanModal(true)}
           disabled={activeItems.length === 0}
-          className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-primary text-white font-medium disabled:opacity-50 disabled:cursor-not-allowed hover:bg-primary/90 transition-colors"
-        >
-          <CalendarIcon className="w-5 h-5" />
-          <span>Faire les courses</span>
-        </button>
+          fullWidth
+        />
       </div>
 
       {/* Input d'ajout rapide */}
@@ -273,7 +274,7 @@ export function ShoppingFullView({
               }
             }}
             placeholder="Ajouter un article..."
-            className="flex-1 px-4 py-3 rounded-xl border border-border bg-white focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary"
+            className="input-field flex-1"
             disabled={isAddingItem || !listId}
           />
           <button

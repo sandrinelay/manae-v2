@@ -128,7 +128,7 @@ export function TaskCard({ item, mode = 'active', onMarkDone, onPlan, onTap }: T
 
         {/* Contenu */}
         <div className="flex-1 min-w-0">
-          <h3 className={`font-medium leading-snug ${titleClass}`}>
+          <h3 className={`typo-card-title ${titleClass}`}>
             {item.content}
           </h3>
 
