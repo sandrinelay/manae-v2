@@ -7,14 +7,17 @@ const PUBLIC_ROUTES = [
   '/signup',
   '/forgot-password',
   '/set-password',
-  '/api/auth',
+  '/invitation',
+  '/offline',
+  '/api',
   '/auth/google/callback',
 ]
 
-// Routes d'authentification (rediriger si déjà connecté)
-// Désactivé : on laisse l'utilisateur accéder aux pages d'auth même connecté
-// La gestion se fait côté client si nécessaire
-const AUTH_ROUTES: string[] = []
+// Routes d'authentification (rediriger vers /capture si déjà connecté)
+const AUTH_ROUTES = [
+  '/login',
+  '/signup',
+]
 
 export async function proxy(request: NextRequest) {
   let supabaseResponse = NextResponse.next({
@@ -61,9 +64,24 @@ export async function proxy(request: NextRequest) {
     return NextResponse.redirect(loginUrl)
   }
 
-  // Si connecté et sur page d'auth → rediriger vers clarté
+  // Si connecté et sur page d'auth → rediriger vers capture
   if (user && isAuthRoute) {
-    return NextResponse.redirect(new URL('/clarte', request.url))
+    return NextResponse.redirect(new URL('/capture', request.url))
+  }
+
+  // Si connecté, vérifier onboarding
+  if (user && !pathname.startsWith('/onboarding')) {
+    // Vérifier si l'onboarding est terminé
+    const { data: profile } = await supabase
+      .from('users')
+      .select('onboarding_completed')
+      .eq('id', user.id)
+      .single()
+
+    // Si onboarding non terminé, rediriger vers onboarding
+    if (profile && !profile.onboarding_completed) {
+      return NextResponse.redirect(new URL('/onboarding/step1', request.url))
+    }
   }
 
   return supabaseResponse
@@ -76,8 +94,8 @@ export const config = {
      * - _next/static (static files)
      * - _next/image (image optimization files)
      * - favicon.ico (favicon file)
-     * - public files (icons, images, etc.)
+     * - public files (icons, images, manifest, sw.js, etc.)
      */
-    '/((?!_next/static|_next/image|favicon.ico|icons|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico)$).*)',
+    '/((?!_next/static|_next/image|favicon.ico|icons|manifest\\.json|sw\\.js|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico)$).*)',
   ],
 }

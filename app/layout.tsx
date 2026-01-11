@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono, Quicksand } from "next/font/google";
 import "../styles/globals.css";
-import AuthInitializer from "@/components/auth/AuthInitializer";
 import { ServiceWorkerRegistration } from "@/components/pwa/ServiceWorkerRegistration";
 
 const geistSans = Geist({
@@ -20,6 +19,7 @@ const quicksand = Quicksand({
 });
 
 export const metadata: Metadata = {
+  metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL || "https://manae.app"),
   title: "Manae",
   description: "Organise ta vie de parent sereinement",
   manifest: "/manifest.json",
@@ -69,7 +69,6 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} ${quicksand.variable} antialiased`}
       >
-        <AuthInitializer />
         <ServiceWorkerRegistration />
         <div className="app-container">
           {children}
