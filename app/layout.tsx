@@ -32,6 +32,28 @@ export const metadata: Metadata = {
     icon: "/icons/icon-192x192.png",
     apple: "/icons/apple-touch-icon.png",
   },
+  openGraph: {
+    title: "Manae",
+    description: "Organise ta vie de parent sereinement",
+    url: "https://manae.app",
+    siteName: "Manae",
+    locale: "fr_FR",
+    type: "website",
+    images: [
+      {
+        url: "/icons/og-image.png",
+        width: 1200,
+        height: 630,
+        alt: "Manae - Organise ta vie de parent",
+      },
+    ],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Manae",
+    description: "Organise ta vie de parent sereinement",
+    images: ["/icons/og-image.png"],
+  },
 };
 
 export default function RootLayout({

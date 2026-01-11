@@ -446,7 +446,7 @@ export function CaptureModal({
         })}
 
         <IconButton
-          icon={<TrashIcon className='w6 h-6'/>}
+          icon={<TrashIcon className='w-6 h-6'/>}
           label="Supprimer"
           variant="danger"
           size="md"
