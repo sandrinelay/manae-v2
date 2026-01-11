@@ -389,7 +389,7 @@ export function CaptureModal({
             return (
               <IconButton
                 key={type}
-                icon={<TypeIcon />}
+                icon={<TypeIcon className='w6 h-6'/>}
                 label={typeConfig.label}
                 size="sm"
                 variant={isSelected ? 'primary' : 'ghost'}
@@ -414,7 +414,7 @@ export function CaptureModal({
               return (
                 <IconButton
                   key={ctx}
-                  icon={<CtxIcon />}
+                  icon={<CtxIcon className='w6 h-6'/>}
                   label={CONTEXT_SHORT_LABELS[ctx]}
                   size="sm"
                   variant={isSelected ? 'primary' : 'ghost'}
@@ -446,7 +446,7 @@ export function CaptureModal({
         })}
 
         <IconButton
-          icon={<TrashIcon />}
+          icon={<TrashIcon className='w6 h-6'/>}
           label="Supprimer"
           variant="danger"
           size="md"
@@ -703,7 +703,7 @@ export function CaptureModal({
         <div className="h-[60px] flex items-center justify-between px-4 border-b border-border bg-white rounded-t-3xl">
           {currentStep === 'schedule' ? (
             <IconButton
-              icon={<ArrowLeftIcon />}
+              icon={<ArrowLeftIcon className='w6 h-6'/>}
               label="Retour"
               variant="ghost"
               size="sm"
@@ -718,7 +718,7 @@ export function CaptureModal({
           </h2>
 
           <IconButton
-            icon={<XIcon />}
+            icon={<XIcon className='w6 h-6' />}
             label="Fermer"
             variant="ghost"
             size="sm"

@@ -2,9 +2,9 @@
 
 import { Item, ItemState } from '@/types/items'
 import { CONTEXT_CONFIG } from '@/config/contexts'
-import { CalendarIcon, CheckIcon } from '@/components/ui/icons'
 import { IconButton } from '@/components/ui/IconButton'
 import { formatScheduledDate, formatRelativeTime } from '@/lib/date-utils'
+import { Calendar, Check } from 'lucide-react'
 
 // Mode d'affichage de la carte
 type CardMode = 'active' | 'done' | 'stored'
@@ -165,7 +165,7 @@ export function TaskCard({ item, mode = 'active', onMarkDone, onPlan, onTap }: T
             {/* Bouton Fait */}
             {onMarkDone && (
               <IconButton
-                icon={<CheckIcon />}
+                icon={<Check />}
                 label="Marquer comme fait"
                 variant="success"
                 size="sm"
@@ -179,7 +179,7 @@ export function TaskCard({ item, mode = 'active', onMarkDone, onPlan, onTap }: T
             {/* Bouton Caler / Décaler */}
             {onPlan && (
               <IconButton
-                icon={<CalendarIcon />}
+                icon={<Calendar />}
                 label={planButtonLabel}
                 variant="plan"
                 size="sm"

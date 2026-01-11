@@ -263,7 +263,7 @@ export function TaskActiveModal({
                   {onEdit && (
                     <ActionButton
                       label="Modifier"
-                      icon={<EditIcon />}
+                      icon={<EditIcon className='w-6 h-6'/>}
                       variant="secondary"
                       onClick={() => setIsEditMode(true)}
                       className="flex-1"
@@ -273,7 +273,7 @@ export function TaskActiveModal({
                   {/* Ranger */}
                   <ActionButton
                     label="Ranger"
-                    icon={<ArchiveIcon />}
+                    icon={<ArchiveIcon className='w-6 h-6'/>}
                     variant="archive"
                     onClick={() => {
                       onStore(task.id)
@@ -284,7 +284,7 @@ export function TaskActiveModal({
 
                   {/* Supprimer */}
                   <IconButton
-                    icon={<TrashIcon />}
+                    icon={<TrashIcon className='w-6 h-6'/>}
                     label="Supprimer"
                     variant="danger"
                     size="md"
