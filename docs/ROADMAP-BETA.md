@@ -281,7 +281,7 @@ export default function NotFound() {
         href="/clarte"
         className="px-6 py-3 bg-primary text-white rounded-xl font-medium hover:bg-primary/90 transition-colors"
       >
-        Retour à l'accueil
+        Retour à la capture
       </a>
     </div>
   )

@@ -499,8 +499,8 @@ export function CaptureModal({
         {(!isCalendarConnected || scheduling.error === 'calendar_session_expired' || scheduling.error === 'calendar_not_connected') && (
           <div className="space-y-4">
             {scheduling.error === 'calendar_session_expired' && (
-              <div className="bg-orange-50 border border-orange-200 rounded-lg p-3 mb-4">
-                <p className="text-orange-800 text-sm text-center">
+              <div className="alert-box mb-4">
+                <p className="alert-box-title text-center">
                   Ta session Google Calendar a expiré
                 </p>
               </div>
@@ -524,15 +524,14 @@ export function CaptureModal({
 
         {/* Erreur réseau */}
         {scheduling.error === 'network_error' && (
-          <div className="bg-red-50 border border-red-200 rounded-xl p-4 text-center mb-4">
-            <div className="text-2xl mb-2">📡</div>
-            <p className="text-red-800 font-medium">Problème de connexion</p>
-            <p className="text-red-600 text-sm mt-1">
+          <div className="alert-box text-center mb-4">
+            <p className="alert-box-title">Problème de connexion</p>
+            <p className="alert-box-text">
               Vérifie ta connexion internet et réessaye.
             </p>
             <button
               onClick={() => scheduling.loadSlots()}
-              className="mt-3 px-4 py-2 bg-red-600 text-white rounded-lg text-sm hover:bg-red-700 transition-colors"
+              className="mt-3 px-4 py-2 bg-[var(--accent)] text-white rounded-lg text-sm hover:bg-[var(--accent-dark)] transition-colors"
             >
               Réessayer
             </button>
@@ -541,19 +540,18 @@ export function CaptureModal({
 
         {/* Erreur service fermé (médecin, banque, etc.) */}
         {scheduling.error === 'service_closed' && scheduling.serviceFilterInfo && (
-          <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 text-center mb-4">
-            <div className="text-2xl mb-2">🏥</div>
-            <p className="text-amber-800 font-medium">
+          <div className="alert-box text-center mb-4">
+            <p className="alert-box-title">
               {scheduling.serviceFilterInfo.type === 'medical' && 'Les créneaux chez le médecin sont limités'}
               {scheduling.serviceFilterInfo.type === 'administrative' && 'Les services administratifs ont des horaires restreints'}
               {scheduling.serviceFilterInfo.type === 'commercial' && 'Les commerces ont des horaires d\'ouverture'}
             </p>
-            <p className="text-amber-700 text-sm mt-2">
+            <p className="alert-box-text mt-2">
               {scheduling.serviceFilterInfo.reason}
             </p>
             <button
               onClick={() => scheduling.loadSlots(true)}
-              className="mt-3 px-4 py-2 bg-amber-600 text-white rounded-lg text-sm hover:bg-amber-700 transition-colors"
+              className="mt-3 px-4 py-2 bg-[var(--accent)] text-white rounded-lg text-sm hover:bg-[var(--accent-dark)] transition-colors"
             >
               Voir tous les créneaux quand même
             </button>
@@ -562,8 +560,8 @@ export function CaptureModal({
 
         {/* Erreur (autres que calendar, network et service_closed) */}
         {scheduling.error && !['network_error', 'calendar_not_connected', 'calendar_session_expired', 'service_closed'].includes(scheduling.error) && (
-          <div className="bg-red-50 border border-red-200 rounded-lg p-4 text-center">
-            <p className="text-red-800 text-sm">{scheduling.error}</p>
+          <div className="alert-box text-center">
+            <p className="alert-box-title">{scheduling.error}</p>
           </div>
         )}
 
@@ -572,9 +570,8 @@ export function CaptureModal({
           <div className="space-y-3">
             {/* Indicateur mode forcé */}
             {scheduling.isForceMode && scheduling.serviceFilterInfo && (
-              <div className="bg-amber-50 border border-amber-200 rounded-lg p-2 flex items-center gap-2 text-sm">
-                <span>⚠️</span>
-                <span className="text-amber-700">
+              <div className="alert-box p-2 flex items-center gap-2 text-sm">
+                <span className="text-[var(--accent-dark)]">
                   Créneaux affichés sans filtrage horaire ({scheduling.serviceFilterInfo.type === 'medical' ? 'médecin' : scheduling.serviceFilterInfo.type === 'administrative' ? 'administration' : 'commerce'})
                 </span>
               </div>
@@ -626,11 +623,11 @@ export function CaptureModal({
 
         {/* Aucun créneau */}
         {isCalendarConnected && !scheduling.isLoading && !scheduling.bestSlot && !scheduling.error && (
-          <div className="bg-orange-50 border border-orange-200 rounded-lg p-4 text-center">
-            <p className="text-orange-800 text-sm">
+          <div className="alert-box text-center">
+            <p className="alert-box-title">
               Aucun créneau disponible sur les 7 prochains jours
             </p>
-            <p className="text-orange-600 text-xs mt-2">
+            <p className="alert-box-text mt-2">
               Essaie de modifier la durée ou tes contraintes horaires
             </p>
           </div>

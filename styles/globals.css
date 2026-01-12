@@ -28,6 +28,12 @@
   --color-border: #E2E8F0;
   --color-border-primary: #4A7488;
 
+  /* Accent (alerts, highlights) */
+  --color-accent: #A03884;
+  --color-accent-light: #F9F0F7;
+  --color-accent-medium: #DDB8D4;
+  --color-accent-dark: #6B245A;
+
   /* Mood colors */
   --color-mood-energetic: #E89B6C;
   --color-mood-calm: #7EB89E;
@@ -76,6 +82,12 @@
   /* Border colors */
   --border-light: #E2E8F0;
   --border-primary: #4A7488;
+
+  /* Accent colors (alerts, highlights) */
+  --accent: #A03884;
+  --accent-light: #F9F0F7;
+  --accent-medium: #DDB8D4;
+  --accent-dark: #6B245A;
 
   /* Mood colors */
   --mood-energetic: #E89B6C;
@@ -400,4 +412,25 @@ body {
 .input-field:focus {
   border-color: var(--color-primary);
   box-shadow: 0 0 0 2px rgba(74, 116, 136, 0.2); /* ring-primary/20 */
+}
+
+/* === ALERT BOX === */
+.alert-box {
+  background-color: var(--accent-light);
+  border: 1px solid var(--accent-medium);
+  border-left: 4px solid var(--accent);
+  border-radius: 0.75rem; /* rounded-xl */
+  padding: 1rem;
+}
+
+.alert-box-title {
+  color: var(--accent);
+  font-size: 0.875rem; /* text-sm */
+  font-weight: 600; /* font-semibold */
+}
+
+.alert-box-text {
+  color: var(--accent-dark);
+  font-size: 0.75rem; /* text-xs */
+  margin-top: 0.25rem;
 }

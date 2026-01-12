@@ -302,7 +302,7 @@ export function CaptureFlow({ userId, onSuccess }: CaptureFlowProps) {
           {/* Compteur discret (toujours visible) */}
           <div className="flex justify-end">
             <span className={`text-xs ${
-              isExhausted ? 'text-red-500' : isLow ? 'text-orange-500' : 'text-text-muted'
+              isExhausted || isLow ? 'text-[var(--accent)]' : 'text-text-muted'
             }`}>
               {quota}/{maxQuota} crédits IA
             </span>
@@ -310,16 +310,16 @@ export function CaptureFlow({ userId, onSuccess }: CaptureFlowProps) {
 
           {/* Alerte quota faible (1-3) */}
           {isLow && !isExhausted && (
-            <div className="bg-orange-50 border border-orange-200 rounded-xl p-4 mt-3">
-              <p className="text-orange-800 text-sm font-medium">
+            <div className="alert-box mt-3">
+              <p className="alert-box-title">
                 Plus que {quota} crédit{quota > 1 ? 's' : ''} IA
               </p>
-              <p className="text-orange-600 text-xs mt-1">
+              <p className="alert-box-text">
                 Au-delà, tes pensées seront enregistrées sans tri automatique.
               </p>
               <button
                 onClick={handleUpgrade}
-                className="text-orange-700 text-xs mt-2 underline font-medium hover:text-orange-900"
+                className="text-[var(--accent)] text-xs mt-2 underline font-medium hover:text-[var(--accent-dark)]"
               >
                 Passer au forfait Plus
               </button>
@@ -328,11 +328,11 @@ export function CaptureFlow({ userId, onSuccess }: CaptureFlowProps) {
 
           {/* Alerte quota épuisé (0) */}
           {isExhausted && (
-            <div className="bg-red-50 border border-red-200 rounded-xl p-4 mt-3">
-              <p className="text-red-800 text-sm font-medium">
+            <div className="alert-box mt-3">
+              <p className="alert-box-title">
                 Crédits IA épuisés
               </p>
-              <p className="text-red-600 text-xs mt-1">
+              <p className="alert-box-text">
                 Tes pensées seront enregistrées sans analyse automatique.
                 Tu pourras les trier manuellement dans &quot;Ma Liste&quot;.
               </p>
@@ -349,8 +349,8 @@ export function CaptureFlow({ userId, onSuccess }: CaptureFlowProps) {
 
       {/* Erreur */}
       {error && (
-        <div className="p-4 bg-red-50 border border-red-200 rounded-2xl mb-6">
-          <p className="text-sm text-red-600 font-medium">{error}</p>
+        <div className="alert-box mb-6">
+          <p className="alert-box-title">{error}</p>
         </div>
       )}
 
