@@ -104,14 +104,38 @@ export default function SetPasswordPage() {
         return
       }
 
+      // Récupérer l'utilisateur connecté
+      const { data: { user: authUser } } = await supabase.auth.getUser()
+
+      if (!authUser) {
+        router.push('/login')
+        return
+      }
+
+      // Marquer le mot de passe comme défini (upsert pour créer le profil si nécessaire)
+      const { error: upsertError } = await supabase
+        .from('users')
+        .upsert({
+          id: authUser.id,
+          email: authUser.email || '',
+          password_set: true
+        }, {
+          onConflict: 'id'
+        })
+
+      if (upsertError) {
+        console.error('Failed to update password_set:', upsertError)
+      }
+
       // Vérifier si l'utilisateur a déjà fait l'onboarding
-      const { data: user } = await supabase
+      const { data: userProfile } = await supabase
         .from('users')
         .select('onboarding_completed')
-        .single()
+        .eq('id', authUser.id)
+        .maybeSingle()
 
       // Rediriger selon l'état de l'onboarding
-      router.push(user?.onboarding_completed ? '/clarte' : '/onboarding')
+      router.push(userProfile?.onboarding_completed ? '/clarte' : '/onboarding')
     } catch (err) {
       console.error('Set password error:', err)
       setError('Une erreur est survenue. Réessaie.')

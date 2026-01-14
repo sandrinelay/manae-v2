@@ -163,25 +163,18 @@ export default function OnboardingStep3() {
             }));
             await saveConstraints(constraintsForDb);
 
-            // Marquer l'onboarding comme terminé dans Supabase
-            await updateUserProfile({
-                onboarding_completed: true
-            });
-
-            // Garder aussi en localStorage
+            // Garder en localStorage
             const existingData = localStorage.getItem('manae_onboarding');
             const parsedData = existingData ? JSON.parse(existingData) : {};
             const payload = {
                 ...parsedData,
                 step: 3,
-                constraints: constraints,
-                completed_at: new Date().toISOString()
+                constraints: constraints
             };
             localStorage.setItem('manae_onboarding', JSON.stringify(payload));
 
-            console.log('Onboarding completed, saved to Supabase');
-            // Rediriger vers capture (connexion Google Calendar se fait via profil)
-            router.push('/capture');
+            // Rediriger vers step4 (connexion Google Calendar - optionnelle)
+            router.push('/onboarding/step4');
         } catch (error) {
             console.error('Error saving:', error);
             alert('Erreur lors de la sauvegarde');

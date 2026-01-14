@@ -69,18 +69,22 @@ export async function proxy(request: NextRequest) {
     return NextResponse.redirect(new URL('/capture', request.url))
   }
 
-  // Si connecté, vérifier onboarding
-  if (user && !pathname.startsWith('/onboarding')) {
-    // Vérifier si l'onboarding est terminé
+  // Si connecté, vérifier password_set et onboarding
+  if (user && !pathname.startsWith('/onboarding') && !pathname.startsWith('/set-password')) {
     const { data: profile } = await supabase
       .from('users')
-      .select('onboarding_completed')
+      .select('onboarding_completed, password_set')
       .eq('id', user.id)
       .single()
 
+    // Si mot de passe non défini, rediriger vers set-password
+    if (profile && profile.password_set === false) {
+      return NextResponse.redirect(new URL('/set-password', request.url))
+    }
+
     // Si onboarding non terminé, rediriger vers onboarding
     if (profile && !profile.onboarding_completed) {
-      return NextResponse.redirect(new URL('/onboarding/step1', request.url))
+      return NextResponse.redirect(new URL('/onboarding', request.url))
     }
   }
 
