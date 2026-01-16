@@ -31,12 +31,73 @@ export type ItemState =
 /**
  * Context = Domaine de vie associé
  */
-export type ItemContext = 'personal' | 'family' | 'work' | 'health'
+export type ItemContext = 'personal' | 'family' | 'work' | 'health' | 'other'
 
 /**
  * Mood = Humeur au moment de la capture
+ * - energetic : Énergique
+ * - neutral : Calme (UI: calm)
+ * - overwhelmed : Débordé(e)
+ * - tired : Fatigué(e)
  */
-export type Mood = 'energetic' | 'neutral' | 'tired'
+export type Mood = 'energetic' | 'neutral' | 'overwhelmed' | 'tired'
+
+/**
+ * ShoppingCategory = Catégorie d'article de courses
+ * Utilisé pour le tri et le groupage des articles
+ */
+export type ShoppingCategory =
+  | 'bakery'    // Boulangerie
+  | 'dairy'     // Produits laitiers
+  | 'meat'      // Viandes & Poissons
+  | 'produce'   // Fruits & Légumes
+  | 'grocery'   // Épicerie
+  | 'frozen'    // Surgelés
+  | 'hygiene'   // Hygiène
+  | 'household' // Entretien
+  | 'drinks'    // Boissons
+  | 'other'     // Autre
+
+// ============================================
+// CONTRAINTES TEMPORELLES
+// ============================================
+
+/**
+ * Type de contrainte temporelle détectée dans la pensée
+ * - deadline : "avant lundi", "au plus tard vendredi"
+ * - fixed_date : "lundi", "le 15 janvier"
+ * - start_date : "à partir de mardi", "après le 10"
+ * - time_range : "cette semaine", "ce mois-ci"
+ * - asap : "urgent", "dès que possible"
+ */
+export type TemporalConstraintType =
+  | 'deadline'
+  | 'fixed_date'
+  | 'start_date'
+  | 'time_range'
+  | 'asap'
+
+/**
+ * Niveau d'urgence de la contrainte
+ * - critical : urgent/asap → prendre premier créneau dispo
+ * - high : deadline proche → réduire poids des préférences
+ * - medium : contrainte souple → optimiser normalement
+ * - low : pas de contrainte → optimisation maximale
+ */
+export type TemporalUrgency = 'critical' | 'high' | 'medium' | 'low'
+
+/**
+ * Contrainte temporelle extraite de la pensée
+ * Utilisée pour filtrer les créneaux AVANT le scoring
+ */
+export interface TemporalConstraint {
+  type: TemporalConstraintType
+  date?: string        // ISO date pour deadline/fixed_date
+  startDate?: string   // ISO date pour start_date/time_range
+  endDate?: string     // ISO date pour time_range
+  urgency: TemporalUrgency
+  rawPattern?: string  // Pattern original détecté ("avant lundi")
+}
 
 /**
  * Structure retournée par l'IA lors de l'analyse
@@ -45,12 +106,16 @@ export interface AIAnalysis {
   type_suggestion: ItemType
   confidence: number
   extracted_data: {
+    context?: 'personal' | 'family' | 'work' | 'health' | 'other'
     date?: string
     time?: string
+    duration?: number
     location?: string
     items?: string[] // Pour list_item (détection multi-items)
+    category?: string
   }
   suggestions: string[]
+  temporal_constraint?: TemporalConstraint | null
 }
 
 /**
@@ -70,6 +135,7 @@ export interface Item {
   scheduled_at?: string | null
   google_event_id?: string | null
   mood?: Mood | null
+  shopping_category?: ShoppingCategory | null // Catégorie pour list_item uniquement
   created_at: string
   updated_at: string
 }
@@ -88,6 +154,7 @@ export interface CreateItemInput {
   list_id?: string | null
   scheduled_at?: string | null
   mood?: Mood | null
+  shopping_category?: ShoppingCategory | null
 }
 
 /**
@@ -105,6 +172,7 @@ export interface UpdateItemInput {
   scheduled_at?: string | null
   google_event_id?: string | null
   mood?: Mood | null
+  shopping_category?: ShoppingCategory | null
 }
 
 /**

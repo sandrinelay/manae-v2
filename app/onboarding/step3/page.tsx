@@ -9,7 +9,9 @@ import { Constraint } from '@/types';
 import { detectConflict } from '@/utils/conflictDetector';
 import { ConflictModal } from '@/components/ui/ConflictModal';
 import { DeleteConfirmModal } from '@/components/ui/DeleteConfirmModal';
-import { saveConstraints, getConstraints } from '@/services/supabaseService';
+import { saveConstraints, getConstraints, updateUserProfile } from '@/services/supabaseService';
+import { PlusIcon } from '@/components/ui/icons';
+import { generateUUID } from '@/lib/utils/uuid';
 
 export default function OnboardingStep3() {
     const router = useRouter();
@@ -18,7 +20,7 @@ export default function OnboardingStep3() {
 
     // Contrainte "Travail" pré-remplie
     const defaultConstraint: Constraint = {
-        id: crypto.randomUUID(),
+        id: generateUUID(),
         name: 'Travail',
         category: 'work',
         days: ['monday', 'tuesday', 'wednesday', 'thursday', 'friday'],
@@ -85,7 +87,7 @@ export default function OnboardingStep3() {
             console.log('✅ Pas de conflit, ajout direct');
             const newConstraint: Constraint = {
                 ...data,
-                id: crypto.randomUUID()
+                id: generateUUID()
             };
             setConstraints(prev => [...prev, newConstraint]);
             setShowForm(false);
@@ -161,18 +163,17 @@ export default function OnboardingStep3() {
             }));
             await saveConstraints(constraintsForDb);
 
-            // Garder aussi en localStorage
+            // Garder en localStorage
             const existingData = localStorage.getItem('manae_onboarding');
             const parsedData = existingData ? JSON.parse(existingData) : {};
             const payload = {
                 ...parsedData,
                 step: 3,
-                constraints: constraints,
-                completed_at: new Date().toISOString()
+                constraints: constraints
             };
             localStorage.setItem('manae_onboarding', JSON.stringify(payload));
 
-            console.log('Saved to Supabase and localStorage');
+            // Rediriger vers step4 (connexion Google Calendar - optionnelle)
             router.push('/onboarding/step4');
         } catch (error) {
             console.error('Error saving:', error);
@@ -194,7 +195,7 @@ export default function OnboardingStep3() {
                 // Mode ajout
                 const newConstraint: Constraint = {
                     ...pendingConstraint,
-                    id: crypto.randomUUID()
+                    id: generateUUID()
                 };
                 setConstraints(prev => [...prev, newConstraint]);
             }
@@ -255,10 +256,7 @@ export default function OnboardingStep3() {
                             onClick={() => setShowForm(true)}
                             className="mb-6"
                         >
-                            <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                <line x1="12" y1="5" x2="12" y2="19" />
-                                <line x1="5" y1="12" x2="19" y2="12" />
-                            </svg>
+                            <PlusIcon className="w-5 h-5" />
                             Ajouter une indisponibilité
                         </Button>
                     )}

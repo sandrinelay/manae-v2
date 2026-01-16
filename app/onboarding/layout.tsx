@@ -1,7 +1,6 @@
 'use client';
 
 import OnboardingHeader from "@/components/onboarding/header";
-import { useEffect, useState } from "react";
 
 
 export default function OnboardingLayout({ children }: { children: React.ReactNode }) {

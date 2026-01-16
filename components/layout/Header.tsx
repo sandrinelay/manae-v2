@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useSyncExternalStore, useCallback } from 'react'
 import CalendarBadge from '@/lib/layout/CalendarBadge'
 import Link from 'next/link'
 
@@ -8,25 +8,35 @@ interface HeaderProps {
     userName?: string
 }
 
+// Helper pour lire le statut Google Calendar depuis localStorage
+function getCalendarSnapshot() {
+    if (typeof window === 'undefined') return false
+    return !!localStorage.getItem('google_tokens')
+}
+
+function getServerSnapshot() {
+    return false
+}
+
 export default function Header({ userName }: HeaderProps) {
-    const [isCalendarConnected, setIsCalendarConnected] = useState(false)
+    // Subscribe aux changements (storage event + custom event)
+    const subscribe = useCallback((callback: () => void) => {
+        const handleConnectionChange = () => callback()
 
-    // Vérifier au mount si Google Calendar est connecté
-    useEffect(() => {
-        const tokens = localStorage.getItem('google_tokens')
-        setIsCalendarConnected(!!tokens)
-
-        // Écouter les changements de connexion (via custom event)
-        const handleConnectionChange = (event: CustomEvent) => {
-            setIsCalendarConnected(event.detail.connected)
-        }
-
-        window.addEventListener('calendar-connection-changed', handleConnectionChange as EventListener)
+        window.addEventListener('storage', callback)
+        window.addEventListener('calendar-connection-changed', handleConnectionChange)
 
         return () => {
-            window.removeEventListener('calendar-connection-changed', handleConnectionChange as EventListener)
+            window.removeEventListener('storage', callback)
+            window.removeEventListener('calendar-connection-changed', handleConnectionChange)
         }
     }, [])
+
+    const isCalendarConnected = useSyncExternalStore(
+        subscribe,
+        getCalendarSnapshot,
+        getServerSnapshot
+    )
 
     return (
         <header className="bg-white border-b border-border px-6 py-4 flex items-center justify-between sticky top-0 z-50">

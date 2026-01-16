@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useRef, useEffect } from 'react'
+import { useRef, useEffect } from 'react'
 
 interface CaptureInputProps {
     value: string
@@ -36,7 +36,7 @@ export default function CaptureInput({ value, onChange, onEnterPress, placeholde
                 onChange={(e) => onChange(e.target.value)}
                 onKeyDown={handleKeyDown}
                 placeholder={placeholder || "Qu'est-ce qui te tracasse ?"}
-                className="w-full px-4 py-3 text-text-dark placeholder:text-text-muted resize-none outline-none rounded-xl font-quicksand min-h-[60px] max-h-[200px]"
+                className="input-field border-0 resize-none font-quicksand min-h-[60px] max-h-[200px]"
                 rows={1}
             />
         </div>

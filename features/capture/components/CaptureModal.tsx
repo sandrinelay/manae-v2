@@ -1,8 +1,30 @@
 'use client'
 
-import { useState, type ReactNode } from 'react'
-import type { ItemType } from '@/types/items'
+import { useState, useEffect } from 'react'
+import type { ItemType, ItemContext } from '@/types/items'
 import type { CaptureResult } from '@/services/capture'
+import { useScheduling } from '@/features/schedule/hooks/useScheduling'
+import { DurationSelector } from '@/features/schedule/components/DurationSelector'
+import { TimeSlotCard } from '@/features/schedule/components/TimeSlotCard'
+import { SuccessModal, formatScheduledDate } from '@/features/schedule/components/SuccessModal'
+import GoogleCalendarCTA from '@/components/capture/GoogleCalendarCTA'
+import { useGoogleCalendarStatus } from '@/hooks/useGoogleCalendarStatus'
+import { saveItem } from '@/services/capture'
+import type { Mood as ItemMood } from '@/types/items'
+import { IdeaDevelopPanel } from '@/features/ideas/components/IdeaDevelopPanel'
+import { CONTEXT_CONFIG } from '@/config/contexts'
+import {
+  TaskIcon,
+  NoteIcon,
+  ShoppingIcon,
+  IdeaIcon,
+  TrashIcon,
+  ArrowLeftIcon,
+  XIcon,
+  AlertIcon
+} from '@/components/ui/icons'
+import { IconButton } from '@/components/ui/IconButton'
+import { ActionButton } from '@/components/ui/ActionButton'
 
 // ============================================
 // TYPES
@@ -10,131 +32,658 @@ import type { CaptureResult } from '@/services/capture'
 
 type Mood = 'energetic' | 'calm' | 'overwhelmed' | 'tired'
 
+// Conversion UI mood -> DB mood
+function convertMoodToItemMood(mood: Mood | null): ItemMood | undefined {
+  if (!mood) return undefined
+  const mapping: Record<Mood, ItemMood> = {
+    energetic: 'energetic',
+    calm: 'neutral',
+    overwhelmed: 'overwhelmed',
+    tired: 'tired'
+  }
+  return mapping[mood]
+}
+type ModalStep = 'organize' | 'schedule'
+
+// Contexte multi-capture pour préserver l'état lors de la connexion Google Calendar
+export interface MultiCaptureContext {
+  items: Array<{
+    content: string
+    type: ItemType
+    context?: ItemContext
+    ai_analysis?: CaptureResult['aiAnalysis']
+    saved?: boolean
+    deleted?: boolean
+  }>
+  currentIndex: number
+}
+
 interface CaptureModalProps {
   content: string
   captureResult: CaptureResult
   mood: Mood | null
-  onSave: (type: ItemType, action: ActionType) => void
+  userId: string
+  onSave: (type: ItemType, action: ActionType, context?: ItemContext) => void
   onClose: () => void
+  onSuccess?: () => void
+  isEmbedded?: boolean
+  multiCaptureContext?: MultiCaptureContext
 }
 
-type ActionType = 'save' | 'plan' | 'develop' | 'add_to_list' | 'delete'
+export type ActionType = 'save' | 'plan' | 'develop' | 'add_to_list' | 'delete'
 
-interface ActionButton {
+interface ActionConfig {
   label: string
   value: ActionType
   requiresAI?: boolean
-  variant?: 'primary' | 'danger'
-  state?: string
+  variant?: 'save' | 'plan' | 'secondary'
 }
 
 // ============================================
-// ICÔNES SVG MINIMALISTES
-// ============================================
-
-const TaskIcon = () => (
-  <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-    <path strokeLinecap="round" strokeLinejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-  </svg>
-)
-
-const NoteIcon = () => (
-  <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-    <path strokeLinecap="round" strokeLinejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-  </svg>
-)
-
-const ShoppingIcon = () => (
-  <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-    <path strokeLinecap="round" strokeLinejoin="round" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" />
-  </svg>
-)
-
-const IdeaIcon = () => (
-  <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-    <path strokeLinecap="round" strokeLinejoin="round" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
-  </svg>
-)
-
-// ============================================
-// CONFIGURATION DES TYPES & ACTIONS
+// CONFIGURATION
 // ============================================
 
 const TYPE_CONFIG: Record<ItemType, {
-  icon: ReactNode
+  icon: React.FC<{ className?: string }>
   label: string
-  actions: ActionButton[]
+  actions: ActionConfig[]
 }> = {
   task: {
-    icon: <TaskIcon />,
+    icon: TaskIcon,
     label: 'Tâche',
     actions: [
-      { label: 'Enregistrer', value: 'save', variant: 'primary', state: 'active' },
-      { label: 'Planifier', value: 'plan', variant: 'primary', requiresAI: true, state: 'planned' },
-      { label: 'Supprimer', value: 'delete', variant: 'danger' }
+      { label: 'Enregistrer', value: 'save', variant: 'save' },
+      { label: 'Caler', value: 'plan', variant: 'plan', requiresAI: true }
     ]
   },
   note: {
-    icon: <NoteIcon />,
+    icon: NoteIcon,
     label: 'Note',
     actions: [
-      { label: 'Ajouter à mes notes', value: 'save', variant: 'primary', state: 'active' },
-      { label: 'Supprimer', value: 'delete', variant: 'danger' }
+      { label: 'Ajouter', value: 'save', variant: 'save' }
     ]
   },
   list_item: {
-    icon: <ShoppingIcon />,
+    icon: ShoppingIcon,
     label: 'Course',
     actions: [
-      { label: 'Ajouter à la liste', value: 'add_to_list', variant: 'primary', state: 'active' },
-      { label: 'Supprimer', value: 'delete', variant: 'danger' }
+      { label: 'Ajouter', value: 'add_to_list', variant: 'save' }
     ]
   },
   idea: {
-    icon: <IdeaIcon />,
+    icon: IdeaIcon,
     label: 'Idée',
     actions: [
-      { label: 'Enregistrer', value: 'save', variant: 'primary', state: 'active' },
-      { label: 'Développer', value: 'develop', variant: 'primary', requiresAI: true, state: 'project' },
-      { label: 'Supprimer', value: 'delete', variant: 'danger' }
+      { label: 'Enregistrer', value: 'save', variant: 'save' },
+      { label: 'Développer', value: 'develop', variant: 'plan', requiresAI: true }
     ]
   }
 }
 
-// Suggestions selon le mood
-const MOOD_SUGGESTIONS: Record<Mood, string> = {
-  energetic: 'Parfait moment pour faire ça maintenant !',
-  overwhelmed: 'Cette tâche peut attendre, concentre-toi sur l\'essentiel',
-  tired: 'On la planifie pour demain quand tu seras en forme ?',
-  calm: 'Bon moment pour les tâches qui demandent de la réflexion'
-}
-
-const MOOD_ICONS: Record<Mood, string> = {
-  energetic: '💪',
-  overwhelmed: '⚠️',
-  tired: '😴',
-  calm: '☕'
+// Labels courts pour la capture (le CONTEXT_CONFIG global a les labels complets)
+const CONTEXT_SHORT_LABELS: Record<ItemContext, string> = {
+  personal: 'Perso',
+  family: 'Famille',
+  work: 'Travail',
+  health: 'Santé',
+  other: 'Autre'
 }
 
 // ============================================
-// COMPOSANT
+// COMPOSANT PRINCIPAL
 // ============================================
 
 export function CaptureModal({
   content,
   captureResult,
   mood,
+  userId,
   onSave,
-  onClose
+  onClose,
+  onSuccess,
+  isEmbedded = false,
+  multiCaptureContext
 }: CaptureModalProps) {
-  // État : type sélectionné (suggéré par IA ou task par défaut)
-  const [selectedType, setSelectedType] = useState<ItemType>(
-    captureResult.suggestedType || 'task'
+  const hasAIQuota = !captureResult.quotaExceeded
+
+  // Contexte suggéré par l'IA (priorité: suggestedContext > extracted_data.context > fallback)
+  const suggestedContext = captureResult.suggestedContext
+    || (captureResult.aiAnalysis?.extracted_data?.context as ItemContext)
+    || 'personal'
+
+  // État de la modal
+  const [currentStep, setCurrentStep] = useState<ModalStep>('organize')
+  const [selectedType, setSelectedType] = useState<ItemType>(captureResult.suggestedType || 'task')
+  const [selectedContext, setSelectedContext] = useState<ItemContext>(suggestedContext)
+  const [savedItemId, setSavedItemId] = useState<string | null>(null)
+  const [successData, setSuccessData] = useState<{ task: string; date: string } | null>(null)
+  const [isSaving, setIsSaving] = useState(false)
+  const [showDevelopPanel, setShowDevelopPanel] = useState(false)
+
+  // Google Calendar status
+  const { isConnected: isCalendarConnected } = useGoogleCalendarStatus()
+
+  // Convertir mood pour le scheduling
+  const schedulingMood = mood === 'energetic' ? 'energetic' : mood === 'tired' ? 'tired' : 'neutral'
+
+  // Récupérer la contrainte temporelle de l'analyse IA
+  const temporalConstraint = captureResult.aiAnalysis?.temporal_constraint || null
+
+  // Hook scheduling
+  const scheduling = useScheduling({
+    itemId: savedItemId || '',
+    taskContent: content,
+    mood: schedulingMood,
+    temporalConstraint
+  })
+
+  // Charger les créneaux quand on passe à l'étape schedule
+  useEffect(() => {
+    if (currentStep === 'schedule' && savedItemId && isCalendarConnected) {
+      scheduling.loadSlots()
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentStep, savedItemId, isCalendarConnected])
+
+  // ============================================
+  // HANDLERS
+  // ============================================
+
+  const handlePlanAction = async () => {
+    setIsSaving(true)
+    try {
+      // 1. Sauvegarder l'item en DB (state: 'active' pour l'instant)
+      const itemId = await saveItem({
+        userId,
+        type: 'task',
+        content,
+        state: 'active',
+        mood: convertMoodToItemMood(mood),
+        context: selectedContext,
+        aiAnalysis: captureResult.aiAnalysis
+      })
+
+      setSavedItemId(itemId)
+
+      // 2. Passer à l'étape 'schedule'
+      setCurrentStep('schedule')
+    } catch (error) {
+      console.error('Erreur sauvegarde:', error)
+    } finally {
+      setIsSaving(false)
+    }
+  }
+
+  const handleDevelopAction = async () => {
+    setIsSaving(true)
+    try {
+      // 1. Sauvegarder l'idée en DB (state: 'captured')
+      const itemId = await saveItem({
+        userId,
+        type: 'idea',
+        content,
+        state: 'captured',
+        mood: convertMoodToItemMood(mood),
+        context: selectedContext,
+        aiAnalysis: captureResult.aiAnalysis
+      })
+
+      setSavedItemId(itemId)
+
+      // 2. Afficher le panel de développement
+      setShowDevelopPanel(true)
+    } catch (error) {
+      console.error('Erreur sauvegarde idée:', error)
+    } finally {
+      setIsSaving(false)
+    }
+  }
+
+  const handleDevelopSuccess = () => {
+    // Appelé quand le développement est terminé avec succès
+    onSuccess?.()
+  }
+
+  const handleDevelopClose = () => {
+    setShowDevelopPanel(false)
+    onClose()
+  }
+
+  const handleBack = () => {
+    setCurrentStep('organize')
+  }
+
+  const handleSchedule = async () => {
+    if (!scheduling.selectedSlot) return
+
+    // Capturer le slot AVANT l'appel async
+    const slotToSchedule = scheduling.selectedSlot
+
+    try {
+      const success = await scheduling.scheduleTask()
+
+      if (success) {
+        // En mode embedded (multi-capture), notifier le parent et passer à la suite
+        if (isEmbedded) {
+          // Appeler onSave avec 'plan' pour marquer comme sauvegardée dans MultiCaptureModal
+          onSave('task', 'plan')
+          return
+        }
+
+        // Mode normal : afficher la modal de succès
+        const dateLabel = formatScheduledDate(`${slotToSchedule.date}T${slotToSchedule.startTime}:00`)
+        setSuccessData({ task: content, date: dateLabel })
+      }
+    } catch (error) {
+      console.error('Erreur planification:', error)
+    }
+  }
+
+  const handleSuccessClose = () => {
+    setSuccessData(null)
+    onSuccess?.()
+    onClose()
+  }
+
+  const handleConnectCalendar = () => {
+    // Sauvegarder le contexte de planification pour y revenir après connexion
+    const planningContext: {
+      itemId: string | null
+      content: string
+      mood: Mood | null
+      captureResult: CaptureResult
+      returnTo: string
+      isMultiCapture?: boolean
+      multiCaptureContext?: MultiCaptureContext
+    } = {
+      itemId: savedItemId,
+      content,
+      mood,
+      captureResult,
+      returnTo: 'schedule'
+    }
+
+    // Si on est en mode multi-capture, sauvegarder tout le contexte
+    if (multiCaptureContext) {
+      planningContext.isMultiCapture = true
+      planningContext.multiCaptureContext = multiCaptureContext
+    }
+
+    localStorage.setItem('manae_pending_planning', JSON.stringify(planningContext))
+
+    // Rediriger vers profil pour connexion Google Calendar
+    window.location.href = '/profil?connectCalendar=true'
+  }
+
+  const handleAction = (type: ItemType, action: ActionType) => {
+    if (action === 'plan' && type === 'task') {
+      handlePlanAction()
+    } else if (action === 'develop' && type === 'idea') {
+      handleDevelopAction()
+    } else {
+      onSave(type, action, selectedContext)
+    }
+  }
+
+  const config = TYPE_CONFIG[selectedType]
+
+  // ============================================
+  // RENDER - ORGANIZE STEP
+  // ============================================
+
+  const OrganizeContent = () => (
+    <div className="space-y-4">
+      {/* Message quota IA dépassé */}
+      {captureResult.quotaExceeded && (
+        <div className="bg-amber-50 border border-amber-200 rounded-lg p-3">
+          <div className="flex items-start gap-2">
+            <AlertIcon className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
+            <div className="text-sm">
+              <p className="font-medium text-amber-800">Quota IA épuisé cette semaine</p>
+              <p className="text-amber-700 mt-1">
+                Catégorise manuellement ou{' '}
+                <a href="/settings/subscription" className="text-primary underline font-medium hover:text-primary/80">
+                  passe au forfait supérieur
+                </a>
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Indicateur IA + crédits restants */}
+      {captureResult.aiUsed && captureResult.suggestedType && (
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2 text-sm">
+            <span className="text-primary">IA suggère :</span>
+            <span className="font-medium text-primary flex items-center gap-1">
+              {(() => {
+                const SuggestedIcon = TYPE_CONFIG[captureResult.suggestedType].icon
+                return <SuggestedIcon className="w-5 h-5" />
+              })()}
+              {TYPE_CONFIG[captureResult.suggestedType].label}
+            </span>
+          </div>
+          {captureResult.creditsRemaining !== undefined && captureResult.creditsRemaining !== null && (
+            <span className="text-xs text-text-muted">
+              {captureResult.creditsRemaining} crédit{captureResult.creditsRemaining !== 1 ? 's' : ''} IA restant{captureResult.creditsRemaining !== 1 ? 's' : ''}
+            </span>
+          )}
+        </div>
+      )}
+
+      {/* Contenu capturé */}
+      <div className="p-4 bg-mint rounded-xl border border-border">
+        <p className="text-text-dark whitespace-pre-wrap">{content}</p>
+      </div>
+
+      {/* Types - Icônes seulement */}
+      <div className="space-y-2">
+        <p className="text-sm font-medium text-text-dark">Type :</p>
+        <div className="flex gap-2">
+          {(Object.keys(TYPE_CONFIG) as ItemType[]).map((type) => {
+            const typeConfig = TYPE_CONFIG[type]
+            const isSelected = selectedType === type
+            const TypeIcon = typeConfig.icon
+
+            return (
+              <IconButton
+                key={type}
+                icon={<TypeIcon className='w6 h-6'/>}
+                label={typeConfig.label}
+                size="sm"
+                variant={isSelected ? 'primary' : 'ghost'}
+                onClick={() => setSelectedType(type)}
+                className={isSelected ? 'shadow-lg scale-105' : 'bg-gray-light'}
+              />
+            )
+          })}
+        </div>
+      </div>
+
+      {/* Contexte (pas pour les courses) */}
+      {selectedType !== 'list_item' && (
+        <div className="space-y-2">
+          <p className="text-sm font-medium text-text-dark">Contexte :</p>
+          <div className="flex gap-2">
+            {(Object.keys(CONTEXT_CONFIG) as ItemContext[]).map((ctx) => {
+              const ctxConfig = CONTEXT_CONFIG[ctx]
+              const CtxIcon = ctxConfig.icon
+              const isSelected = selectedContext === ctx
+
+              return (
+                <IconButton
+                  key={ctx}
+                  icon={<CtxIcon className='w6 h-6'/>}
+                  label={CONTEXT_SHORT_LABELS[ctx]}
+                  size="sm"
+                  variant={isSelected ? 'primary' : 'ghost'}
+                  onClick={() => setSelectedContext(ctx)}
+                  className={isSelected ? 'shadow-lg scale-105' : 'bg-gray-light'}
+                />
+              )
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* Actions */}
+      <div className="flex gap-2">
+        {config.actions.map((actionConfig) => {
+          const isDisabled = (actionConfig.requiresAI && !hasAIQuota) || isSaving
+
+          return (
+            <ActionButton
+              key={actionConfig.value}
+              label={isSaving && actionConfig.value === 'plan' ? 'Chargement...' : actionConfig.label}
+              variant={actionConfig.variant || 'save'}
+              onClick={() => !isDisabled && handleAction(selectedType, actionConfig.value)}
+              disabled={isDisabled}
+              fullWidth
+              className="flex-1"
+            />
+          )
+        })}
+
+        <IconButton
+          icon={<TrashIcon className='w-6 h-6'/>}
+          label="Supprimer"
+          variant="danger"
+          size="md"
+          onClick={() => onSave(selectedType, 'delete', selectedContext)}
+        />
+      </div>
+
+      {/* Panel de développement d'idée (inline) */}
+      {showDevelopPanel && savedItemId && selectedType === 'idea' && (
+        <IdeaDevelopPanel
+          itemId={savedItemId}
+          itemContent={content}
+          onClose={handleDevelopClose}
+          onDeveloped={handleDevelopSuccess}
+        />
+      )}
+
+      {!isEmbedded && !showDevelopPanel && (
+        <button
+          onClick={onClose}
+          className="w-full py-2 text-text-muted hover:text-text-dark font-medium"
+        >
+          Annuler
+        </button>
+      )}
+    </div>
   )
 
-  // Configuration du type sélectionné
-  const config = TYPE_CONFIG[selectedType]
-  const hasAIQuota = !captureResult.quotaExceeded
+  // ============================================
+  // RENDER - SCHEDULE STEP
+  // ============================================
+
+  const ScheduleContent = () => (
+    <div className="space-y-6">
+      {/* Tâche (lecture seule) */}
+
+      <div className="p-4 bg-mint rounded-xl border border-border">
+        <p className="text-text-dark whitespace-pre-wrap">{content}</p>
+      </div>
+
+      {/* Durée estimée */}
+      <DurationSelector
+        value={scheduling.estimatedDuration}
+        onChange={(duration) => scheduling.setDuration(duration as 15 | 30 | 60)}
+        disabled={scheduling.isLoading}
+      />
+
+      <div className="border-t border-border pt-6">
+        {/* Google Calendar non connecté ou session expirée */}
+        {(!isCalendarConnected || scheduling.error === 'calendar_session_expired' || scheduling.error === 'calendar_not_connected') && (
+          <div className="space-y-4">
+            {scheduling.error === 'calendar_session_expired' && (
+              <div className="alert-box mb-4">
+                <p className="alert-box-title text-center">
+                  Ta session Google Calendar a expiré
+                </p>
+              </div>
+            )}
+            <GoogleCalendarCTA
+              onConnect={handleConnectCalendar}
+              isConnecting={false}
+            />
+          </div>
+        )}
+
+        {/* Chargement */}
+        {isCalendarConnected && scheduling.isLoading && !scheduling.error && (
+          <div className="text-center py-8">
+            <div className="inline-block w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin mb-3" />
+            <p className="text-text-muted">
+              Recherche des meilleurs créneaux...
+            </p>
+          </div>
+        )}
+
+        {/* Erreur réseau */}
+        {scheduling.error === 'network_error' && (
+          <div className="alert-box text-center mb-4">
+            <p className="alert-box-title">Problème de connexion</p>
+            <p className="alert-box-text">
+              Vérifie ta connexion internet et réessaye.
+            </p>
+            <button
+              onClick={() => scheduling.loadSlots()}
+              className="mt-3 px-4 py-2 bg-[var(--accent)] text-white rounded-lg text-sm hover:bg-[var(--accent-dark)] transition-colors"
+            >
+              Réessayer
+            </button>
+          </div>
+        )}
+
+        {/* Erreur service fermé (médecin, banque, etc.) */}
+        {scheduling.error === 'service_closed' && scheduling.serviceFilterInfo && (
+          <div className="alert-box text-center mb-4">
+            <p className="alert-box-title">
+              {scheduling.serviceFilterInfo.type === 'medical' && 'Les créneaux chez le médecin sont limités'}
+              {scheduling.serviceFilterInfo.type === 'administrative' && 'Les services administratifs ont des horaires restreints'}
+              {scheduling.serviceFilterInfo.type === 'commercial' && 'Les commerces ont des horaires d\'ouverture'}
+            </p>
+            <p className="alert-box-text mt-2">
+              {scheduling.serviceFilterInfo.reason}
+            </p>
+            <button
+              onClick={() => scheduling.loadSlots(true)}
+              className="mt-3 px-4 py-2 bg-[var(--accent)] text-white rounded-lg text-sm hover:bg-[var(--accent-dark)] transition-colors"
+            >
+              Voir tous les créneaux quand même
+            </button>
+          </div>
+        )}
+
+        {/* Erreur (autres que calendar, network et service_closed) */}
+        {scheduling.error && !['network_error', 'calendar_not_connected', 'calendar_session_expired', 'service_closed'].includes(scheduling.error) && (
+          <div className="alert-box text-center">
+            <p className="alert-box-title">{scheduling.error}</p>
+          </div>
+        )}
+
+        {/* Créneaux */}
+        {isCalendarConnected && !scheduling.isLoading && scheduling.bestSlot && !scheduling.error && (
+          <div className="space-y-3">
+            {/* Indicateur mode forcé */}
+            {scheduling.isForceMode && scheduling.serviceFilterInfo && (
+              <div className="alert-box p-2 flex items-center gap-2 text-sm">
+                <span className="text-[var(--accent-dark)]">
+                  Créneaux affichés sans filtrage horaire ({scheduling.serviceFilterInfo.type === 'medical' ? 'médecin' : scheduling.serviceFilterInfo.type === 'administrative' ? 'administration' : 'commerce'})
+                </span>
+              </div>
+            )}
+
+            <h3 className="font-semibold text-text-dark mb-3">
+              {scheduling.showAlternatives ? 'Créneaux suggérés' : 'Meilleur moment suggéré'}
+            </h3>
+
+            {/* Meilleur créneau (toujours visible) */}
+            <TimeSlotCard
+              slot={scheduling.bestSlot}
+              rank={!scheduling.showAlternatives ? 1 : undefined}
+              isSelected={
+                scheduling.selectedSlot?.date === scheduling.bestSlot.date &&
+                scheduling.selectedSlot?.startTime === scheduling.bestSlot.startTime
+              }
+              onSelect={() => scheduling.selectSlot(scheduling.bestSlot)}
+            />
+
+            {/* Créneaux alternatifs (visibles si showAlternatives) */}
+            {scheduling.showAlternatives && scheduling.alternativeSlots.map((slot) => (
+              <TimeSlotCard
+                key={`${slot.date}-${slot.startTime}`}
+                slot={slot}
+                isSelected={
+                  scheduling.selectedSlot?.date === slot.date &&
+                  scheduling.selectedSlot?.startTime === slot.startTime
+                }
+                onSelect={() => scheduling.selectSlot(slot)}
+              />
+            ))}
+
+            {/* Bouton "Voir plus" / "Voir moins" */}
+            {scheduling.alternativeSlots.length > 0 && (
+              <button
+                onClick={scheduling.toggleAlternatives}
+                className="w-full py-2.5 text-sm font-medium text-primary hover:bg-primary/5 rounded-lg transition-colors border border-transparent hover:border-primary/20"
+              >
+                {scheduling.showAlternatives ? (
+                  '← Voir uniquement le meilleur'
+                ) : (
+                  `Voir d'autres créneaux (${scheduling.alternativeSlots.length} ${scheduling.alternativeSlots.length === 1 ? 'disponible' : 'disponibles'})`
+                )}
+              </button>
+            )}
+          </div>
+        )}
+
+        {/* Aucun créneau */}
+        {isCalendarConnected && !scheduling.isLoading && !scheduling.bestSlot && !scheduling.error && (
+          <div className="alert-box text-center">
+            <p className="alert-box-title">
+              Aucun créneau disponible sur les 7 prochains jours
+            </p>
+            <p className="alert-box-text mt-2">
+              Essaie de modifier la durée ou tes contraintes horaires
+            </p>
+          </div>
+        )}
+      </div>
+
+    </div>
+  )
+
+  // ============================================
+  // RENDER
+  // ============================================
+
+  if (isEmbedded) {
+    if (currentStep === 'organize') {
+      return <OrganizeContent />
+    }
+
+    // Mode embedded + schedule : inclure les boutons d'action
+    return (
+      <div className="flex flex-col">
+        {/* Contenu scrollable */}
+        <div className="flex-1 overflow-y-auto" style={{ maxHeight: 'calc(100vh - 350px)' }}>
+          <ScheduleContent />
+        </div>
+
+        {/* Footer Actions - toujours visible en bas */}
+        <div className="mt-4 pt-4 border-t border-border flex gap-3 bg-white sticky bottom-0">
+          <ActionButton
+            label="Annuler"
+            variant="secondary"
+            onClick={handleBack}
+            className="flex-1"
+          />
+          <ActionButton
+            label={scheduling.isLoading ? 'En cours...' : 'Caler'}
+            variant="plan"
+            onClick={handleSchedule}
+            disabled={!scheduling.selectedSlot || scheduling.isLoading}
+            className="flex-1"
+          />
+        </div>
+      </div>
+    )
+  }
+
+  // Afficher la modal de succès après planification
+  if (successData) {
+    return (
+      <SuccessModal
+        taskContent={successData.task}
+        scheduledDate={successData.date}
+        onClose={handleSuccessClose}
+      />
+    )
+  }
 
   return (
     <>
@@ -144,158 +693,66 @@ export function CaptureModal({
         onClick={onClose}
       />
 
-      {/* Modal */}
-      <div className="fixed inset-x-0 bottom-0 z-50 bg-white rounded-t-3xl shadow-2xl animate-slide-up max-w-2xl mx-auto">
-        <div className="p-6 space-y-4">
+      {/* Modal - positionné au-dessus du BottomNav */}
+      <div className="fixed z-[60] inset-x-0 bottom-[80px] rounded-t-3xl bg-white shadow-2xl animate-slide-up" style={{ maxHeight: 'calc(100vh - 140px)' }}>
+        {/* Header - hauteur fixe */}
+        <div className="h-[60px] flex items-center justify-between px-4 border-b border-border bg-white rounded-t-3xl">
+          {currentStep === 'schedule' ? (
+            <IconButton
+              icon={<ArrowLeftIcon className='w6 h-6'/>}
+              label="Retour"
+              variant="ghost"
+              size="sm"
+              onClick={handleBack}
+            />
+          ) : (
+            <div className="w-10" />
+          )}
 
-          {/* Bouton fermer */}
-          <button
+          <h2 className="text-lg font-bold text-text-dark font-quicksand">
+            {currentStep === 'organize' ? 'Organiser' : 'Caler la tâche'}
+          </h2>
+
+          <IconButton
+            icon={<XIcon className='w6 h-6' />}
+            label="Fermer"
+            variant="ghost"
+            size="sm"
             onClick={onClose}
-            className="absolute top-4 right-4 w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-light transition-colors text-text-muted"
-          >
-            ✕
-          </button>
-
-          {/* Indicateur IA */}
-          {captureResult.aiUsed && captureResult.suggestedType && (
-            <div className="flex items-center gap-2 text-sm">
-              <span className="text-primary">IA suggère :</span>
-              <span className="font-medium text-primary flex items-center gap-1">
-                <span className="w-5 h-5">{TYPE_CONFIG[captureResult.suggestedType].icon}</span>
-                {TYPE_CONFIG[captureResult.suggestedType].label}
-              </span>
-              {captureResult.creditsRemaining !== null && (
-                <span className="ml-auto text-text-muted">
-                  {captureResult.creditsRemaining} crédits restants
-                </span>
-              )}
-            </div>
-          )}
-
-          {/* Alerte quota épuisé */}
-          {captureResult.quotaExceeded && (
-            <div className="p-4 bg-amber-50 border border-amber-200 rounded-lg">
-              <p className="text-sm text-amber-800 font-medium mb-2">
-                Quota IA épuisé
-              </p>
-              <p className="text-sm text-amber-700">
-                Veuillez catégoriser manuellement. Les fonctions IA (Planifier, Développer) sont désactivées.
-              </p>
-              <button
-                className="mt-3 text-sm font-medium text-primary hover:opacity-80"
-                onClick={() => {
-                  // TODO: Router vers page upgrade
-                  console.log('Navigate to upgrade page')
-                }}
-              >
-                Passer à Plus (IA illimitée) →
-              </button>
-            </div>
-          )}
-
-          {/* Contenu capturé */}
-          <div className="p-4 bg-mint rounded-lg border border-border">
-            <p className="text-text-dark whitespace-pre-wrap">{content}</p>
-          </div>
-
-          {/* Durée estimée (pour tasks) */}
-          {selectedType === 'task' && (
-            <div className="text-sm text-text-muted">
-              <span className="font-medium">⏱️ Durée estimée :</span> ~15 min
-            </div>
-          )}
-
-          {/* Suggestion selon mood */}
-          {mood && (
-            <div className="p-3 bg-blue-50 border border-blue-200 rounded-xl">
-              <p className="text-sm text-blue-800">
-                {MOOD_ICONS[mood]} {MOOD_SUGGESTIONS[mood]}
-              </p>
-            </div>
-          )}
-
-          {/* Sélecteur de type */}
-          <div>
-            <p className="text-sm font-medium text-text-dark mb-3">
-              Type :
-            </p>
-            <div className="grid grid-cols-4 gap-2">
-              {(Object.keys(TYPE_CONFIG) as ItemType[]).map((type) => {
-                const typeConfig = TYPE_CONFIG[type]
-                const isSelected = selectedType === type
-
-                return (
-                  <button
-                    key={type}
-                    onClick={() => setSelectedType(type)}
-                    className={`
-                      flex flex-col items-center gap-2 py-3 px-2 rounded-xl font-medium transition-all
-                      ${isSelected
-                        ? 'bg-primary text-white shadow-lg scale-105'
-                        : 'bg-gray-light text-text-dark hover:bg-border'
-                      }
-                    `}
-                  >
-                    <div className={isSelected ? 'text-white' : 'text-text-muted'}>
-                      {typeConfig.icon}
-                    </div>
-                    <span className="text-xs">{typeConfig.label}</span>
-                  </button>
-                )
-              })}
-            </div>
-          </div>
-
-          {/* Actions */}
-          <div className="flex gap-2 flex-wrap">
-            {config.actions.map((action) => {
-              const isDisabled = action.requiresAI && !hasAIQuota
-
-              return (
-                <button
-                  key={action.value}
-                  onClick={() => !isDisabled && onSave(selectedType, action.value)}
-                  disabled={isDisabled}
-                  className={`
-                    flex-1 min-w-[100px] py-3 px-4 rounded-xl font-medium transition-all
-                    ${action.variant === 'danger'
-                      ? 'bg-red-500 text-white hover:bg-red-600 active:scale-95'
-                      : isDisabled
-                        ? 'bg-gray-light text-text-muted cursor-not-allowed'
-                        : 'bg-primary text-white hover:opacity-90 active:scale-95'
-                    }
-                    disabled:opacity-50 disabled:cursor-not-allowed
-                  `}
-                >
-                  {action.label}
-                  {isDisabled && ' 🔒'}
-                </button>
-              )
-            })}
-
-            {/* Bouton Déléguer (grisé) */}
-            <button
-              disabled
-              className="flex-1 min-w-[100px] py-3 px-4 rounded-xl font-medium bg-gray-light text-text-muted cursor-not-allowed relative group"
-            >
-              Déléguer 👥
-              <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-1 bg-text-dark text-white text-xs rounded-lg opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none">
-                Disponible avec le forfait Famille
-              </span>
-            </button>
-          </div>
-
-          {/* Bouton Annuler */}
-          <button
-            onClick={onClose}
-            className="w-full py-2 text-text-muted hover:text-text-dark font-medium"
-          >
-            Annuler
-          </button>
+          />
         </div>
+
+        {/* Content - scrollable */}
+        <div
+          className="p-6 overflow-y-auto"
+          style={{
+            maxHeight: currentStep === 'schedule'
+              ? 'calc(100vh - 300px)' // Réserve large pour header + footer + marges
+              : 'calc(100vh - 220px)'
+          }}
+        >
+          {currentStep === 'organize' ? OrganizeContent() : ScheduleContent()}
+        </div>
+
+        {/* Footer Actions - Schedule step only */}
+        {currentStep === 'schedule' ? (
+          <div className="p-4 border-t border-border bg-white flex gap-3">
+            <ActionButton
+              label="Annuler"
+              variant="secondary"
+              onClick={handleBack}
+              className="flex-1"
+            />
+            <ActionButton
+              label={scheduling.isLoading ? 'En cours...' : 'Caler'}
+              variant="plan"
+              onClick={handleSchedule}
+              disabled={!scheduling.selectedSlot || scheduling.isLoading}
+              className="flex-1"
+            />
+          </div>
+        ) : null}
       </div>
     </>
   )
 }
-
-export type { ActionType }

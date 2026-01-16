@@ -1,114 +1,39 @@
+/**
+ * Service d'analyse IA des pensées capturées
+ * Utilise les prompts centralisés dans /prompts
+ */
+
 import type {
-  ItemType,
-  ItemState,
-  ItemContext,
-  AIAnalysis,
   AIAnalyzedItem,
   AIAnalysisResult
 } from '@/types/items'
+import {
+  cleanShoppingItemContent,
+  detectShoppingCategory
+} from '@/config/shopping-categories'
+import {
+  ANALYZE_CONFIG,
+  buildAnalyzePrompt,
+  SYSTEM_PROMPT as PROMPTS_SYSTEM
+} from '@/prompts'
+import type { AnalysisResponseAPI } from '@/prompts'
 
 // ============================================
-// TYPES INTERNES
+// RE-EXPORTS POUR COMPATIBILITÉ
 // ============================================
 
-interface OpenAIAnalysisResponse {
-  items: Array<{
-    content: string
-    type: ItemType
-    state: ItemState
-    context?: ItemContext
-    confidence: number
-    extracted_data?: {
-      date?: string
-      time?: string
-      location?: string
-      items?: string[]
-    }
-    suggestions?: string[]
-    reasoning?: string
-  }>
-}
+export const SYSTEM_PROMPT = PROMPTS_SYSTEM
+export type OpenAIAnalysisResponse = AnalysisResponseAPI
 
-// ============================================
-// PROMPTS
-// ============================================
-
-const SYSTEM_PROMPT = `Tu es un assistant d'organisation pour parents débordés.
-Tu analyses des pensées capturées et les catégorises selon le nouveau schéma.
-
-RÈGLES IMPORTANTES :
-- TYPE = Nature de l'item (ce que c'est)
-- STATE = Étape dans le cycle de vie (où ça en est)
-
-Ne confonds JAMAIS type et state.`
-
-function buildAnalysisPrompt(rawText: string, historyContext?: string): string {
-  return `Analyse cette pensée capturée et découpe-la en items distincts si nécessaire.
-
-PENSÉE À ANALYSER :
-"${rawText}"
-
-${historyContext || ''}
-
-Pour chaque item détecté, détermine :
-
-1. TYPE (nature de la chose - IMMUTABLE) :
-   - "task" : Action concrète à faire (ex: "Appeler le dentiste", "Prendre RDV")
-   - "note" : Information/mémo à retenir (ex: "Léa adore les licornes", "Code WiFi: abc123")
-   - "idea" : Envie floue, projet pas structuré (ex: "Partir au Japon", "Refaire la cuisine")
-   - "list_item" : Article de courses (ex: "lait", "pain", "œufs")
-
-2. STATE (étape cycle de vie - MUTABLE) :
-   - "captured" : Vient d'être saisi, nécessite clarification
-   - "active" : Clarifié, prêt à être utilisé
-
-3. CONTEXT (domaine de vie) :
-   - "personal" : Personnel
-   - "family" : Famille/enfants
-   - "work" : Professionnel
-   - "health" : Santé
-
-4. EXTRACTED DATA (si détectable) :
-   - date : Si une date est mentionnée (format ISO)
-   - time : Si une heure est mentionnée
-   - location : Si un lieu est mentionné
-   - items : Si plusieurs articles détectés (pour list_item)
-
-RÈGLES CRITIQUES :
-- Si c'est une envie future sans action claire → type: "idea", state: "captured"
-- Si c'est actionnable maintenant → type: "task", state: "active"
-- Si c'est une info à retenir (pas d'action) → type: "note", state: "active"
-- Si ce sont des courses/achats → type: "list_item", state: "active"
-- Si "lait pain œufs" ou liste séparée par espaces/virgules → DÉCOUPER en plusieurs list_item
-- confidence : 0.0 à 1.0 (certitude de la classification)
-
-EXEMPLES :
-- "Aller au ski en février 2027" → type: "idea", state: "captured"
-- "Acheter du lait" → type: "task", state: "active" OU type: "list_item" si contexte courses
-- "Lena aime les chats" → type: "note", state: "active"
-- "Pain lait œufs" → 3 items type: "list_item", state: "active"
-- "Appeler le plombier demain" → type: "task", state: "active"
-
-Réponds UNIQUEMENT en JSON valide, sans markdown :
-{
-  "items": [
-    {
-      "content": "texte reformulé si nécessaire",
-      "type": "task" | "note" | "idea" | "list_item",
-      "state": "captured" | "active",
-      "context": "personal" | "family" | "work" | "health",
-      "confidence": 0.0-1.0,
-      "extracted_data": {
-        "date": "ISO 8601" ou null,
-        "time": "HH:mm" ou null,
-        "location": "string" ou null,
-        "items": ["item1", "item2"] ou null
-      },
-      "suggestions": ["suggestion1", "suggestion2"],
-      "reasoning": "explication courte du choix"
-    }
-  ]
-}`
+/**
+ * Construit le prompt d'analyse (wrapper pour compatibilité)
+ */
+export function buildAnalysisPrompt(rawText: string, historyContext?: string): string {
+  return buildAnalyzePrompt({
+    rawText,
+    today: new Date(),
+    historyContext
+  })
 }
 
 // ============================================
@@ -131,7 +56,7 @@ export async function analyzeCapture(rawText: string): Promise<AIAnalysisResult>
 }
 
 // ============================================
-// ANALYSE FALLBACK (règles basiques)
+// ANALYSE FALLBACK (règles basiques sans IA)
 // ============================================
 
 export function analyzeWithRules(rawText: string): AIAnalysisResult {
@@ -154,19 +79,44 @@ export function analyzeWithRules(rawText: string): AIAnalysisResult {
     const itemsToAdd = groceryWordsFound.length > 0 ? groceryWordsFound : words.slice(0, 5)
 
     for (const item of itemsToAdd) {
+      // Nettoyer et détecter la catégorie
+      const cleanedContent = cleanShoppingItemContent(item)
+      const category = detectShoppingCategory(item)
+
       items.push({
-        content: item.charAt(0).toUpperCase() + item.slice(1).toLowerCase(),
+        content: cleanedContent,
         type: 'list_item',
         state: 'active',
         context: 'family',
         ai_analysis: {
           type_suggestion: 'list_item',
           confidence: 0.7,
-          extracted_data: { items: [item] },
+          extracted_data: { items: [item], category },
           suggestions: ['Ajouter à la liste de courses']
         }
       })
     }
+
+    return { items, raw_input: rawText }
+  }
+
+  // Cas spécial : "acheter du X" → nettoyer et créer un list_item
+  if (isGroceryContext) {
+    const cleanedContent = cleanShoppingItemContent(rawText)
+    const category = detectShoppingCategory(cleanedContent)
+
+    items.push({
+      content: cleanedContent,
+      type: 'list_item',
+      state: 'active',
+      context: 'family',
+      ai_analysis: {
+        type_suggestion: 'list_item',
+        confidence: 0.7,
+        extracted_data: { category },
+        suggestions: ['Ajouter à la liste de courses']
+      }
+    })
 
     return { items, raw_input: rawText }
   }
@@ -288,8 +238,7 @@ export function analyzeWithRules(rawText: string): AIAnalysisResult {
 }
 
 // ============================================
-// EXPORTS PROMPTS (pour API route)
+// EXPORT CONFIG POUR USAGE EXTERNE
 // ============================================
 
-export { SYSTEM_PROMPT, buildAnalysisPrompt }
-export type { OpenAIAnalysisResponse }
+export { ANALYZE_CONFIG }

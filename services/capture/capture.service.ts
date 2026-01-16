@@ -3,15 +3,28 @@
 import { createClient } from '@/lib/supabase/client'
 import { checkAIQuota, trackAIUsage } from '@/services/quota'
 import type { ItemType, ItemState, AIAnalysis } from '@/types/items'
+import { detectShoppingCategory } from '@/config/shopping-categories'
 
 // ============================================
 // TYPES
 // ============================================
 
+// Item multi-pensée retourné par l'API v2
+export interface MultiThoughtItem {
+  content: string
+  type: ItemType
+  state: ItemState
+  context?: 'personal' | 'family' | 'work' | 'health' | 'other'
+  ai_analysis: AIAnalysis
+}
+
 export interface CaptureResult {
   success: boolean
   aiUsed: boolean
+  multiple?: boolean
+  items?: MultiThoughtItem[]
   suggestedType?: ItemType
+  suggestedContext?: 'personal' | 'family' | 'work' | 'health' | 'other'
   aiAnalysis?: AIAnalysis
   creditsRemaining?: number | null
   quotaExceeded?: boolean
@@ -24,9 +37,10 @@ export interface SaveItemInput {
   content: string
   state?: ItemState
   aiAnalysis?: AIAnalysis
-  mood?: 'energetic' | 'neutral' | 'tired'
-  context?: 'personal' | 'family' | 'work' | 'health'
+  mood?: 'energetic' | 'neutral' | 'overwhelmed' | 'tired'
+  context?: 'personal' | 'family' | 'work' | 'health' | 'other'
   listId?: string // Pour list_item
+  shoppingCategory?: string // Catégorie pour list_item
 }
 
 // ============================================
@@ -49,15 +63,15 @@ export async function captureThought(
     const quota = await checkAIQuota(userId)
     console.log('🔍 [captureThought] Quota result:', quota)
 
-    // 2. Si quota OK → Analyser avec IA
+    // 2. Si quota OK → Analyser avec IA (API v2 avec temporal_constraint)
     if (quota.canUse) {
-      console.log('🔍 [captureThought] Quota OK, calling /api/analyze...')
+      console.log('🔍 [captureThought] Quota OK, calling /api/analyze-v2...')
       try {
-        // Appel API d'analyse
-        const response = await fetch('/api/analyze', {
+        // Appel API d'analyse v2
+        const response = await fetch('/api/analyze-v2', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ content })
+          body: JSON.stringify({ rawText: content })
         })
 
         console.log('🔍 [captureThought] API response status:', response.status)
@@ -66,21 +80,45 @@ export async function captureThought(
           throw new Error('API analyze failed')
         }
 
-        const analysis: AIAnalysis = await response.json()
-        console.log('🔍 [captureThought] Analysis result:', analysis)
+        const analysisResult = await response.json()
+        console.log('🔍 [captureThought] Analysis result:', analysisResult)
 
         // Tracker l'usage (incrémenter compteur)
         await trackAIUsage(userId, 'analyze')
 
-        const result = {
-          success: true,
-          aiUsed: true,
-          suggestedType: analysis.type_suggestion,
-          aiAnalysis: analysis,
-          creditsRemaining: quota.creditsRemaining ? quota.creditsRemaining - 1 : null
+        // Gérer multi-pensées (API v2 retourne toujours { items: [...] })
+        if (analysisResult.items && Array.isArray(analysisResult.items)) {
+          const items = analysisResult.items as MultiThoughtItem[]
+
+          if (items.length > 1) {
+            // Multi-pensées
+            const multiResult: CaptureResult = {
+              success: true,
+              aiUsed: true,
+              multiple: true,
+              items: items,
+              creditsRemaining: quota.creditsRemaining ? quota.creditsRemaining - 1 : null
+            }
+            console.log('🔍 [captureThought] Returning MULTI-THOUGHTS:', multiResult)
+            return multiResult
+          }
+
+          // Pensée unique
+          const firstItem = items[0]
+          const result: CaptureResult = {
+            success: true,
+            aiUsed: true,
+            suggestedType: firstItem.type,
+            suggestedContext: firstItem.context,
+            aiAnalysis: firstItem.ai_analysis,
+            creditsRemaining: quota.creditsRemaining ? quota.creditsRemaining - 1 : null
+          }
+          console.log('🔍 [captureThought] Returning SUCCESS with AI:', result)
+          return result
         }
-        console.log('🔍 [captureThought] Returning SUCCESS with AI:', result)
-        return result
+
+        // Fallback si pas d'items
+        throw new Error('Invalid API response: no items')
       } catch (error) {
         console.error('🔍 [captureThought] Error analyzing thought:', error)
 
@@ -129,6 +167,11 @@ export async function saveItem(input: SaveItemInput): Promise<string> {
   const supabase = createClient()
 
   // Préparer les données
+  // Contexte : priorité input > AI extracted_data > fallback 'other'
+  const resolvedContext = input.context
+    || input.aiAnalysis?.extracted_data?.context
+    || 'other'
+
   const itemData: Record<string, unknown> = {
     user_id: input.userId,
     type: input.type,
@@ -136,13 +179,13 @@ export async function saveItem(input: SaveItemInput): Promise<string> {
     content: input.content,
     ai_analysis: input.aiAnalysis || null,
     mood: input.mood || null,
-    context: input.context || null,
+    context: resolvedContext,
     metadata: {
       categorized_by: input.aiAnalysis ? 'ai' : 'user'
     }
   }
 
-  // Si list_item, gérer la liste de courses
+  // Si list_item, gérer la liste de courses et la catégorie
   if (input.type === 'list_item') {
     if (!input.listId) {
       // Créer ou récupérer la liste par défaut
@@ -150,6 +193,13 @@ export async function saveItem(input: SaveItemInput): Promise<string> {
       itemData.list_id = listId
     } else {
       itemData.list_id = input.listId
+    }
+    // Ajouter la catégorie (priorité: input > AI extracted_data)
+    const category = input.shoppingCategory
+      || input.aiAnalysis?.extracted_data?.category
+      || null
+    if (category) {
+      itemData.shopping_category = category
     }
   }
 
@@ -211,24 +261,80 @@ async function getOrCreateDefaultShoppingList(userId: string): Promise<string> {
 // ============================================
 
 /**
- * Pour les courses : "lait pain oeufs" → ['lait', 'pain', 'oeufs']
+ * Nettoie et extrait plusieurs items d'un contenu
+ * Enlève tous les mots parasites liés aux courses
+ *
+ * Patterns supportés :
+ * - "acheter lait pain œufs" → ['Lait', 'Pain', 'Œufs'] (espaces)
+ * - "lait, pain, œufs" → ['Lait', 'Pain', 'Œufs'] (virgules)
+ * - "lait et pain et œufs" → ['Lait', 'Pain', 'Œufs'] (et)
+ * - "ajouter le lait à la liste de course" → ['Lait']
  */
 export function extractMultipleItems(content: string): string[] {
-  // Split par virgules, retours à la ligne, ou espaces multiples
-  const items = content
-    .split(/[,\n]+/)
-    .map(item => item.trim())
-    .filter(item => item.length > 0)
+  // 1. Nettoyer le contenu global d'abord
+  let cleanedContent = content
 
-  // Si pas de virgules/retours, split par espaces simples
-  if (items.length === 1) {
-    return content
-      .split(/\s+/)
-      .map(item => item.trim())
-      .filter(item => item.length > 1) // Ignorer les mots d'1 lettre
+  // Enlever les verbes d'achat au début
+  cleanedContent = cleanedContent.replace(/^(acheter|prendre|récupérer|chercher|ajouter)\s+/i, '').trim()
+
+  // Enlever les expressions liées aux courses à la fin
+  cleanedContent = cleanedContent.replace(/\s*(à|au|aux|dans|pour)\s+(la|le|les)?\s*(liste|course|courses|panier|caddie).*$/i, '').trim()
+
+  // 2. Détecter le type de séparateur utilisé
+  const hasCommas = cleanedContent.includes(',')
+  const hasEt = /\s+et\s+/i.test(cleanedContent)
+
+  let rawItems: string[]
+
+  if (hasCommas) {
+    // Split par virgules
+    rawItems = cleanedContent.split(',').map(item => item.trim()).filter(item => item.length > 0)
+  } else if (hasEt) {
+    // Split par "et"
+    rawItems = cleanedContent.split(/\s+et\s+/i).map(item => item.trim()).filter(item => item.length > 0)
+  } else {
+    // Pas de séparateur évident → essayer de détecter une liste séparée par espaces
+    // On split par espaces et on filtre les articles/mots vides
+    const words = cleanedContent.split(/\s+/)
+    const stopWords = new Set([
+      'du', 'de', 'la', 'des', 'le', 'les', 'un', 'une', 'l', 'd',
+      'et', 'ou', 'avec', 'sans', 'pour', 'dans', 'sur', 'sous'
+    ])
+
+    // Filtrer les stop words et garder les mots substantifs
+    rawItems = words.filter(word => {
+      const lowerWord = word.toLowerCase().replace(/['']/g, '')
+      return word.length > 1 && !stopWords.has(lowerWord)
+    })
+
+    // Si on a moins de 2 items après filtrage, garder le contenu original comme un seul item
+    if (rawItems.length < 2) {
+      rawItems = [cleanedContent]
+    }
   }
 
-  return items
+  // 3. Nettoyer chaque item individuellement
+  const cleanedItems = rawItems.map(item => {
+    let cleaned = item
+
+    // Enlever les articles au début
+    cleaned = cleaned.replace(/^(du|de la|des|de l'|d'|le|la|les|un|une)\s+/i, '').trim()
+
+    // Enlever les verbes d'achat résiduels
+    cleaned = cleaned.replace(/^(acheter|prendre|récupérer|chercher|ajouter)\s+/i, '').trim()
+
+    // Re-nettoyer les articles si présents après le verbe
+    cleaned = cleaned.replace(/^(du|de la|des|de l'|d'|le|la|les|un|une)\s+/i, '').trim()
+
+    // Capitaliser première lettre
+    if (cleaned.length > 0) {
+      cleaned = cleaned.charAt(0).toUpperCase() + cleaned.slice(1).toLowerCase()
+    }
+
+    return cleaned
+  }).filter(item => item.length > 1) // Ignorer items trop courts
+
+  return cleanedItems
 }
 
 // ============================================
@@ -237,6 +343,7 @@ export function extractMultipleItems(content: string): string[] {
 
 /**
  * Sauvegarde plusieurs items de courses d'un coup
+ * Détecte automatiquement la catégorie de chaque item
  */
 export async function saveMultipleListItems(
   userId: string,
@@ -252,6 +359,7 @@ export async function saveMultipleListItems(
     state: 'active' as ItemState,
     content: item,
     list_id: listId,
+    shopping_category: detectShoppingCategory(item),
     ai_analysis: aiAnalysis || null,
     metadata: {
       categorized_by: aiAnalysis ? 'ai' : 'user'

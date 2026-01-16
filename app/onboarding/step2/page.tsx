@@ -4,9 +4,8 @@ import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/Button';
 import { EnergyCard } from '@/components/ui/EnergyCard';
-import { SunriseIcon, CoffeeIcon, BriefcaseIcon, SunsetIcon, MoonIcon } from '@/components/ui/icons/TimeIcons';
+import { SunriseIcon, CoffeeIcon, BriefcaseIcon, SunsetIcon, MoonIcon } from '@/components/ui/icons';
 import { updateUserProfile, getOrCreateUserProfile } from '@/services/supabaseService';
-import { ArrowLeftIcon, ChevronLeft } from 'lucide-react';
 
 
 interface EnergyMoment {
@@ -101,10 +100,10 @@ export default function OnboardingStep2() {
                 {/* Content */}
                 <main>
                     <h2 className="text-2xl font-bold text-text-dark mb-3">
-                        Tes moments d'énergie
+                        Tes moments d&apos;énergie
                     </h2>
                     <p className="text-base text-text-medium mb-6 leading-relaxed">
-                        Quand préfères-tu avancer sur tes tâches ?
+                        Quand préfères-tu avancer sur tes tâches ? ()
                     </p>
 
                     <form onSubmit={handleSubmit}>
@@ -122,13 +121,6 @@ export default function OnboardingStep2() {
                                 />
                             ))}
                         </div>
-
-                        {/* Message d'aide si rien sélectionné */}
-                        {selectedMoments.length === 0 && (
-                            <p className="text-sm text-text-muted text-center mb-6">
-                                💡 Sélectionne au moins un créneau
-                            </p>
-                        )}
 
                         {/* Boutons navigation */}
                         <div className="flex gap-3 pt-4">

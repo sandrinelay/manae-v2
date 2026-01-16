@@ -7,8 +7,6 @@ import { Button } from '@/components/ui/Button';
 import { OnboardingData, ValidationErrors } from '@/types';
 import { getOrCreateUserProfile, updateUserProfile } from '@/services/supabaseService';
 
-const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-
 export default function OnboardingStep1() {
     const router = useRouter();
     const [isLoading, setIsLoading] = useState(true);
@@ -157,7 +155,7 @@ export default function OnboardingStep1() {
                         />
 
                         <p className="text-xs text-text-muted mb-6 mt-2">
-                            💡 L'email ne peut pas être modifié
+                            💡 L&apos;email ne peut pas être modifié
                         </p>
 
                         <div className="pt-4">

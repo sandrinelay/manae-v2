@@ -1,15 +1,19 @@
 'use client';
 
-import React, { useState } from 'react';
-import { useRouter } from 'next/navigation';
+import React, { useState, Suspense } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { Button } from '@/components/ui/Button';
 import { openGoogleAuthPopup, exchangeCodeForToken } from '@/lib/googleCalendar';
 import { updateUserProfile } from '@/services/supabaseService';
 
-export default function OnboardingStep4() {
+function OnboardingStep4Content() {
     const router = useRouter();
+    const searchParams = useSearchParams();
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
+
+    // Vérifier si on vient d'un flux de planification
+    const returnTo = searchParams.get('returnTo');
 
     const handleConnect = async () => {
         setIsLoading(true);
@@ -18,8 +22,15 @@ export default function OnboardingStep4() {
             const code = await openGoogleAuthPopup();
             const tokens = await exchangeCodeForToken(code);
 
+            // Calculer expires_at à partir de expires_in (en secondes)
+            const tokensWithExpiry = {
+                ...tokens,
+                expires_at: Date.now() + (tokens.expires_in * 1000)
+            };
+
             // Save tokens locally (TODO: sauvegarder côté serveur de façon sécurisée)
-            localStorage.setItem('manae_google_tokens', JSON.stringify(tokens));
+            // Utiliser 'google_tokens' pour compatibilité avec calendar.service
+            localStorage.setItem('google_tokens', JSON.stringify(tokensWithExpiry));
 
             // Marquer l'onboarding comme terminé dans Supabase
             await updateUserProfile({
@@ -35,7 +46,23 @@ export default function OnboardingStep4() {
                 completed_at: new Date().toISOString()
             }));
 
-            router.push('/capture');
+            // Rediriger vers la bonne destination
+            if (returnTo === 'planning') {
+                // Vérifier si on vient de Clarté ou de Capture
+                const pendingPlanning = localStorage.getItem('manae_pending_planning')
+                if (pendingPlanning) {
+                    const context = JSON.parse(pendingPlanning)
+                    if (context.returnTo === 'clarte-schedule') {
+                        // Retour vers /clarte avec flag pour restaurer le contexte de planification
+                        router.push('/clarte?resumePlanning=true')
+                        return
+                    }
+                }
+                // Retour vers /capture avec flag pour restaurer le contexte de planification
+                router.push('/capture?resumePlanning=true');
+            } else {
+                router.push('/capture');
+            }
         } catch (err) {
             console.error('Auth error:', err);
             setError('Une erreur est survenue lors de la connexion.');
@@ -116,5 +143,17 @@ export default function OnboardingStep4() {
                 </main>
             </div>
         </div>
+    );
+}
+
+export default function OnboardingStep4() {
+    return (
+        <Suspense fallback={
+            <div className="min-h-screen bg-mint flex items-center justify-center">
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+            </div>
+        }>
+            <OnboardingStep4Content />
+        </Suspense>
     );
 }

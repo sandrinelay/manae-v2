@@ -17,7 +17,7 @@ export interface Constraint {
     id: string
     user_id: string
     name: string
-    category: string
+    category: 'work' | 'school' | 'home' | 'sport' | 'social' | 'other'
     days: string[]
     start_time: string
     end_time: string
@@ -51,19 +51,22 @@ export async function getOrCreateUserProfile() {
         return existingProfile as UserProfile
     }
 
-    // Si pas de profil, en créer un
+    // Si pas de profil, utiliser upsert pour éviter les erreurs de duplicate key
     if (fetchError?.code === 'PGRST116') { // Not found
-        const { data: newProfile, error: insertError } = await supabase
+        const { data: newProfile, error: upsertError } = await supabase
             .from('users')
-            .insert({
+            .upsert({
                 id: user.id,
                 email: user.email || '',
                 onboarding_completed: false
+            }, {
+                onConflict: 'id',
+                ignoreDuplicates: false
             })
             .select()
             .single()
 
-        if (insertError) throw insertError
+        if (upsertError) throw upsertError
         return newProfile as UserProfile
     }
 

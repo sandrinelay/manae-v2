@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useRef } from 'react'
+import { useState, useRef, useCallback } from 'react'
 
 interface VoiceRecorderProps {
     onTranscription: (text: string) => void
@@ -13,14 +13,33 @@ export default function VoiceRecorder({ onTranscription }: VoiceRecorderProps) {
     const chunksRef = useRef<Blob[]>([])
     const startTimeRef = useRef<number>(0)
 
-    const startRecording = async () => {
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const processTranscription = useCallback(async (_audioBlob: Blob) => {
+        try {
+            // TODO: Replace with real Whisper API call using _audioBlob
+            // For now, simulate transcription
+            await new Promise(resolve => setTimeout(resolve, 1000))
+
+            // Mock transcription
+            const mockTranscription = "Appeler la maîtresse pour le rendez-vous"
+
+            onTranscription(mockTranscription)
+            setIsProcessing(false)
+        } catch (error) {
+            console.error('Transcription error:', error)
+            alert('Erreur lors de la transcription')
+            setIsProcessing(false)
+        }
+    }, [onTranscription])
+
+    const startRecording = useCallback(async () => {
         try {
             const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
             const mediaRecorder = new MediaRecorder(stream)
 
             mediaRecorderRef.current = mediaRecorder
             chunksRef.current = []
-            startTimeRef.current = Date.now()
+            startTimeRef.current = performance.now()
 
             mediaRecorder.ondataavailable = (e) => {
                 if (e.data.size > 0) {
@@ -44,33 +63,15 @@ export default function VoiceRecorder({ onTranscription }: VoiceRecorderProps) {
             console.error('Error accessing microphone:', error)
             alert('Impossible d\'accéder au microphone. Vérifie les permissions.')
         }
-    }
+    }, [processTranscription])
 
-    const stopRecording = () => {
+    const stopRecording = useCallback(() => {
         if (mediaRecorderRef.current && isRecording) {
             mediaRecorderRef.current.stop()
             setIsRecording(false)
             setIsProcessing(true)
         }
-    }
-
-    const processTranscription = async (audioBlob: Blob) => {
-        try {
-            // TODO: Replace with real Whisper API call
-            // For now, simulate transcription
-            await new Promise(resolve => setTimeout(resolve, 1000))
-
-            // Mock transcription
-            const mockTranscription = "Appeler la maîtresse pour le rendez-vous"
-
-            onTranscription(mockTranscription)
-            setIsProcessing(false)
-        } catch (error) {
-            console.error('Transcription error:', error)
-            alert('Erreur lors de la transcription')
-            setIsProcessing(false)
-        }
-    }
+    }, [isRecording])
 
     const handleMouseDown = () => {
         startRecording()

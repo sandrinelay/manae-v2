@@ -3,9 +3,10 @@
 import { useAuth } from '@/hooks/useAuth'
 import { CaptureFlow } from '@/features/capture/components'
 import { AppHeader } from '@/components/layout'
+import BottomNav from '@/components/layout/BottomNav'
 
 export default function CapturePage() {
-  const { user, isLoading } = useAuth()
+  const { user, firstName, isLoading } = useAuth()
 
   // Loading state
   if (isLoading) {
@@ -30,16 +31,17 @@ export default function CapturePage() {
     )
   }
 
-  // Authenticated - show Header + CaptureFlow
+  // Authenticated - show Header + CaptureFlow + BottomNav
   return (
-    <div className="min-h-screen bg-mint">
-      <AppHeader userName={user.email?.split('@')[0]} />
+    <div className="min-h-screen bg-mint flex flex-col">
+      <AppHeader userName={firstName || undefined} />
       <CaptureFlow
         userId={user.id}
         onSuccess={() => {
           console.log('Capture saved successfully!')
         }}
       />
+      <BottomNav />
     </div>
   )
 }

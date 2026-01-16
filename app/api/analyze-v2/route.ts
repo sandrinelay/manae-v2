@@ -2,9 +2,9 @@ import { NextRequest, NextResponse } from 'next/server'
 import OpenAI from 'openai'
 import { createClient } from '@/lib/supabase/server'
 import {
-  SYSTEM_PROMPT,
   buildAnalysisPrompt,
-  analyzeWithRules
+  analyzeWithRules,
+  ANALYZE_CONFIG
 } from '@/services/ai/analysis.service'
 import type { OpenAIAnalysisResponse } from '@/services/ai/analysis.service'
 import type { AIAnalyzedItem, ItemType, ItemState } from '@/types/items'
@@ -63,13 +63,13 @@ export async function POST(request: NextRequest) {
     while (retries <= maxRetries) {
       try {
         completion = await openai.chat.completions.create({
-          model: 'gpt-4o-mini',
+          model: ANALYZE_CONFIG.model,
           messages: [
-            { role: 'system', content: SYSTEM_PROMPT },
+            { role: 'system', content: ANALYZE_CONFIG.system },
             { role: 'user', content: buildAnalysisPrompt(rawText, historyContext) }
           ],
-          temperature: 0.5,
-          max_tokens: 1500
+          temperature: ANALYZE_CONFIG.temperature,
+          max_tokens: ANALYZE_CONFIG.maxTokens
         })
         break
       } catch (error: unknown) {
@@ -97,7 +97,13 @@ export async function POST(request: NextRequest) {
     let aiResponse: OpenAIAnalysisResponse
     try {
       aiResponse = JSON.parse(cleanContent)
-    } catch (parseError) {
+      // Log pour debug des contraintes temporelles
+      console.log('[analyze-v2] AI response items:', JSON.stringify(aiResponse.items?.map(i => ({
+        content: i.content,
+        type: i.type,
+        temporal_constraint: i.temporal_constraint
+      })), null, 2))
+    } catch {
       console.error('Failed to parse AI response:', cleanContent)
       // Fallback sur règles basiques
       const fallbackResult = analyzeWithRules(rawText)
@@ -111,7 +117,7 @@ export async function POST(request: NextRequest) {
     const validatedItems: AIAnalyzedItem[] = aiResponse.items
       .map(item => {
         // Valider type/state
-        let type = item.type as ItemType
+        const type = item.type as ItemType
         let state = item.state as ItemState
 
         // Corriger les combinaisons invalides
@@ -124,6 +130,18 @@ export async function POST(request: NextRequest) {
           }
         }
 
+        // Transformer temporal_constraint (snake_case API → camelCase interne)
+        const temporalConstraint = item.temporal_constraint
+          ? {
+              type: item.temporal_constraint.type,
+              date: item.temporal_constraint.date,
+              startDate: item.temporal_constraint.start_date,
+              endDate: item.temporal_constraint.end_date,
+              urgency: item.temporal_constraint.urgency,
+              rawPattern: item.temporal_constraint.raw_pattern
+            }
+          : null
+
         return {
           content: item.content,
           type,
@@ -133,7 +151,8 @@ export async function POST(request: NextRequest) {
             type_suggestion: type,
             confidence: item.confidence || 0.8,
             extracted_data: item.extracted_data || {},
-            suggestions: item.suggestions || []
+            suggestions: item.suggestions || [],
+            temporal_constraint: temporalConstraint
           },
           metadata: item.reasoning ? { reasoning: item.reasoning } : {}
         }

@@ -1,39 +1,73 @@
 import { NextRequest, NextResponse } from 'next/server'
 import OpenAI from 'openai'
 import { createClient } from '@/lib/supabase/server'
-import type { AIProjectDevelopment } from '@/types'
+import { buildDevelopIdeaPrompt, DEVELOP_IDEA_CONFIG } from '@/prompts'
+import type { DevelopIdeaResponseAPI } from '@/prompts'
+
+// ============================================
+// TYPES
+// ============================================
+
+type IdeaAge = 'fresh' | 'old'
+type IdeaBlocker = 'time' | 'budget' | 'fear' | 'energy'
+
+interface RequestBody {
+  itemId: string
+  idea_age: IdeaAge
+  blockers?: IdeaBlocker[]
+}
+
+interface DevelopmentContext {
+  idea_age: IdeaAge
+  blockers?: IdeaBlocker[]
+  developed_at: string
+}
+
+// ============================================
+// API ROUTE
+// ============================================
 
 export async function POST(request: NextRequest) {
   try {
-    // 0. Vérifier que la clé API OpenAI est configurée
+    // 1. Vérifier configuration OpenAI
     if (!process.env.OPENAI_API_KEY) {
-      console.error('OPENAI_API_KEY is not configured')
+      console.error('OPENAI_API_KEY not configured')
       return NextResponse.json(
-        { error: 'OpenAI API key not configured. Please add OPENAI_API_KEY to .env.local' },
+        { error: 'Service IA non configuré' },
         { status: 500 }
       )
     }
 
-    const openai = new OpenAI({
-      apiKey: process.env.OPENAI_API_KEY
-    })
+    const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
 
-    // 1. Vérifier auth
+    // 2. Vérifier authentification
     const supabase = await createClient()
     const { data: { user }, error: authError } = await supabase.auth.getUser()
 
     if (authError || !user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+      return NextResponse.json({ error: 'Non autorisé' }, { status: 401 })
     }
 
-    // 2. Récupérer itemId depuis body
-    const { itemId } = await request.json()
+    // 3. Parser le body
+    const body: RequestBody = await request.json()
+    const { itemId, idea_age, blockers } = body
 
-    if (!itemId) {
-      return NextResponse.json({ error: 'Missing itemId' }, { status: 400 })
+    if (!itemId || !idea_age) {
+      return NextResponse.json(
+        { error: 'Paramètres manquants: itemId et idea_age requis' },
+        { status: 400 }
+      )
     }
 
-    // 3. Récupérer l'item
+    // Valider idea_age
+    if (!['fresh', 'old'].includes(idea_age)) {
+      return NextResponse.json(
+        { error: 'idea_age doit être "fresh" ou "old"' },
+        { status: 400 }
+      )
+    }
+
+    // 4. Récupérer l'item
     const { data: item, error: itemError } = await supabase
       .from('items')
       .select('*')
@@ -42,110 +76,153 @@ export async function POST(request: NextRequest) {
       .single()
 
     if (itemError || !item) {
-      return NextResponse.json({ error: 'Item not found' }, { status: 404 })
+      return NextResponse.json({ error: 'Item non trouvé' }, { status: 404 })
     }
 
-    if (item.status !== 'idea') {
-      return NextResponse.json({
-        error: 'Item is not an idea'
-      }, { status: 400 })
+    if (item.type !== 'idea') {
+      return NextResponse.json(
+        { error: 'Cet item n\'est pas une idée' },
+        { status: 400 }
+      )
     }
 
-    // 4. Construire prompt développement
-    const prompt = `Tu es un assistant d'organisation pour parents débordés.
+    if (item.state === 'project') {
+      return NextResponse.json(
+        { error: 'Cette idée a déjà été développée' },
+        { status: 400 }
+      )
+    }
 
-L'utilisateur a capturé cette idée floue : "${item.text}"
-
-Aide-le à la transformer en projet concret et motivant.
-
-TÂCHES :
-1. Reformule l'idée en titre clair et engageant
-2. Décompose en 3-5 étapes concrètes et actionnables
-3. Estime le temps réaliste (pour parent débordé)
-4. Estime le budget si applicable
-5. Suggère le meilleur moment (week-end, soir, vacances)
-6. Ajoute une phrase de motivation encourageante
-
-CONTEXTE UTILISATEUR :
-- Parent débordé avec charge mentale élevée
-- Besoin de projets réalisables, pas idéalistes
-- Apprécie les suggestions concrètes
-
-Réponds UNIQUEMENT en JSON valide, sans markdown :
-{
-  "refined_text": "Titre clair du projet (max 60 caractères)",
-  "steps": [
-    "Étape 1 concrète et actionnable",
-    "Étape 2 concrète et actionnable",
-    "..."
-  ],
-  "estimated_time": "Temps réaliste (ex: 2h réparties sur 3 jours)",
-  "budget": "Fourchette de prix (ex: 50-100€)" ou null si non applicable,
-  "best_timing": "Moment idéal (ex: Week-end après-midi)",
-  "motivation": "Phrase encourageante et positive (max 150 caractères)"
-}`
-
-    // 5. Appel OpenAI
-    const completion = await openai.chat.completions.create({
-      model: 'gpt-4o-mini',
-      messages: [
-        {
-          role: 'system',
-          content: 'Tu es un coach en organisation familiale. Tu aides à structurer des idées en projets concrets et motivants.'
-        },
-        {
-          role: 'user',
-          content: prompt
-        }
-      ],
-      temperature: 0.8, // Plus créatif pour développement
-      max_tokens: 1500
+    // 5. Construire et envoyer le prompt à OpenAI
+    const prompt = buildDevelopIdeaPrompt({
+      ideaText: item.content,
+      ideaAge: idea_age,
+      blockers
     })
 
-    // 6. Parser réponse
-    const content = completion.choices[0].message.content || ''
-    const cleanContent = content
+    const completion = await openai.chat.completions.create({
+      model: DEVELOP_IDEA_CONFIG.model,
+      messages: [
+        { role: 'system', content: DEVELOP_IDEA_CONFIG.system },
+        { role: 'user', content: prompt }
+      ],
+      temperature: DEVELOP_IDEA_CONFIG.temperature,
+      max_tokens: DEVELOP_IDEA_CONFIG.maxTokens
+    })
+
+    // 6. Parser la réponse IA
+    const responseContent = completion.choices[0].message.content || ''
+    const cleanContent = responseContent
       .replace(/```json\n?/g, '')
       .replace(/```\n?/g, '')
       .trim()
 
-    let aiResponse: AIProjectDevelopment
+    let aiResponse: DevelopIdeaResponseAPI
     try {
       aiResponse = JSON.parse(cleanContent)
-    } catch (parseError) {
+    } catch {
       console.error('Failed to parse AI response:', cleanContent)
-      throw new Error('Invalid JSON from AI')
+      return NextResponse.json(
+        { error: 'Réponse IA invalide, veuillez réessayer' },
+        { status: 500 }
+      )
     }
 
-    // 7. Mettre à jour l'item en base
-    const { data: updatedItem, error: updateError } = await supabase
+    // Valider la réponse
+    if (!aiResponse.refined_title || !aiResponse.steps || !Array.isArray(aiResponse.steps)) {
+      console.error('Invalid AI response structure:', aiResponse)
+      return NextResponse.json(
+        { error: 'Structure de réponse IA invalide' },
+        { status: 500 }
+      )
+    }
+
+    // 7. Mettre à jour l'item parent (idée → projet)
+    const developmentContext: DevelopmentContext = {
+      idea_age,
+      blockers: idea_age === 'old' ? blockers : undefined,
+      developed_at: new Date().toISOString()
+    }
+
+    const updatedMetadata = {
+      ...(item.metadata || {}),
+      development_context: developmentContext,
+      original_content: item.content,
+      estimated_time: aiResponse.estimated_time,
+      budget: aiResponse.budget,
+      motivation: aiResponse.motivation
+    }
+
+    const { error: updateError } = await supabase
       .from('items')
       .update({
-        status: 'project',
-        refined_text: aiResponse.refined_text,
-        project_steps: aiResponse.steps,
-        project_budget: aiResponse.budget,
-        project_time: aiResponse.estimated_time,
-        project_motivation: aiResponse.motivation,
-        developed_at: new Date().toISOString()
+        state: 'project',
+        content: aiResponse.refined_title,
+        metadata: updatedMetadata
       })
       .eq('id', itemId)
-      .select()
-      .single()
 
-    if (updateError) throw updateError
+    if (updateError) {
+      console.error('Failed to update item:', updateError)
+      throw updateError
+    }
 
-    // 8. Retourner résultat
+    // 8. Créer les étapes comme items enfants (type: task)
+    const stepsToInsert = aiResponse.steps.map((stepContent, index) => ({
+      user_id: user.id,
+      type: 'task' as const,
+      state: 'active' as const,
+      content: stepContent,
+      context: item.context || 'personal',
+      parent_id: itemId,
+      metadata: {
+        step_order: index + 1,
+        from_project: itemId
+      }
+    }))
+
+    const { data: createdSteps, error: stepsError } = await supabase
+      .from('items')
+      .insert(stepsToInsert)
+      .select('id, content')
+
+    if (stepsError) {
+      console.error('Failed to create steps:', stepsError)
+      // Rollback : remettre l'item en état 'idea' si les étapes échouent
+      await supabase
+        .from('items')
+        .update({
+          state: 'captured',
+          content: item.content,
+          metadata: item.metadata
+        })
+        .eq('id', itemId)
+
+      throw stepsError
+    }
+
+    // 9. Retourner le résultat
     return NextResponse.json({
-      item: updatedItem,
-      development: aiResponse
+      project: {
+        id: itemId,
+        content: item.content,
+        refined_title: aiResponse.refined_title,
+        estimated_time: aiResponse.estimated_time,
+        budget: aiResponse.budget,
+        motivation: aiResponse.motivation
+      },
+      steps: createdSteps?.map((step, index) => ({
+        id: step.id,
+        content: step.content,
+        order: index + 1
+      })) || []
     })
 
   } catch (error: unknown) {
     const err = error as { message?: string }
     console.error('Development error:', error)
     return NextResponse.json(
-      { error: err.message || 'Failed to develop idea' },
+      { error: err.message || 'Erreur lors du développement de l\'idée' },
       { status: 500 }
     )
   }

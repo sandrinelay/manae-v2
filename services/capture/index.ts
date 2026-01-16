@@ -6,5 +6,6 @@ export {
   saveMultipleListItems,
   extractMultipleItems,
   type CaptureResult,
-  type SaveItemInput
+  type SaveItemInput,
+  type MultiThoughtItem
 } from './capture.service'
