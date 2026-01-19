@@ -43,6 +43,8 @@ interface ShoppingFullViewProps {
   onRefresh: () => Promise<void>
   initialShowPlanModal?: boolean
   onPlanModalClosed?: () => void
+  onShowPlanModal?: (itemCount: number) => void
+  externalPlanModalControl?: boolean
 }
 
 // Groupe les articles par catégorie dans l'ordre logique du magasin
@@ -69,7 +71,9 @@ export function ShoppingFullView({
   items: initialItems,
   onRefresh,
   initialShowPlanModal = false,
-  onPlanModalClosed
+  onPlanModalClosed,
+  onShowPlanModal,
+  externalPlanModalControl = false
 }: ShoppingFullViewProps) {
   const [activeTab, setActiveTab] = useState<TabId>('active')
   const [selectedItem, setSelectedItem] = useState<Item | null>(null)
@@ -250,7 +254,13 @@ export function ShoppingFullView({
           label="Faire les courses"
           icon={<CalendarIcon className="w-5 h-5" />}
           variant="plan"
-          onClick={() => setShowPlanModal(true)}
+          onClick={() => {
+            if (externalPlanModalControl && onShowPlanModal) {
+              onShowPlanModal(activeItems.length)
+            } else {
+              setShowPlanModal(true)
+            }
+          }}
           disabled={activeItems.length === 0}
           fullWidth
         />
@@ -377,8 +387,8 @@ export function ShoppingFullView({
         />
       )}
 
-      {/* Modal de planification */}
-      {showPlanModal && (
+      {/* Modal de planification (seulement si pas de contrôle externe) */}
+      {!externalPlanModalControl && showPlanModal && (
         <PlanShoppingModal
           itemCount={activeItems.length}
           onClose={() => {

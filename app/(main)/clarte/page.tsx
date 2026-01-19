@@ -19,6 +19,7 @@ import { TaskActiveModal } from '@/components/clarte/modals/TaskActiveModal'
 import { PlanTaskModal } from '@/components/clarte/modals/PlanTaskModal'
 import { IdeaDetailModal } from '@/components/clarte/modals/IdeaDetailModal'
 import { IdeaDevelopModal } from '@/components/clarte/modals/IdeaDevelopModal'
+import { PlanShoppingModal } from '@/components/clarte/modals/PlanShoppingModal'
 import { useClarteData } from '@/contexts/ClarteDataContext'
 import { normalizeString } from '@/components/ui/SearchBar'
 import {
@@ -56,6 +57,7 @@ function ClartePageContent() {
   const [ideaToDevelop, setIdeaToDevelop] = useState<Item | null>(null)
   const [taskToPlan, setTaskToPlan] = useState<Item | null>(null)
   const [showShoppingPlanModal, setShowShoppingPlanModal] = useState(false)
+  const [shoppingItemCount, setShoppingItemCount] = useState(0)
 
   // Fonction de filtrage par recherche
   const filterBySearch = useCallback((items: Item[]) => {
@@ -238,6 +240,11 @@ function ClartePageContent() {
     setSearchQuery(null)
   }, [])
 
+  const handleShowShoppingPlanModal = useCallback((itemCount: number) => {
+    setShoppingItemCount(itemCount)
+    setShowShoppingPlanModal(true)
+  }, [])
+
   const handleEditNote = useCallback(async (id: string, content: string, context: ItemContext) => {
     try {
       await updateItemContent(id, content, context)
@@ -332,92 +339,96 @@ function ClartePageContent() {
   const noResults = isSearching && !shouldShowTasks && !shouldShowNotes && !shouldShowIdeas && !shouldShowShopping
 
   return (
-    <PullToRefresh onRefresh={handlePullRefresh} className="flex-1 flex flex-col pb-24">
-      <div className="w-full max-w-2xl mx-auto px-4">
-          <ClarteHeader
-            activeFilter={activeFilter}
-            activeContext={activeContext}
-            counts={displayCounts}
-            onFilterChange={setActiveFilter}
-            onContextChange={setActiveContext}
-            onSearch={handleSearch}
-            onClearSearch={handleClearSearch}
-          />
+    <>
+      <PullToRefresh onRefresh={handlePullRefresh} className="flex-1 flex flex-col pb-24">
+        <div className="w-full max-w-2xl mx-auto px-4">
+            <ClarteHeader
+              activeFilter={activeFilter}
+              activeContext={activeContext}
+              counts={displayCounts}
+              onFilterChange={setActiveFilter}
+              onContextChange={setActiveContext}
+              onSearch={handleSearch}
+              onClearSearch={handleClearSearch}
+            />
 
-          {noResults ? (
-            <EmptySearchResult query={searchQuery!} />
-          ) : (
-            <div className="space-y-4 mt-4">
-              {shouldShowTasks && (
-                activeFilter === 'tasks' && !isSearching ? (
-                  <TasksFullView
-                    tasks={filteredTasks}
-                    onRefresh={refetch}
-                    initialTaskToPlan={taskToPlan}
-                    onTaskToPlanHandled={() => setTaskToPlan(null)}
-                  />
-                ) : (
-                  <TasksBlock
-                    tasks={filteredTasks}
-                    totalCount={filteredTasks.length}
-                    onMarkDone={handleMarkDone}
-                    onPlan={handlePlan}
-                    onTap={handleTapTask}
-                    onShowFullView={() => setActiveFilter('tasks')}
-                  />
-                )
-              )}
+            {noResults ? (
+              <EmptySearchResult query={searchQuery!} />
+            ) : (
+              <div className="space-y-4 mt-4">
+                {shouldShowTasks && (
+                  activeFilter === 'tasks' && !isSearching ? (
+                    <TasksFullView
+                      tasks={filteredTasks}
+                      onRefresh={refetch}
+                      initialTaskToPlan={taskToPlan}
+                      onTaskToPlanHandled={() => setTaskToPlan(null)}
+                    />
+                  ) : (
+                    <TasksBlock
+                      tasks={filteredTasks}
+                      totalCount={filteredTasks.length}
+                      onMarkDone={handleMarkDone}
+                      onPlan={handlePlan}
+                      onTap={handleTapTask}
+                      onShowFullView={() => setActiveFilter('tasks')}
+                    />
+                  )
+                )}
 
-              {shouldShowNotes && (
-                activeFilter === 'notes' && !isSearching ? (
-                  <NotesFullView notes={notesByContext} contextFilter={activeContext} onRefresh={refetch} />
-                ) : (
-                  <NotesBlock
-                    notes={notesByContext}
-                    totalCount={notesByContext.length}
-                    onTapNote={handleTapNote}
-                    onShowFullView={() => setActiveFilter('notes')}
-                  />
-                )
-              )}
+                {shouldShowNotes && (
+                  activeFilter === 'notes' && !isSearching ? (
+                    <NotesFullView notes={notesByContext} contextFilter={activeContext} onRefresh={refetch} />
+                  ) : (
+                    <NotesBlock
+                      notes={notesByContext}
+                      totalCount={notesByContext.length}
+                      onTapNote={handleTapNote}
+                      onShowFullView={() => setActiveFilter('notes')}
+                    />
+                  )
+                )}
 
-              {shouldShowIdeas && (
-                activeFilter === 'ideas' && !isSearching ? (
-                  <IdeasFullView
-                    ideas={ideasByContext}
-                    contextFilter={activeContext}
-                    onRefresh={refetch}
-                  />
-                ) : (
-                  <IdeasBlock
-                    ideas={ideasByContext}
-                    totalCount={ideasByContext.length}
-                    onTapIdea={handleTapIdea}
-                    onShowFullView={() => setActiveFilter('ideas')}
-                  />
-                )
-              )}
+                {shouldShowIdeas && (
+                  activeFilter === 'ideas' && !isSearching ? (
+                    <IdeasFullView
+                      ideas={ideasByContext}
+                      contextFilter={activeContext}
+                      onRefresh={refetch}
+                    />
+                  ) : (
+                    <IdeasBlock
+                      ideas={ideasByContext}
+                      totalCount={ideasByContext.length}
+                      onTapIdea={handleTapIdea}
+                      onShowFullView={() => setActiveFilter('ideas')}
+                    />
+                  )
+                )}
 
-              {shouldShowShopping && (
-                activeFilter === 'shopping' && !isSearching ? (
-                  <ShoppingFullView
-                    items={filteredShopping}
-                    onRefresh={refetch}
-                    initialShowPlanModal={showShoppingPlanModal}
-                    onPlanModalClosed={() => setShowShoppingPlanModal(false)}
-                  />
-                ) : (
-                  <ShoppingBlock
-                    items={filteredShopping}
-                    totalCount={filteredShopping.length}
-                    onToggleItem={handleToggleShoppingItem}
-                    onShowFullView={() => setActiveFilter('shopping')}
-                  />
-                )
-              )}
-            </div>
-          )}
-        </div>
+                {shouldShowShopping && (
+                  activeFilter === 'shopping' && !isSearching ? (
+                    <ShoppingFullView
+                      items={filteredShopping}
+                      onRefresh={refetch}
+                      initialShowPlanModal={showShoppingPlanModal}
+                      onPlanModalClosed={() => setShowShoppingPlanModal(false)}
+                      onShowPlanModal={handleShowShoppingPlanModal}
+                      externalPlanModalControl={true}
+                    />
+                  ) : (
+                    <ShoppingBlock
+                      items={filteredShopping}
+                      totalCount={filteredShopping.length}
+                      onToggleItem={handleToggleShoppingItem}
+                      onShowFullView={() => setActiveFilter('shopping')}
+                    />
+                  )
+                )}
+              </div>
+            )}
+          </div>
+      </PullToRefresh>
 
       {selectedNote && (
         <NoteDetailModal
@@ -465,7 +476,15 @@ function ClartePageContent() {
           onDeveloped={handleIdeaDeveloped}
         />
       )}
-    </PullToRefresh>
+
+      {showShoppingPlanModal && (
+        <PlanShoppingModal
+          itemCount={shoppingItemCount}
+          onClose={() => setShowShoppingPlanModal(false)}
+          onSuccess={refetch}
+        />
+      )}
+    </>
   )
 }
 
