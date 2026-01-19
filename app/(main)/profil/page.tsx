@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, Suspense, useRef, useEffect } from 'react'
+import { useState, useCallback, Suspense, useRef, useEffect } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { useAuth } from '@/contexts/AuthContext'
 import { useProfileData } from '@/contexts/ProfileDataContext'
@@ -11,6 +11,9 @@ import { PreferencesSection } from '@/components/profil/PreferencesSection'
 import { ConnectionsSection } from '@/components/profil/ConnectionsSection'
 import { MoreSection } from '@/components/profil/MoreSection'
 import { LogoutButton } from '@/components/profil/LogoutButton'
+import { EditNameModal } from '@/components/profil/EditNameModal'
+import { EnergyMomentsModal } from '@/components/shared/EnergyMomentsModal'
+import { ConstraintsModal } from '@/components/shared/ConstraintsModal'
 import { createClient } from '@/lib/supabase/client'
 
 function ProfilPageContent() {
@@ -30,6 +33,11 @@ function ProfilPageContent() {
 
   const connectCalendar = searchParams.get('connectCalendar') === 'true'
   const connectionsSectionRef = useRef<HTMLDivElement>(null)
+
+  // États pour contrôle externe des modales (évite problème PullToRefresh + position:fixed)
+  const [showEditNameModal, setShowEditNameModal] = useState(false)
+  const [showEnergyModal, setShowEnergyModal] = useState(false)
+  const [showConstraintsModal, setShowConstraintsModal] = useState(false)
 
   // Scroll vers la section Connexions si connectCalendar=true
   useEffect(() => {
@@ -121,6 +129,7 @@ function ProfilPageContent() {
   }
 
   return (
+    <>
     <PullToRefresh onRefresh={handlePullRefresh} className="flex-1 pb-24">
       <div className="max-w-2xl mx-auto px-4">
         <ProfileHeader
@@ -135,6 +144,8 @@ function ProfilPageContent() {
             lastName={profile?.lastName}
             email={profile?.email}
             onSave={updateName}
+            externalModalControl={true}
+            onShowEditModal={() => setShowEditNameModal(true)}
           />
 
           <PreferencesSection
@@ -142,6 +153,9 @@ function ProfilPageContent() {
             constraints={constraints}
             onSaveEnergyMoments={updateEnergyMoments}
             onSaveConstraints={updateConstraints}
+            externalModalControl={true}
+            onShowEnergyModal={() => setShowEnergyModal(true)}
+            onShowConstraintsModal={() => setShowConstraintsModal(true)}
           />
 
           <div ref={connectionsSectionRef}>
@@ -154,6 +168,36 @@ function ProfilPageContent() {
         </div>
       </div>
     </PullToRefresh>
+
+    {/* Modales rendues en dehors du PullToRefresh */}
+    {showEditNameModal && (
+      <EditNameModal
+        firstName={profile?.firstName}
+        lastName={profile?.lastName}
+        onClose={() => setShowEditNameModal(false)}
+        onSave={async (newFirstName, newLastName) => {
+          await updateName(newFirstName, newLastName)
+          setShowEditNameModal(false)
+        }}
+      />
+    )}
+
+    {showEnergyModal && (
+      <EnergyMomentsModal
+        selectedMoments={profile?.energyMoments || []}
+        onClose={() => setShowEnergyModal(false)}
+        onSave={updateEnergyMoments}
+      />
+    )}
+
+    {showConstraintsModal && (
+      <ConstraintsModal
+        constraints={constraints}
+        onClose={() => setShowConstraintsModal(false)}
+        onSave={updateConstraints}
+      />
+    )}
+  </>
   )
 }
 

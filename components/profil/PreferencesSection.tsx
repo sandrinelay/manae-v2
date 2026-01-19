@@ -11,6 +11,10 @@ interface PreferencesSectionProps {
   constraints: Constraint[]
   onSaveEnergyMoments: (moments: string[]) => Promise<void>
   onSaveConstraints: (constraints: Constraint[]) => Promise<void>
+  // Props pour contrôle externe des modales (évite problème PullToRefresh + position:fixed)
+  externalModalControl?: boolean
+  onShowEnergyModal?: () => void
+  onShowConstraintsModal?: () => void
 }
 
 const ENERGY_LABELS: Record<string, string> = {
@@ -26,7 +30,10 @@ export function PreferencesSection({
   energyMoments,
   constraints,
   onSaveEnergyMoments,
-  onSaveConstraints
+  onSaveConstraints,
+  externalModalControl = false,
+  onShowEnergyModal,
+  onShowConstraintsModal
 }: PreferencesSectionProps) {
   const [showEnergyModal, setShowEnergyModal] = useState(false)
   const [showConstraintsModal, setShowConstraintsModal] = useState(false)
@@ -48,7 +55,13 @@ export function PreferencesSection({
 
         {/* Créneaux d'énergie */}
         <button
-          onClick={() => setShowEnergyModal(true)}
+          onClick={() => {
+            if (externalModalControl && onShowEnergyModal) {
+              onShowEnergyModal()
+            } else {
+              setShowEnergyModal(true)
+            }
+          }}
           className="w-full flex items-center justify-between px-4 py-3 hover:bg-gray-50 transition-colors"
         >
           <div className="flex items-center gap-3">
@@ -63,7 +76,13 @@ export function PreferencesSection({
 
         {/* Indisponibilités */}
         <button
-          onClick={() => setShowConstraintsModal(true)}
+          onClick={() => {
+            if (externalModalControl && onShowConstraintsModal) {
+              onShowConstraintsModal()
+            } else {
+              setShowConstraintsModal(true)
+            }
+          }}
           className="w-full flex items-center justify-between px-4 py-3 border-t border-gray-100 hover:bg-gray-50 transition-colors"
         >
           <div className="flex items-center gap-3">
@@ -77,7 +96,7 @@ export function PreferencesSection({
         </button>
       </section>
 
-      {showEnergyModal && (
+      {!externalModalControl && showEnergyModal && (
         <EnergyMomentsModal
           selectedMoments={energyMoments}
           onClose={() => setShowEnergyModal(false)}
@@ -85,7 +104,7 @@ export function PreferencesSection({
         />
       )}
 
-      {showConstraintsModal && (
+      {!externalModalControl && showConstraintsModal && (
         <ConstraintsModal
           constraints={constraints}
           onClose={() => setShowConstraintsModal(false)}

@@ -16,6 +16,7 @@ import { ShoppingFullView } from '@/components/clarte/views/ShoppingFullView'
 import { EmptySearchResult } from '@/components/clarte/EmptySearchResult'
 import { NoteDetailModal } from '@/components/clarte/modals/NoteDetailModal'
 import { TaskActiveModal } from '@/components/clarte/modals/TaskActiveModal'
+import { TaskDetailModal } from '@/components/clarte/modals/TaskDetailModal'
 import { PlanTaskModal } from '@/components/clarte/modals/PlanTaskModal'
 import { IdeaDetailModal } from '@/components/clarte/modals/IdeaDetailModal'
 import { IdeaDevelopModal } from '@/components/clarte/modals/IdeaDevelopModal'
@@ -26,6 +27,7 @@ import {
   completeItem,
   deleteItem,
   archiveItem,
+  activateItem,
   updateItemContent,
   updateItemState
 } from '@/services/items.service'
@@ -164,6 +166,26 @@ function ClartePageContent() {
       await refetch()
     } catch (error) {
       console.error('Erreur archivage:', error)
+    }
+  }, [refetch])
+
+  const handleReactivateTask = useCallback(async (id: string) => {
+    try {
+      await activateItem(id)
+      setSelectedTask(null)
+      await refetch()
+    } catch (error) {
+      console.error('Erreur réactivation:', error)
+    }
+  }, [refetch])
+
+  const handleEditTask = useCallback(async (id: string, content: string, context: ItemContext) => {
+    try {
+      await updateItemContent(id, content, context)
+      setSelectedTask(null)
+      await refetch()
+    } catch (error) {
+      console.error('Erreur modification:', error)
     }
   }, [refetch])
 
@@ -363,6 +385,9 @@ function ClartePageContent() {
                       onRefresh={refetch}
                       initialTaskToPlan={taskToPlan}
                       onTaskToPlanHandled={() => setTaskToPlan(null)}
+                      externalModalControl={true}
+                      onSelectTask={setSelectedTask}
+                      onSelectTaskToPlan={setTaskToPlan}
                     />
                   ) : (
                     <TasksBlock
@@ -440,7 +465,7 @@ function ClartePageContent() {
         />
       )}
 
-      {selectedTask && (
+      {selectedTask && (selectedTask.state === 'active' || selectedTask.state === 'planned' || selectedTask.state === 'captured') && (
         <TaskActiveModal
           task={selectedTask}
           onClose={() => setSelectedTask(null)}
@@ -448,6 +473,18 @@ function ClartePageContent() {
           onPlan={handlePlan}
           onStore={handleStoreTask}
           onDelete={handleDeleteTask}
+          onEdit={handleEditTask}
+        />
+      )}
+
+      {selectedTask && (selectedTask.state === 'completed' || selectedTask.state === 'archived') && (
+        <TaskDetailModal
+          task={selectedTask}
+          mode={selectedTask.state === 'completed' ? 'done' : 'stored'}
+          onClose={() => setSelectedTask(null)}
+          onReactivate={handleReactivateTask}
+          onStore={selectedTask.state === 'completed' ? handleStoreTask : undefined}
+          onDelete={selectedTask.state === 'archived' ? handleDeleteTask : undefined}
         />
       )}
 

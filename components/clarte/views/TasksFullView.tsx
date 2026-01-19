@@ -41,9 +41,21 @@ interface TasksFullViewProps {
   onRefresh: () => Promise<void>
   initialTaskToPlan?: Item | null // Tâche à planifier (pour reprise après connexion Google)
   onTaskToPlanHandled?: () => void // Callback pour signaler que la tâche a été traitée
+  // Props pour contrôle externe des modales (évite problème PullToRefresh + position:fixed)
+  externalModalControl?: boolean
+  onSelectTask?: (task: Item | null) => void
+  onSelectTaskToPlan?: (task: Item | null) => void
 }
 
-export function TasksFullView({ tasks: initialTasks, onRefresh, initialTaskToPlan, onTaskToPlanHandled }: TasksFullViewProps) {
+export function TasksFullView({
+  tasks: initialTasks,
+  onRefresh,
+  initialTaskToPlan,
+  onTaskToPlanHandled,
+  externalModalControl = false,
+  onSelectTask,
+  onSelectTaskToPlan
+}: TasksFullViewProps) {
   const [activeTab, setActiveTab] = useState<TabId>('active')
   const [selectedTask, setSelectedTask] = useState<Item | null>(null)
   const [taskToPlan, setTaskToPlan] = useState<Item | null>(initialTaskToPlan || null)
@@ -105,10 +117,15 @@ export function TasksFullView({ tasks: initialTasks, onRefresh, initialTaskToPla
   const handlePlan = useCallback((id: string) => {
     const task = allTasks.find(t => t.id === id)
     if (task) {
-      setSelectedTask(null) // Fermer la modal de détail si ouverte
-      setTaskToPlan(task)
+      if (externalModalControl) {
+        onSelectTask?.(null)
+        onSelectTaskToPlan?.(task)
+      } else {
+        setSelectedTask(null)
+        setTaskToPlan(task)
+      }
     }
-  }, [allTasks])
+  }, [allTasks, externalModalControl, onSelectTask, onSelectTaskToPlan])
 
   const handleDelete = useCallback(async (id: string) => {
     try {
@@ -162,8 +179,14 @@ export function TasksFullView({ tasks: initialTasks, onRefresh, initialTaskToPla
 
   const handleTapTask = useCallback((id: string) => {
     const task = allTasks.find(t => t.id === id)
-    if (task) setSelectedTask(task)
-  }, [allTasks])
+    if (task) {
+      if (externalModalControl) {
+        onSelectTask?.(task)
+      } else {
+        setSelectedTask(task)
+      }
+    }
+  }, [allTasks, externalModalControl, onSelectTask])
 
   const handleEditTask = useCallback(async (id: string, content: string, context: ItemContext) => {
     try {
@@ -270,8 +293,8 @@ export function TasksFullView({ tasks: initialTasks, onRefresh, initialTaskToPla
         )}
       </div>
 
-      {/* Modal selon le type de tâche */}
-      {selectedTask && isSelectedTaskActive && (
+      {/* Modal selon le type de tâche (seulement si pas de contrôle externe) */}
+      {!externalModalControl && selectedTask && isSelectedTaskActive && (
         <TaskActiveModal
           task={selectedTask}
           onClose={() => setSelectedTask(null)}
@@ -283,7 +306,7 @@ export function TasksFullView({ tasks: initialTasks, onRefresh, initialTaskToPla
         />
       )}
 
-      {selectedTask && !isSelectedTaskActive && (
+      {!externalModalControl && selectedTask && !isSelectedTaskActive && (
         <TaskDetailModal
           task={selectedTask}
           mode={selectedTask.state === 'completed' ? 'done' : 'stored'}
@@ -294,8 +317,8 @@ export function TasksFullView({ tasks: initialTasks, onRefresh, initialTaskToPla
         />
       )}
 
-      {/* Modal de planification */}
-      {taskToPlan && (
+      {/* Modal de planification (seulement si pas de contrôle externe) */}
+      {!externalModalControl && taskToPlan && (
         <PlanTaskModal
           task={taskToPlan}
           onClose={() => {
