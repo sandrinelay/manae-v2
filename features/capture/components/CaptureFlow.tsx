@@ -9,7 +9,7 @@ import { captureThought, saveItem, saveMultipleListItems, extractMultipleItems }
 import type { CaptureResult, MultiThoughtItem } from '@/services/capture'
 import type { ItemType, ItemContext, Mood as ItemMood } from '@/types/items'
 import type { ActionType } from './CaptureModal'
-import { useAIQuota } from '@/hooks/useAIQuota'
+import { useAIQuota } from '@/contexts/AIQuotaContext'
 import { SpinnerIcon, SendIcon } from '@/components/ui/icons'
 import { ActionButton } from '@/components/ui/ActionButton'
 
@@ -36,7 +36,7 @@ export function CaptureFlow({ userId, onSuccess }: CaptureFlowProps) {
   const router = useRouter()
 
   // Hook quota IA
-  const { quota, maxQuota, isLow, isExhausted, isLoading: isQuotaLoading } = useAIQuota()
+  const { quota, maxQuota, isLow, isExhausted, isLoading: isQuotaLoading, refresh: refreshQuota } = useAIQuota()
 
   const handleUpgrade = () => {
     router.push('/settings/subscription')
@@ -128,6 +128,11 @@ export function CaptureFlow({ userId, onSuccess }: CaptureFlowProps) {
       if (!result.success) {
         setError(result.error || 'Erreur lors de la capture')
         return
+      }
+
+      // Rafraîchir le quota après utilisation de l'IA
+      if (result.aiUsed) {
+        refreshQuota()
       }
 
       // Multi-pensées détectées
@@ -240,8 +245,7 @@ export function CaptureFlow({ userId, onSuccess }: CaptureFlowProps) {
   }
 
   return (
-    <div className="flex-1 pb-32">
-      <div className="px-4 pt-4">
+    <div className="flex-1 pb-32 px-4 pt-4">
 
       {/* Card principale */}
       <div className="bg-white rounded-3xl p-5 shadow-sm mb-6">
@@ -397,7 +401,6 @@ export function CaptureFlow({ userId, onSuccess }: CaptureFlowProps) {
           onSuccess={onSuccess}
         />
       )}
-      </div>
     </div>
   )
 }

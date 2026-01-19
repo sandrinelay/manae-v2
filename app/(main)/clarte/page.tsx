@@ -2,9 +2,7 @@
 
 import { useState, useCallback, useMemo, useEffect, Suspense, useRef } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { useAuth } from '@/hooks/useAuth'
-import { AppHeader } from '@/components/layout'
-import BottomNav from '@/components/layout/BottomNav'
+import { useAuth } from '@/contexts/AuthContext'
 import { ClarteHeader } from '@/components/clarte/ClarteHeader'
 import { TasksBlock } from '@/components/clarte/blocks/TasksBlock'
 import { TasksFullView } from '@/components/clarte/views/TasksFullView'
@@ -20,7 +18,7 @@ import { TaskActiveModal } from '@/components/clarte/modals/TaskActiveModal'
 import { PlanTaskModal } from '@/components/clarte/modals/PlanTaskModal'
 import { IdeaDetailModal } from '@/components/clarte/modals/IdeaDetailModal'
 import { IdeaDevelopModal } from '@/components/clarte/modals/IdeaDevelopModal'
-import { useClarteData } from '@/hooks/useClarteData'
+import { useClarteData } from '@/contexts/ClarteDataContext'
 import { normalizeString } from '@/components/ui/SearchBar'
 import {
   completeItem,
@@ -42,8 +40,15 @@ function ClartePageContent() {
   const [activeContext, setActiveContext] = useState<ContextFilterType>('all')
   const [searchQuery, setSearchQuery] = useState<string | null>(null)
 
-  // Passer searchQuery au hook pour charger tous les items en mode recherche
-  const { data, isLoading: dataLoading, refetch } = useClarteData({ searchQuery })
+  // Utiliser le context pour les données partagées
+  const { data, isLoading: dataLoading, refetch, loadFullData } = useClarteData()
+
+  // Charger toutes les données quand on passe en mode recherche
+  useEffect(() => {
+    if (searchQuery) {
+      loadFullData()
+    }
+  }, [searchQuery, loadFullData])
   const [selectedNote, setSelectedNote] = useState<Item | null>(null)
   const [selectedTask, setSelectedTask] = useState<Item | null>(null)
   const [selectedIdea, setSelectedIdea] = useState<Item | null>(null)
@@ -322,10 +327,8 @@ function ClartePageContent() {
   const noResults = isSearching && !shouldShowTasks && !shouldShowNotes && !shouldShowIdeas && !shouldShowShopping
 
   return (
-    <div className="min-h-screen bg-mint flex flex-col">
-      <AppHeader userName={firstName || undefined} />
-      <div className="flex-1 pb-24">
-        <div className="max-w-2xl mx-auto px-4">
+    <div className="flex-1 flex flex-col pb-24">
+      <div className="w-full max-w-2xl mx-auto px-4">
           <ClarteHeader
             activeFilter={activeFilter}
             activeContext={activeContext}
@@ -410,7 +413,6 @@ function ClartePageContent() {
             </div>
           )}
         </div>
-      </div>
 
       {selectedNote && (
         <NoteDetailModal
@@ -458,8 +460,6 @@ function ClartePageContent() {
           onDeveloped={handleIdeaDeveloped}
         />
       )}
-
-      <BottomNav />
     </div>
   )
 }
@@ -467,7 +467,7 @@ function ClartePageContent() {
 export default function ClartePage() {
   return (
     <Suspense fallback={
-      <div className="min-h-screen bg-mint flex items-center justify-center">
+      <div className="flex-1 flex items-center justify-center">
         <div className="animate-spin h-8 w-8 border-4 border-primary border-t-transparent rounded-full" />
       </div>
     }>

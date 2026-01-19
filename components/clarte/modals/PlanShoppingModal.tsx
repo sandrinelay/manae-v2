@@ -93,10 +93,10 @@ export function PlanShoppingModal({ itemCount, onClose, onSuccess }: PlanShoppin
         onClick={onClose}
       />
 
-      {/* Modal */}
-      <div className="fixed inset-x-4 top-1/2 -translate-y-1/2 z-50 bg-white rounded-2xl shadow-2xl max-w-lg mx-auto animate-scale-in max-h-[85vh] flex flex-col">
+      {/* Modal - collé à la BottomNav */}
+      <div className="fixed z-[60] inset-x-0 rounded-t-3xl bg-white shadow-2xl animate-slide-up flex flex-col" style={{ bottom: 'calc(95px + env(safe-area-inset-bottom, 0px))', maxHeight: 'calc(100vh - 155px)' }}>
         {/* Header */}
-        <div className="flex items-center justify-between p-4 border-b border-border flex-shrink-0">
+        <div className="flex items-center justify-between p-4 border-b border-border flex-shrink-0 rounded-t-3xl">
           <div className="flex items-center gap-2 text-primary">
             <ShoppingIcon className="w-5 h-5" />
             <span className="font-medium">Caler les courses</span>
@@ -245,7 +245,7 @@ export function PlanShoppingModal({ itemCount, onClose, onSuccess }: PlanShoppin
         </div>
 
         {/* Footer Actions */}
-        <div className="flex gap-3 p-4 border-t border-border bg-white flex-shrink-0">
+        <div className="flex gap-3 p-4 border-t border-border bg-white flex-shrink-0 rounded-b-none">
           <ActionButton
             label="Annuler"
             variant="secondary"

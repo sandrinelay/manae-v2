@@ -355,7 +355,7 @@ export function CaptureModal({
       {captureResult.aiUsed && captureResult.suggestedType && (
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2 text-sm">
-            <span className="text-primary">IA suggère :</span>
+            <span className="text-primary">Manae suggère :</span>
             <span className="font-medium text-primary flex items-center gap-1">
               {(() => {
                 const SuggestedIcon = TYPE_CONFIG[captureResult.suggestedType].icon
@@ -693,8 +693,8 @@ export function CaptureModal({
         onClick={onClose}
       />
 
-      {/* Modal - positionné au-dessus du BottomNav */}
-      <div className="fixed z-[60] inset-x-0 bottom-[80px] rounded-t-3xl bg-white shadow-2xl animate-slide-up" style={{ maxHeight: 'calc(100vh - 140px)' }}>
+      {/* Modal - collé à la BottomNav */}
+      <div className="fixed z-[60] inset-x-0 rounded-t-3xl bg-white shadow-2xl animate-slide-up" style={{ bottom: 'calc(95px + env(safe-area-inset-bottom, 0px))', maxHeight: 'calc(100vh - 155px)' }}>
         {/* Header - hauteur fixe */}
         <div className="h-[60px] flex items-center justify-between px-4 border-b border-border bg-white rounded-t-3xl">
           {currentStep === 'schedule' ? (

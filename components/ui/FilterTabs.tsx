@@ -33,13 +33,13 @@ export function FilterTabs({
           <button
             key={filter.id}
             onClick={() => onFilterChange(filter.id)}
-            className="flex flex-col items-center gap-1.5 py-2 px-1 transition-all"
+            className="flex flex-col items-center gap-1 min-w-[44px] min-h-[44px] py-2 px-2 transition-all"
             aria-label={filter.label}
             aria-pressed={isActive}
           >
             <div
               className={`
-                p-2 rounded-xl transition-colors
+                p-2.5 rounded-xl transition-colors
                 ${isActive
                   ? 'text-primary'
                   : 'text-text-muted hover:text-text-dark'

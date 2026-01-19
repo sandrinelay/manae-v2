@@ -14,7 +14,7 @@ import { TaskCard } from '@/components/clarte/cards/TaskCard'
 import { TaskActiveModal } from '@/components/clarte/modals/TaskActiveModal'
 import { TaskDetailModal } from '@/components/clarte/modals/TaskDetailModal'
 import { PlanTaskModal } from '@/components/clarte/modals/PlanTaskModal'
-import { EmptyState } from '@/components/clarte/EmptyState'
+import { EmptyState, EMPTY_STATE_CONFIG } from '@/components/clarte/EmptyState'
 import {
   groupTasksByCategory,
   filterActiveTasks,
@@ -180,7 +180,7 @@ export function TasksFullView({ tasks: initialTasks, onRefresh, initialTaskToPla
     (selectedTask.state === 'active' || selectedTask.state === 'planned' || selectedTask.state === 'captured')
 
   return (
-    <>
+    <div className="w-full">
       {/* Onglets discrets */}
       <TabBar
         tabs={tabsWithCounts}
@@ -190,11 +190,11 @@ export function TasksFullView({ tasks: initialTasks, onRefresh, initialTaskToPla
       />
 
       {/* Contenu selon l'onglet */}
-      <div className="mt-4 space-y-6">
+      <div className="w-full mt-4 space-y-6">
         {/* Onglet Actives */}
         {activeTab === 'active' && (
           activeTasks.length === 0 ? (
-            <EmptyState message="Aucune tâche en cours. Tes pensées capturées apparaîtront ici." />
+            <EmptyState {...EMPTY_STATE_CONFIG.tasks} />
           ) : (
             CATEGORY_ORDER.map(category => {
               const categoryTasks = groupedActiveTasks[category]
@@ -213,10 +213,11 @@ export function TasksFullView({ tasks: initialTasks, onRefresh, initialTaskToPla
 
                   {/* Liste des tâches */}
                   <div className="space-y-3">
-                    {categoryTasks.map(task => (
+                    {categoryTasks.map((task, idx) => (
                       <TaskCard
                         key={task.id}
                         item={task}
+                        index={idx}
                         mode="active"
                         onPlan={handlePlan}
                         onMarkDone={handleMarkDone}
@@ -233,13 +234,14 @@ export function TasksFullView({ tasks: initialTasks, onRefresh, initialTaskToPla
         {/* Onglet Terminées */}
         {activeTab === 'done' && (
           completedTasks.length === 0 ? (
-            <EmptyState message="Aucune tâche terminée. Tes accomplissements apparaîtront ici." />
+            <EmptyState {...EMPTY_STATE_CONFIG.tasksDone} />
           ) : (
             <div className="space-y-3">
-              {completedTasks.map(task => (
+              {completedTasks.map((task, idx) => (
                 <TaskCard
                   key={task.id}
                   item={task}
+                  index={idx}
                   mode="done"
                   onTap={handleTapTask}
                 />
@@ -251,13 +253,14 @@ export function TasksFullView({ tasks: initialTasks, onRefresh, initialTaskToPla
         {/* Onglet Rangées */}
         {activeTab === 'stored' && (
           archivedTasks.length === 0 ? (
-            <EmptyState message="Rien de rangé. Les tâches que tu ranges apparaîtront ici." />
+            <EmptyState {...EMPTY_STATE_CONFIG.tasksStored} />
           ) : (
             <div className="space-y-3">
-              {archivedTasks.map(task => (
+              {archivedTasks.map((task, idx) => (
                 <TaskCard
                   key={task.id}
                   item={task}
+                  index={idx}
                   mode="stored"
                   onTap={handleTapTask}
                 />
@@ -302,6 +305,6 @@ export function TasksFullView({ tasks: initialTasks, onRefresh, initialTaskToPla
           onSuccess={handleRefresh}
         />
       )}
-    </>
+    </div>
   )
 }

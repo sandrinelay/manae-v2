@@ -50,14 +50,14 @@ export const ConstraintCard: React.FC<ConstraintCardProps> = ({
                 </div>
                 <div className="flex gap-2">
                     <IconButton
-                        icon={<EditIcon />}
+                        icon={<EditIcon className="w-4 h-4" />}
                         label="Modifier"
                         variant="teal"
                         size="sm"
                         onClick={() => onEdit(constraint)}
                     />
                     <IconButton
-                        icon={<TrashIcon />}
+                        icon={<TrashIcon className="w-4 h-4" />}
                         label="Supprimer"
                         variant="danger"
                         size="sm"

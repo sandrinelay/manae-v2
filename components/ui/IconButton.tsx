@@ -10,9 +10,9 @@ interface IconButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> 
   size?: 'sm' | 'md' | 'lg'
 }
 
-// Tailles de bouton standardisées
+// Tailles de bouton standardisées (minimum 44px pour touch targets)
 const BUTTON_SIZES = {
-  sm: 'w-10 h-10', // 40px bouton avec icône 20px
+  sm: 'min-w-[44px] min-h-[44px] w-11 h-11', // 44px minimum pour accessibilité tactile
   md: 'w-12 h-12', // 48px bouton avec icône 24px (standard)
   lg: 'w-14 h-14'  // 56px bouton avec icône 28px
 }
@@ -20,7 +20,7 @@ const BUTTON_SIZES = {
 /**
  * Bouton icône standardisé
  * Utilise les constantes centralisées de @/components/ui/icons
- * - sm: 40x40px avec icône 20x20px
+ * - sm: 44x44px minimum (touch target) avec icône 20x20px
  * - md: 48x48px avec icône 24x24px (défaut)
  * - lg: 56x56px avec icône 28x28px
  */

@@ -19,6 +19,7 @@ export function IdeaDetailModal({ idea, onClose, onDevelop, onArchive, onDelete 
   const context = idea.context || 'other'
   const contextConfig = CONTEXT_CONFIG[context]
   const ContextIcon = contextConfig.icon
+  const isArchived = idea.state === 'archived'
 
   return (
     <>
@@ -63,15 +64,17 @@ export function IdeaDetailModal({ idea, onClose, onDevelop, onArchive, onDelete 
             onClick={() => onDevelop(idea.id)}
             className="flex-1"
           />
-          <ActionButton
-            label="Ranger"
-            icon={<ArchiveIcon />}
-            variant="archive"
-            onClick={() => onArchive(idea.id)}
-            className="flex-1"
-          />
+          {!isArchived && (
+            <ActionButton
+              label="Ranger"
+              icon={<ArchiveIcon className="w-5 h-5" />}
+              variant="archive"
+              onClick={() => onArchive(idea.id)}
+              className="flex-1"
+            />
+          )}
           <IconButton
-            icon={<TrashIcon />}
+            icon={<TrashIcon className="w-5 h-5" />}
             label="Supprimer"
             variant="danger"
             size="md"

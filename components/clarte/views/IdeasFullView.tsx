@@ -7,7 +7,7 @@ import { TabBar } from '@/components/clarte/tabs/TabBar'
 import { IdeaCard } from '@/components/clarte/cards/IdeaCard'
 import { IdeaDetailModal } from '@/components/clarte/modals/IdeaDetailModal'
 import { IdeaDevelopModal } from '@/components/clarte/modals/IdeaDevelopModal'
-import { EmptyState } from '@/components/clarte/EmptyState'
+import { EmptyState, EMPTY_STATE_CONFIG } from '@/components/clarte/EmptyState'
 import type { Item, ItemContext } from '@/types/items'
 
 type TabId = 'ideas' | 'projects' | 'archived'
@@ -32,18 +32,14 @@ export function IdeasFullView({ ideas: initialIdeas, contextFilter = 'all', onRe
   const [selectedIdea, setSelectedIdea] = useState<Item | null>(null)
   const [ideaToDevelop, setIdeaToDevelop] = useState<Item | null>(null)
   const [allIdeas, setAllIdeas] = useState<Item[]>(initialIdeas)
-  const [isLoading, setIsLoading] = useState(false)
 
   // Fetch toutes les idées
   const fetchAllIdeas = useCallback(async () => {
-    setIsLoading(true)
     try {
       const data = await fetchIdeas()
       setAllIdeas(data)
     } catch (error) {
       console.error('Erreur fetch ideas:', error)
-    } finally {
-      setIsLoading(false)
     }
   }, [])
 
@@ -93,10 +89,12 @@ export function IdeasFullView({ ideas: initialIdeas, contextFilter = 'all', onRe
                        : activeTab === 'projects' ? projectIdeas
                        : archivedIdeas
 
-  // Message vide selon l'onglet
-  const emptyMessage = activeTab === 'ideas' ? "Aucune idée pour le moment"
-                     : activeTab === 'projects' ? "Aucun projet en cours"
-                     : "Aucune idée rangée"
+  // Config empty state selon l'onglet
+  const emptyConfig = activeTab === 'ideas'
+    ? EMPTY_STATE_CONFIG.ideas
+    : activeTab === 'projects'
+    ? EMPTY_STATE_CONFIG.projects
+    : EMPTY_STATE_CONFIG.ideasArchived
 
   // Handlers
   const handleTapIdea = useCallback((id: string) => {
@@ -163,7 +161,7 @@ export function IdeasFullView({ ideas: initialIdeas, contextFilter = 'all', onRe
     (selectedIdea.state === 'active' || selectedIdea.state === 'captured')
 
   return (
-    <>
+    <div className="w-full">
       {/* Onglets */}
       <TabBar
         tabs={tabsWithCounts}
@@ -173,19 +171,16 @@ export function IdeasFullView({ ideas: initialIdeas, contextFilter = 'all', onRe
       />
 
       {/* Contenu */}
-      <div className="mt-4">
-        {isLoading ? (
-          <div className="flex justify-center py-8">
-            <div className="animate-spin h-6 w-6 border-2 border-primary border-t-transparent rounded-full" />
-          </div>
-        ) : displayedIdeas.length === 0 ? (
-          <EmptyState message={emptyMessage} />
+      <div className="w-full mt-4">
+        {displayedIdeas.length === 0 ? (
+          <EmptyState {...emptyConfig} />
         ) : (
           <div className="grid grid-cols-2 gap-3">
-            {displayedIdeas.map(idea => (
+            {displayedIdeas.map((idea, idx) => (
               <IdeaCard
                 key={idea.id}
                 item={idea}
+                index={idx}
                 onTap={handleTapIdea}
               />
             ))}
@@ -223,6 +218,6 @@ export function IdeasFullView({ ideas: initialIdeas, contextFilter = 'all', onRe
           onDeveloped={handleDeveloped}
         />
       )}
-    </>
+    </div>
   )
 }

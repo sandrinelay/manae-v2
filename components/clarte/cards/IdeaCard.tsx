@@ -5,6 +5,7 @@ import { CONTEXT_CONFIG } from '@/config/contexts'
 
 interface IdeaCardProps {
   item: Item
+  index?: number
   onTap: (id: string) => void
 }
 
@@ -28,7 +29,7 @@ const STATE_CONFIG = {
   }
 } as const
 
-export function IdeaCard({ item, onTap }: IdeaCardProps) {
+export function IdeaCard({ item, index = 0, onTap }: IdeaCardProps) {
   const context = item.context || 'other'
   const contextConfig = CONTEXT_CONFIG[context]
   const ContextIcon = contextConfig.icon
@@ -42,10 +43,13 @@ export function IdeaCard({ item, onTap }: IdeaCardProps) {
   // Titre : refined_title pour les projets, sinon content
   const title = getTitle(item)
 
+  const staggerClass = index < 5 ? `stagger-${index + 1}` : ''
+
   return (
     <button
       onClick={() => onTap(item.id)}
-      className={`w-full aspect-square text-left rounded-xl p-3 transition-all hover:shadow-md hover:scale-[1.02] ${stateConfig.bgClass}`}
+      className={`w-full aspect-square text-left rounded-xl p-3 transition-all hover:shadow-md hover:scale-[1.02] active:scale-[0.98] animate-pop-in ${staggerClass} ${stateConfig.bgClass}`}
+      style={{ opacity: 0, animationFillMode: 'forwards' }}
     >
       <div className="h-full flex flex-col">
         {/* Icône état (haut gauche) */}

@@ -201,7 +201,7 @@ export function NoteArchivedModal({ note, onClose, onEdit, onReactivate, onDelet
                 <>
                   <ActionButton
                     label="Réactiver"
-                    icon={<UndoIcon />}
+                    icon={<UndoIcon className="w-5 h-5" />}
                     variant="secondary"
                     onClick={() => {
                       onReactivate(note.id)
@@ -211,12 +211,12 @@ export function NoteArchivedModal({ note, onClose, onEdit, onReactivate, onDelet
                   />
                   <ActionButton
                     label="Modifier"
-                    icon={<EditIcon />}
+                    icon={<EditIcon className="w-5 h-5" />}
                     variant="archive"
                     onClick={() => setIsEditMode(true)}
                   />
                   <IconButton
-                    icon={<TrashIcon />}
+                    icon={<TrashIcon className="w-5 h-5" />}
                     label="Supprimer"
                     variant="danger"
                     size="md"

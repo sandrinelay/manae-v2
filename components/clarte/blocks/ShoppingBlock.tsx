@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { Item } from '@/types/items'
 import { ShoppingItemChip } from '../cards/ShoppingItemChip'
-import { EmptyState } from '../EmptyState'
+import { EmptyState, EMPTY_STATE_CONFIG } from '../EmptyState'
 
 // Configuration
 const INITIAL_VISIBLE_COUNT = 8
@@ -47,7 +47,7 @@ export function ShoppingBlock({ items, totalCount, onToggleItem, onShowFullView 
 
       {/* État vide */}
       {items.length === 0 ? (
-        <EmptyState message="Aucun article pour le moment" />
+        <EmptyState {...EMPTY_STATE_CONFIG.shopping} />
       ) : (
         <>
           {/* Grille d'articles */}
