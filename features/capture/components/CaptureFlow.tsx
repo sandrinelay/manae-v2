@@ -12,6 +12,7 @@ import type { ActionType } from './CaptureModal'
 import { useAIQuota } from '@/contexts/AIQuotaContext'
 import { SpinnerIcon, SendIcon } from '@/components/ui/icons'
 import { ActionButton } from '@/components/ui/ActionButton'
+import { PullToRefresh } from '@/components/ui/PullToRefresh'
 
 // Conversion des moods UI vers les moods DB
 function convertMoodToItemMood(mood: Mood | null): ItemMood | undefined {
@@ -244,8 +245,12 @@ export function CaptureFlow({ userId, onSuccess }: CaptureFlowProps) {
     setTimeout(() => textareaRef.current?.focus(), 100)
   }
 
+  const handlePullRefresh = async () => {
+    await refreshQuota()
+  }
+
   return (
-    <div className="flex-1 pb-32 px-4 pt-4">
+    <PullToRefresh onRefresh={handlePullRefresh} className="flex-1 pb-32 px-4 pt-4">
 
       {/* Card principale */}
       <div className="bg-white rounded-3xl p-5 shadow-sm mb-6">
@@ -401,6 +406,6 @@ export function CaptureFlow({ userId, onSuccess }: CaptureFlowProps) {
           onSuccess={onSuccess}
         />
       )}
-    </div>
+    </PullToRefresh>
   )
 }

@@ -3,6 +3,7 @@
 import { useState, useCallback, useMemo, useEffect, Suspense, useRef } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { useAuth } from '@/contexts/AuthContext'
+import { PullToRefresh } from '@/components/ui/PullToRefresh'
 import { ClarteHeader } from '@/components/clarte/ClarteHeader'
 import { TasksBlock } from '@/components/clarte/blocks/TasksBlock'
 import { TasksFullView } from '@/components/clarte/views/TasksFullView'
@@ -281,6 +282,10 @@ function ClartePageContent() {
 
   const isLoading = authLoading || dataLoading
 
+  const handlePullRefresh = useCallback(async () => {
+    await refetch()
+  }, [refetch])
+
   if (isLoading) {
     return (
       <div className="min-h-screen bg-mint flex items-center justify-center">
@@ -327,7 +332,7 @@ function ClartePageContent() {
   const noResults = isSearching && !shouldShowTasks && !shouldShowNotes && !shouldShowIdeas && !shouldShowShopping
 
   return (
-    <div className="flex-1 flex flex-col pb-24">
+    <PullToRefresh onRefresh={handlePullRefresh} className="flex-1 flex flex-col pb-24">
       <div className="w-full max-w-2xl mx-auto px-4">
           <ClarteHeader
             activeFilter={activeFilter}
@@ -460,7 +465,7 @@ function ClartePageContent() {
           onDeveloped={handleIdeaDeveloped}
         />
       )}
-    </div>
+    </PullToRefresh>
   )
 }
 

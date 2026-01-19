@@ -4,6 +4,7 @@ import { useCallback, Suspense, useRef, useEffect } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { useAuth } from '@/contexts/AuthContext'
 import { useProfileData } from '@/contexts/ProfileDataContext'
+import { PullToRefresh } from '@/components/ui/PullToRefresh'
 import { ProfileHeader } from '@/components/profil/ProfileHeader'
 import { PersonalInfoSection } from '@/components/profil/PersonalInfoSection'
 import { PreferencesSection } from '@/components/profil/PreferencesSection'
@@ -77,6 +78,10 @@ function ProfilPageContent() {
     window.location.href = '/login'
   }
 
+  const handlePullRefresh = useCallback(async () => {
+    await refetch()
+  }, [refetch])
+
   // État de chargement initial uniquement (pas de loader si données déjà présentes)
   if (isLoading && !profile) {
     return (
@@ -116,7 +121,7 @@ function ProfilPageContent() {
   }
 
   return (
-    <div className="flex-1 pb-24">
+    <PullToRefresh onRefresh={handlePullRefresh} className="flex-1 pb-24">
       <div className="max-w-2xl mx-auto px-4">
         <ProfileHeader
           firstName={profile?.firstName}
@@ -148,7 +153,7 @@ function ProfilPageContent() {
           <LogoutButton onLogout={handleLogout} />
         </div>
       </div>
-    </div>
+    </PullToRefresh>
   )
 }
 
