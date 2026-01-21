@@ -8,6 +8,11 @@ import { findAvailableSlots, selectTop3Diversified } from '@/features/schedule/s
 import { estimateTaskDuration } from '@/features/schedule/services/ai-duration.service'
 import { updateItem } from '@/services/supabase/items.service'
 import { formatEventDescription } from '@/lib/google-calendar/event-formatter'
+import {
+  calculateSearchRange,
+  filterSlotsByTargetDate,
+  formatDateLocal
+} from '../utils/temporal-detection'
 import type { TimeSlot, GoogleCalendarEvent } from '../types/scheduling.types'
 import type { Mood, TemporalConstraint } from '@/types/items'
 
@@ -151,10 +156,8 @@ export function useScheduling(params: UseSchedulingParams): UseSchedulingReturn 
       // 2. Récupérer les contraintes horaires
       const constraints = await getConstraints()
 
-      // 3. Récupérer les événements Google Calendar (7 jours)
-      const startDate = new Date()
-      const endDate = new Date()
-      endDate.setDate(endDate.getDate() + 7)
+      // 3. Calculer la plage de recherche (7 jours par défaut, jusqu'à 90 si contrainte temporelle)
+      const { startDate, endDate, daysRange, targetDate, isExactDay, isStartOfPeriod, isWeekend, timeRange } = calculateSearchRange(taskContent, temporalConstraint)
 
       let calendarEvents: GoogleCalendarEvent[] = []
       try {
@@ -175,9 +178,12 @@ export function useScheduling(params: UseSchedulingParams): UseSchedulingReturn 
       }
 
       // 4. Trouver les créneaux libres avec scoring intégré
-      // Passe temporalConstraint pour le filtrage HARD et l'ajustement du scoring
       // Passe taskContent pour détecter les contraintes de service (médecin, banque, etc.)
+      // NOTE: Si on a détecté une targetDate depuis le texte (ex: "fin mars"),
+      // on NE passe PAS temporalConstraint au service car notre filtrage filterSlotsByTargetDate
+      // est plus adapté (fenêtre autour de la date vs filtrage strict deadline/fixed_date)
       console.log('[useScheduling] temporalConstraint reçu:', JSON.stringify(temporalConstraint, null, 2))
+      console.log('[useScheduling] targetDate détectée:', targetDate ? formatDateLocal(targetDate) : 'non')
       console.log('[useScheduling] forceIgnoreService:', forceIgnoreService)
 
       const result = await findAvailableSlots({
@@ -188,7 +194,8 @@ export function useScheduling(params: UseSchedulingParams): UseSchedulingReturn 
         endDate,
         energyMoments,
         mood: mood || 'neutral',
-        temporalConstraint,
+        // Ne pas passer temporalConstraint si on a détecté une targetDate depuis le texte
+        temporalConstraint: targetDate ? null : temporalConstraint,
         taskContent,
         ignoreServiceConstraints: forceIgnoreService
       })
@@ -198,8 +205,12 @@ export function useScheduling(params: UseSchedulingParams): UseSchedulingReturn 
         setServiceFilterInfo(result.serviceConstraint)
       }
 
-      // 5. Sélectionner les 3 meilleurs créneaux diversifiés
-      const top3 = selectTop3Diversified(result.slots)
+      // 5. Filtrer par date cible si détectée (ex: "fin mars" → créneaux autour du 31 mars, "vendredi" → uniquement vendredi)
+      // Et par plage horaire si spécifiée (ex: "jeudi soir" → 18h-21h)
+      const slotsForTarget = filterSlotsByTargetDate(result.slots, targetDate, isExactDay, isStartOfPeriod, isWeekend, timeRange)
+
+      // 6. Sélectionner les 3 meilleurs créneaux diversifiés
+      const top3 = selectTop3Diversified(slotsForTarget)
 
       console.log('[useScheduling] Top 3 diversifiés:', top3)
 
@@ -215,7 +226,7 @@ export function useScheduling(params: UseSchedulingParams): UseSchedulingReturn 
         if (result.serviceConstraint && result.serviceConstraint.filteredCount > 0) {
           setError('service_closed')
         } else {
-          setError('Aucun créneau disponible sur les 7 prochains jours')
+          setError(`Aucun créneau disponible sur les ${daysRange} prochains jours`)
         }
       }
 

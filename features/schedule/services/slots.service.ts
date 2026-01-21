@@ -93,14 +93,50 @@ function getConstraintsForDay(constraints: Constraint[], date: Date): Constraint
 
 /**
  * Convertit les contraintes en blocs BUSY
+ * Si allow_lunch_break est true, crée 2 blocs (avant et après 12h-14h)
  */
 function constraintsToBlocks(constraints: Constraint[]): TimelineBlock[] {
-  return constraints.map(c => ({
-    type: 'BUSY_CONSTRAINT' as const,
-    startTime: c.start_time,
-    endTime: c.end_time,
-    reason: c.name
-  }))
+  const blocks: TimelineBlock[] = []
+
+  for (const c of constraints) {
+    const startMinutes = timeToMinutes(c.start_time)
+    const endMinutes = timeToMinutes(c.end_time)
+    const lunchStart = 12 * 60  // 12:00
+    const lunchEnd = 14 * 60    // 14:00
+
+    // Si pause déjeuner activée ET la contrainte chevauche 12h-14h
+    if (c.allow_lunch_break && startMinutes < lunchEnd && endMinutes > lunchStart) {
+      // Bloc avant le déjeuner (si la contrainte commence avant 12h)
+      if (startMinutes < lunchStart) {
+        blocks.push({
+          type: 'BUSY_CONSTRAINT',
+          startTime: c.start_time,
+          endTime: '12:00',
+          reason: c.name
+        })
+      }
+
+      // Bloc après le déjeuner (si la contrainte finit après 14h)
+      if (endMinutes > lunchEnd) {
+        blocks.push({
+          type: 'BUSY_CONSTRAINT',
+          startTime: '14:00',
+          endTime: c.end_time,
+          reason: c.name
+        })
+      }
+    } else {
+      // Pas de pause déjeuner → un seul bloc
+      blocks.push({
+        type: 'BUSY_CONSTRAINT',
+        startTime: c.start_time,
+        endTime: c.end_time,
+        reason: c.name
+      })
+    }
+  }
+
+  return blocks
 }
 
 // ============================================
