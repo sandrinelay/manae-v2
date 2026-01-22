@@ -423,10 +423,10 @@ Each item type follows this pattern:
 
 | Token | Value |
 |-------|-------|
-| Primary | Teal `#14B8A6` |
-| Secondary | Slate `#334155` |
-| Background | Mint `#F0FDFA` |
-| Fonts | Geist Sans (body), Quicksand (headings) |
+| Primary | Bleu-gris `#4A7488` |
+| Secondary | Vert menthe `#BEE5D3` |
+| Background | Gris clair `#F2F5F7` |
+| Fonts | Nunito (body), Quicksand (headings) |
 
 **State-based card colors**:
 - Idea (active): `bg-yellow-100`
