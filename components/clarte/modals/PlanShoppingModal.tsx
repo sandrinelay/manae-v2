@@ -192,6 +192,13 @@ export function PlanShoppingModal({ itemCount, onClose, onSuccess }: PlanShoppin
                     {scheduling.showAlternatives ? 'Créneaux suggérés' : 'Meilleur moment suggéré'}
                   </h3>
 
+                  {/* Message d'explication contextuel */}
+                  {scheduling.explanation && (
+                    <div className="mb-4 p-3 bg-primary/5 border border-primary/20 rounded-lg">
+                      <p className="text-sm text-text-dark">{scheduling.explanation}</p>
+                    </div>
+                  )}
+
                   {/* Meilleur créneau */}
                   <TimeSlotCard
                     slot={scheduling.bestSlot}

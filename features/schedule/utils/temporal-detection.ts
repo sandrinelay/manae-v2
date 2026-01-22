@@ -79,6 +79,7 @@ export interface DetectedTemporalConstraint {
   isExactDay: boolean     // true si c'est "demain", "aujourd'hui" ou un jour de semaine
   isStartOfPeriod: boolean // true si c'est "début [mois]" (pas de créneaux avant)
   isWeekend: boolean      // true si c'est "ce week-end" (samedi + dimanche)
+  isDeadline: boolean     // true si c'est "avant [jour]" (deadline - tous les créneaux jusqu'à cette date)
   timeRange: { start: string; end: string } | null
 }
 
@@ -91,6 +92,7 @@ export interface SearchRange {
   isExactDay: boolean
   isStartOfPeriod: boolean
   isWeekend: boolean
+  isDeadline: boolean
   timeRange: { start: string; end: string } | null
 }
 
@@ -208,6 +210,7 @@ function getTemporalPatterns(today: Date): Array<{
   isExactDay?: boolean
   isStartOfPeriod?: boolean
   isWeekend?: boolean
+  isDeadline?: boolean
 }> {
   const monthPattern = Object.keys(FRENCH_MONTHS).join('|')
   const weekdayPattern = Object.keys(FRENCH_WEEKDAYS).join('|')
@@ -273,7 +276,8 @@ function getTemporalPatterns(today: Date): Array<{
         }
         return targetDay
       },
-      isExactDay: false  // C'est une deadline, pas un jour exact
+      isExactDay: false,  // C'est une deadline, pas un jour exact
+      isDeadline: true    // Flag pour indiquer que c'est une deadline
     },
     // "lundi prochain", "vendredi prochain", etc.
     {
@@ -302,6 +306,20 @@ function getTemporalPatterns(today: Date): Array<{
     {
       pattern: new RegExp(`mi[- ]?(${monthPattern})`, 'i'),
       getDate: (match) => getMidOfNamedMonth(match[1], today)
+    },
+    // "avant le 7 février", "avant le 10 mars", etc. → deadline (créneaux jusqu'au jour avant)
+    {
+      pattern: new RegExp(`avant\\s+(?:le\\s+)?(\\d{1,2})(?:er)?\\s+(${monthPattern})`, 'i'),
+      getDate: (match) => {
+        const targetDay = getSpecificDateOfMonth(parseInt(match[1], 10), match[2], today)
+        if (targetDay) {
+          // Retourner le jour AVANT la date mentionnée
+          targetDay.setDate(targetDay.getDate() - 1)
+        }
+        return targetDay
+      },
+      isExactDay: false,
+      isDeadline: true
     },
     // "le 10 mars", "10 mars", "le 1er février", "1er mars", "le 2 avril", etc.
     {
@@ -410,7 +428,7 @@ export function detectTemporalConstraintFromText(text: string, today: Date = new
   const weekdayPattern = Object.keys(FRENCH_WEEKDAYS).join('|')
   const weekdayRegex = new RegExp(`^(${weekdayPattern})(\\s+prochain)?$`, 'i')
 
-  for (const { pattern, getDate, isExactDay, isStartOfPeriod, isWeekend } of patterns) {
+  for (const { pattern, getDate, isExactDay, isStartOfPeriod, isWeekend, isDeadline } of patterns) {
     const match = text.match(pattern)
     if (match) {
       let targetDate = getDate(match)
@@ -430,6 +448,7 @@ export function detectTemporalConstraintFromText(text: string, today: Date = new
           isExactDay ? '(jour exact)' : '',
           isStartOfPeriod ? '(début de période)' : '',
           isWeekend ? '(week-end)' : '',
+          isDeadline ? '(deadline)' : '',
           timeRange ? `(${timeRange.start}-${timeRange.end})` : '')
 
         return {
@@ -439,6 +458,7 @@ export function detectTemporalConstraintFromText(text: string, today: Date = new
           isExactDay: isExactDay || false,
           isStartOfPeriod: isStartOfPeriod || false,
           isWeekend: isWeekend || false,
+          isDeadline: isDeadline || false,
           timeRange
         }
       }
@@ -468,6 +488,7 @@ export function calculateSearchRange(
   let isExactDay = false
   let isStartOfPeriod = false
   let isWeekend = false
+  let isDeadline = false
   let timeRange: { start: string; end: string } | null = null
 
   // 1. Essayer de détecter depuis le texte de la tâche
@@ -478,6 +499,7 @@ export function calculateSearchRange(
     isExactDay = detected.isExactDay
     isStartOfPeriod = detected.isStartOfPeriod
     isWeekend = detected.isWeekend
+    isDeadline = detected.isDeadline
     timeRange = detected.timeRange
   }
 
@@ -502,7 +524,7 @@ export function calculateSearchRange(
   const endDate = new Date(startDate)
   endDate.setDate(endDate.getDate() + daysRange)
 
-  return { startDate, endDate, daysRange, targetDate, isWeekday, isExactDay, isStartOfPeriod, isWeekend, timeRange }
+  return { startDate, endDate, daysRange, targetDate, isWeekday, isExactDay, isStartOfPeriod, isWeekend, isDeadline, timeRange }
 }
 
 // ============================================
@@ -518,6 +540,7 @@ export function filterSlotsByTargetDate(
   isExactDay: boolean,
   isStartOfPeriod: boolean,
   isWeekend: boolean,
+  isDeadline: boolean,
   timeRange: { start: string; end: string } | null
 ): TimeSlot[] {
   if (!targetDate) return slots
@@ -543,6 +566,16 @@ export function filterSlotsByTargetDate(
 
     filtered = slots.filter(slot => slot.date === saturdayStr || slot.date === sundayStr)
     console.log('[temporal-detection] Créneaux après filtrage (week-end):', filtered.length)
+  } else if (isDeadline) {
+    // Pour une deadline (avant vendredi) : tous les créneaux jusqu'à cette date (incluse)
+    console.log('[temporal-detection] Filtrage par deadline:', {
+      targetDate: targetDateStr,
+      timeRange,
+      slotsAvant: slots.length
+    })
+
+    filtered = slots.filter(slot => slot.date <= targetDateStr)
+    console.log('[temporal-detection] Créneaux après filtrage (deadline):', filtered.length)
   } else if (isExactDay) {
     // Pour un jour exact (demain, vendredi, etc.) : uniquement ce jour
     console.log('[temporal-detection] Filtrage par jour exact:', {

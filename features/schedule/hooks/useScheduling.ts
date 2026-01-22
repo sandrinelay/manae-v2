@@ -1,7 +1,7 @@
 // features/schedule/hooks/useScheduling.ts
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useMemo } from 'react'
 import { getOrCreateUserProfile, getConstraints } from '@/services/supabaseService'
 import { getCalendarEvents, createCalendarEvent } from '@/features/schedule/services/calendar.service'
 import { findAvailableSlots, selectTop3Diversified } from '@/features/schedule/services/slots.service'
@@ -13,6 +13,7 @@ import {
   filterSlotsByTargetDate,
   formatDateLocal
 } from '../utils/temporal-detection'
+import { analyzeTaskContent } from '../utils/text-analysis'
 import type { TimeSlot, GoogleCalendarEvent } from '../types/scheduling.types'
 import type { Mood, TemporalConstraint } from '@/types/items'
 
@@ -48,6 +49,7 @@ export interface UseSchedulingReturn {
   estimatedDuration: DurationOption
   selectedSlot: TimeSlot | null
   isCalendarConnected: boolean
+  explanation: string | null         // Message contextuel sur les créneaux
   serviceFilterInfo: ServiceFilterInfo | null  // Info sur le filtrage service
   isForceMode: boolean               // Mode forcé (ignore filtrage service)
 
@@ -67,6 +69,11 @@ export function useScheduling(params: UseSchedulingParams): UseSchedulingReturn 
   const { itemId, taskContent, mood, temporalConstraint, skipItemUpdate = false } = params
 
   // ============================================
+  // ANALYSE DE LA TÂCHE (une seule fois)
+  // ============================================
+  const taskAnalysis = useMemo(() => analyzeTaskContent(taskContent), [taskContent])
+
+  // ============================================
   // ÉTAT
   // ============================================
 
@@ -78,6 +85,7 @@ export function useScheduling(params: UseSchedulingParams): UseSchedulingReturn 
   const [estimatedDuration, setEstimatedDuration] = useState<DurationOption>(30)
   const [selectedSlot, setSelectedSlot] = useState<TimeSlot | null>(null)
   const [isCalendarConnected, setIsCalendarConnected] = useState(true)
+  const [explanation, setExplanation] = useState<string | null>(null)
   const [serviceFilterInfo, setServiceFilterInfo] = useState<ServiceFilterInfo | null>(null)
   const [isForceMode, setIsForceMode] = useState(false)
 
@@ -157,7 +165,7 @@ export function useScheduling(params: UseSchedulingParams): UseSchedulingReturn 
       const constraints = await getConstraints()
 
       // 3. Calculer la plage de recherche (7 jours par défaut, jusqu'à 90 si contrainte temporelle)
-      const { startDate, endDate, daysRange, targetDate, isExactDay, isStartOfPeriod, isWeekend, timeRange } = calculateSearchRange(taskContent, temporalConstraint)
+      const { startDate, endDate, daysRange, targetDate, isExactDay, isStartOfPeriod, isWeekend, isDeadline, timeRange } = calculateSearchRange(taskContent, temporalConstraint)
 
       let calendarEvents: GoogleCalendarEvent[] = []
       try {
@@ -194,6 +202,7 @@ export function useScheduling(params: UseSchedulingParams): UseSchedulingReturn 
         endDate,
         energyMoments,
         mood: mood || 'neutral',
+        cognitiveLoad: taskAnalysis.cognitiveLoad,
         // Ne pas passer temporalConstraint si on a détecté une targetDate depuis le texte
         temporalConstraint: targetDate ? null : temporalConstraint,
         taskContent,
@@ -205,9 +214,12 @@ export function useScheduling(params: UseSchedulingParams): UseSchedulingReturn 
         setServiceFilterInfo(result.serviceConstraint)
       }
 
+      // Stocker l'explication contextuelle
+      setExplanation(result.explanation || null)
+
       // 5. Filtrer par date cible si détectée (ex: "fin mars" → créneaux autour du 31 mars, "vendredi" → uniquement vendredi)
       // Et par plage horaire si spécifiée (ex: "jeudi soir" → 18h-21h)
-      const slotsForTarget = filterSlotsByTargetDate(result.slots, targetDate, isExactDay, isStartOfPeriod, isWeekend, timeRange)
+      const slotsForTarget = filterSlotsByTargetDate(result.slots, targetDate, isExactDay, isStartOfPeriod, isWeekend, isDeadline, timeRange)
 
       // 6. Sélectionner les 3 meilleurs créneaux diversifiés
       const top3 = selectTop3Diversified(slotsForTarget)
@@ -361,6 +373,7 @@ export function useScheduling(params: UseSchedulingParams): UseSchedulingReturn 
     estimatedDuration,
     selectedSlot,
     isCalendarConnected,
+    explanation,
     serviceFilterInfo,
     isForceMode,
     setDuration,

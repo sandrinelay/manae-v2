@@ -1,8 +1,9 @@
 // features/schedule/services/slots.service.ts
 
-import type { GoogleCalendarEvent, TimeSlot } from '../types/scheduling.types'
+import type { GoogleCalendarEvent, TimeSlot, CognitiveLoad } from '../types/scheduling.types'
 import type { Constraint } from '@/types'
 import type { TemporalConstraint, TemporalUrgency } from '@/types/items'
+import { detectServiceConstraints, type ServiceConstraints } from '../utils/text-analysis'
 
 // ============================================
 // TYPES INTERNES
@@ -270,11 +271,59 @@ function findFreeBlocks(
 interface ScoringContext {
   energyMoments: string[]
   mood: string
+  cognitiveLoad: CognitiveLoad
   urgency?: TemporalUrgency
 }
 
 /**
+ * Génère un message d'explication contextuel sur les créneaux suggérés
+ * en fonction du mood et de la charge cognitive de la tâche
+ */
+function generateExplanation(mood: string, cognitiveLoad: CognitiveLoad): string {
+  // Messages selon le croisement mood × charge cognitive
+  const explanations: Record<string, Record<CognitiveLoad, string>> = {
+    tired: {
+      high: "Créneaux adaptés à votre fatigue pour une tâche demandant de la concentration",
+      medium: "Moments propices malgré la fatigue",
+      low: "Créneaux idéals pour une tâche simple, même fatigué"
+    },
+    overwhelmed: {
+      high: "Moments de calme après vos pauses pour vous concentrer",
+      medium: "Créneaux après vos pauses pour souffler un peu",
+      low: "Moments propices pour avancer rapidement sur une tâche simple"
+    },
+    energetic: {
+      high: "Matinées idéales pour profiter de votre énergie sur cette tâche exigeante",
+      medium: "Créneaux matinaux pour tirer parti de votre énergie",
+      low: "Moments parfaits pour expédier cette tâche rapidement"
+    },
+    calm: {
+      high: "Après-midis propices pour vous plonger dans cette tâche demandant réflexion",
+      medium: "Créneaux calmes pour avancer sereinement",
+      low: "Moments idéals pour gérer cette tâche tranquillement"
+    },
+    neutral: {
+      high: "Matinées recommandées pour cette tâche nécessitant concentration",
+      medium: "Créneaux disponibles adaptés à votre planning",
+      low: "Moments pratiques pour cette tâche simple"
+    }
+  }
+
+  // Si le mood n'est pas reconnu, utiliser 'neutral'
+  const moodKey = ['tired', 'overwhelmed', 'energetic', 'calm'].includes(mood) ? mood : 'neutral'
+
+  return explanations[moodKey][cognitiveLoad]
+}
+
+/**
  * Calcule un score pour un créneau selon les préférences utilisateur
+ *
+ * Prend en compte :
+ * - Moments d'énergie préférés (énergies personnelles)
+ * - Mood actuel (énergique, fatigué, débordé, calme)
+ * - Charge cognitive de la tâche (haute, moyenne, basse)
+ * - Urgence (critique, haute, moyenne, basse)
+ *
  * Le score est pondéré par l'urgence : plus c'est urgent, moins on optimise
  */
 function scoreSlot(
@@ -287,6 +336,7 @@ function scoreSlot(
 
   const startMinutes = timeToMinutes(startTime)
   const hour = Math.floor(startMinutes / 60)
+  const minutes = startMinutes % 60
 
   // Récupérer les poids selon l'urgence
   const urgency = context.urgency || 'low'
@@ -304,45 +354,137 @@ function scoreSlot(
     moment = 'evening'
   }
 
-  // Bonus si le créneau correspond aux moments d'énergie préférés (pondéré)
+  // ============================================
+  // 1. BONUS ÉNERGIE (préférences utilisateur)
+  // ============================================
   if (context.energyMoments.length === 0 || context.energyMoments.includes(moment)) {
     const bonus = Math.round(20 * weights.energy)
     score += bonus
     if (bonus > 5) reasons.push('Moment d\'énergie favorable')
   }
 
-  // Bonus/malus selon le mood (pondéré)
-  const moodBonus = Math.round(15 * weights.mood)
+  // ============================================
+  // 2. SCORING MOOD (état émotionnel actuel)
+  // ============================================
+  const moodWeight = weights.mood
+
   switch (context.mood) {
     case 'energetic':
+      // Énergique → privilégier le matin (8h-12h)
       if (hour >= 8 && hour < 12) {
-        score += moodBonus
-        if (moodBonus > 5) reasons.push('Matin idéal')
+        const bonus = Math.round(15 * moodWeight)
+        score += bonus
+        if (bonus > 5) reasons.push('Matin idéal pour votre énergie')
       }
       break
+
     case 'calm':
+      // Calme → privilégier l'après-midi (14h-18h)
       if (hour >= 14 && hour < 18) {
-        score += moodBonus
-        if (moodBonus > 5) reasons.push('Après-midi propice')
+        const bonus = Math.round(15 * moodWeight)
+        score += bonus
+        if (bonus > 5) reasons.push('Après-midi propice au calme')
       }
       break
+
     case 'tired':
-      if (hour >= 10 && hour < 16) {
-        score += Math.round(10 * weights.mood)
-        if (weights.mood > 0.5) reasons.push('Adapté à la fatigue')
+      // Fatigué → éviter tôt le matin et tard le soir
+      if (hour < 9 || (hour === 9 && minutes < 30)) {
+        // Malus créneaux avant 9h30 (-10 pts)
+        const malus = Math.round(10 * moodWeight)
+        score -= malus
+        if (malus > 3) reasons.push('Trop tôt si fatigué')
+      } else if (hour >= 17) {
+        // Malus créneaux après 17h (-15 pts)
+        const malus = Math.round(15 * moodWeight)
+        score -= malus
+        if (malus > 5) reasons.push('Tard pour la fatigue')
+      } else if (hour >= 10 && hour < 16) {
+        // Bonus créneaux 10h-16h (+10 pts)
+        const bonus = Math.round(10 * moodWeight)
+        score += bonus
+        if (bonus > 5) reasons.push('Moment adapté à la fatigue')
       }
       break
+
     case 'overwhelmed':
-      score += Math.round(5 * weights.mood)
+      // Débordé → privilégier après les pauses naturelles
+      if (hour < 9 || (hour === 9 && minutes < 30)) {
+        // Malus créneaux avant 9h30 (-5 pts)
+        const malus = Math.round(5 * moodWeight)
+        score -= malus
+      } else if ((hour === 14 && minutes >= 0) || (hour === 15 && minutes < 30)) {
+        // Bonus après le déjeuner (14h-15h30) (+10 pts)
+        const bonus = Math.round(10 * moodWeight)
+        score += bonus
+        if (bonus > 5) reasons.push('Après une pause, moment propice')
+      } else if (hour === 15 && minutes >= 30 && hour < 17) {
+        // Bonus après pause café (15h30-17h) (+8 pts)
+        const bonus = Math.round(8 * moodWeight)
+        score += bonus
+        if (bonus > 3) reasons.push('Moment de respiration')
+      }
       break
   }
 
+  // ============================================
+  // 3. SCORING CHARGE COGNITIVE (complexité tâche)
+  // ============================================
+  const cognitiveWeight = weights.mood // Même pondération que le mood
+
+  if (context.cognitiveLoad === 'high') {
+    // Tâche complexe → privilégier le matin frais (9h-12h)
+    if (hour >= 9 && hour < 12) {
+      const bonus = Math.round(15 * cognitiveWeight)
+      score += bonus
+      if (bonus > 5) reasons.push('Matin idéal pour réfléchir')
+    } else if (hour >= 14 && hour < 16) {
+      // Début d'après-midi acceptable mais moins optimal
+      const bonus = Math.round(5 * cognitiveWeight)
+      score += bonus
+    } else if (hour >= 17) {
+      // Malus fin de journée pour tâches complexes
+      const malus = Math.round(10 * cognitiveWeight)
+      score -= malus
+      if (malus > 3) reasons.push('Tard pour tâche complexe')
+    }
+  } else if (context.cognitiveLoad === 'low') {
+    // Tâche simple → privilégier l'après-midi
+    if (hour >= 14 && hour < 18) {
+      const bonus = Math.round(8 * cognitiveWeight)
+      score += bonus
+      if (bonus > 3) reasons.push('Bon moment pour tâche simple')
+    } else if (hour >= 11 && hour < 14) {
+      // Créneaux midi aussi OK pour tâches simples
+      const bonus = Math.round(5 * cognitiveWeight)
+      score += bonus
+    }
+  }
+
+  // ============================================
+  // 4. CROISEMENT MOOD × COGNITIVE LOAD
+  // ============================================
+  // Si fatigué ET tâche complexe → atténuer les malus (on propose quand même)
+  if (context.mood === 'tired' && context.cognitiveLoad === 'high') {
+    // Réduire les malus de 30% pour laisser des options
+    if (hour >= 9 && hour < 12) {
+      const bonus = Math.round(5 * cognitiveWeight)
+      score += bonus
+      if (bonus > 2) reasons.push('Meilleur compromis fatigue/complexité')
+    }
+  }
+
+  // ============================================
+  // 5. BONUS/MALUS GÉNÉRAUX
+  // ============================================
   // Bonus pour les créneaux en dehors des heures de repas
   if ((hour < 12 || hour >= 14) && (hour < 19 || hour >= 20)) {
     score += 5
   }
 
-  // Pour les urgences critiques, ajouter un message spécifique
+  // ============================================
+  // 6. MESSAGES URGENCE
+  // ============================================
   if (urgency === 'critical') {
     reasons.unshift('Premier créneau disponible')
   } else if (urgency === 'high') {
@@ -563,6 +705,7 @@ export interface FindSlotsParams {
   endDate: Date
   energyMoments?: string[]
   mood?: string
+  cognitiveLoad?: CognitiveLoad
   dayBounds?: DayBounds
   temporalConstraint?: TemporalConstraint | null
   taskContent?: string  // Pour détecter les contraintes de service
@@ -572,6 +715,7 @@ export interface FindSlotsParams {
 // Résultat enrichi avec métadonnées
 export interface FindSlotsResult {
   slots: TimeSlot[]
+  explanation?: string  // Message contextuel sur les créneaux suggérés
   serviceConstraint?: {
     type: 'medical' | 'administrative' | 'commercial'
     filteredCount: number  // Nombre de créneaux filtrés par le service
@@ -596,6 +740,7 @@ export async function findAvailableSlots(params: FindSlotsParams): Promise<FindS
     endDate,
     energyMoments = [],
     mood = 'calm',
+    cognitiveLoad = 'medium',
     dayBounds = DEFAULT_DAY_BOUNDS,
     temporalConstraint = null,
     taskContent = '',
@@ -669,6 +814,7 @@ export async function findAvailableSlots(params: FindSlotsParams): Promise<FindS
           const { score, reason } = scoreSlot(startTime, endTime, {
             energyMoments,
             mood,
+            cognitiveLoad,
             urgency
           })
 
@@ -753,8 +899,12 @@ export async function findAvailableSlots(params: FindSlotsParams): Promise<FindS
     sortedSlots = filteredSlots.sort((a, b) => b.score - a.score)
   }
 
+  // 10. Générer le message d'explication contextuel
+  const explanation = sortedSlots.length > 0 ? generateExplanation(mood, cognitiveLoad) : undefined
+
   return {
     slots: sortedSlots,
+    explanation,
     serviceConstraint: serviceConstraintInfo
   }
 }
@@ -770,99 +920,6 @@ export async function findBestSlot(params: FindSlotsParams): Promise<TimeSlot | 
 // ============================================
 // CONTRAINTES DE SERVICE
 // ============================================
-
-// Type pour les contraintes de service
-interface ServiceConstraints {
-  type: 'medical' | 'administrative' | 'commercial'
-  openDays: string[]
-  openHours: { start: string; end: string }
-}
-
-/**
- * Détecte le type de service et ses contraintes horaires
- */
-function detectServiceConstraints(taskContent: string): ServiceConstraints | null {
-  const content = taskContent.toLowerCase()
-
-  // Services médicaux (fermés week-end, 9h-18h)
-  const medicalKeywords = [
-    'médecin', 'dentiste', 'pédiatre', 'docteur', 'rdv médical',
-    'clinique', 'hôpital', 'cabinet', 'ophtalmo', 'dermato',
-    'kiné', 'ostéo', 'radiologue', 'labo', 'laboratoire',
-    'vétérinaire', 'véto'
-  ]
-
-  if (medicalKeywords.some(k => content.includes(k))) {
-    return {
-      type: 'medical',
-      openDays: ['monday', 'tuesday', 'wednesday', 'thursday', 'friday'],
-      openHours: { start: '09:00', end: '18:00' }
-    }
-  }
-
-  // Services administratifs (fermés dimanche, 9h-16h30)
-  const adminKeywords = [
-    'mairie', 'préfecture', 'caf', 'pôle emploi', 'sécurité sociale',
-    'banque', 'notaire', 'avocat', 'assurance', 'impôts',
-    'poste', 'la poste', 'bureau de poste',
-    'carte d\'identité', 'passeport', 'permis'
-  ]
-
-  if (adminKeywords.some(k => content.includes(k))) {
-    return {
-      type: 'administrative',
-      openDays: ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'],
-      openHours: { start: '09:00', end: '16:30' }
-    }
-  }
-
-  // Écoles et périscolaire (Lun-Ven, 8h-18h)
-  const schoolKeywords = [
-    'école', 'crèche', 'périscolaire', 'cantine', 'garderie',
-    'maternelle', 'primaire', 'collège', 'lycée'
-  ]
-
-  if (schoolKeywords.some(k => content.includes(k))) {
-    return {
-      type: 'administrative',
-      openDays: ['monday', 'tuesday', 'wednesday', 'thursday', 'friday'],
-      openHours: { start: '08:00', end: '18:00' }
-    }
-  }
-
-  // Garages et auto (Lun-Sam, 8h-18h)
-  // Note: "garage" seul est ambigu (peut être "ranger le garage")
-  // On ne matche que les termes explicitement liés aux services auto
-  const garageKeywords = [
-    'garagiste', 'contrôle technique', 'mécanicien',
-    'carrossier', 'pneus', 'vidange', 'garage auto', 'garage voiture'
-  ]
-
-  if (garageKeywords.some(k => content.includes(k))) {
-    return {
-      type: 'commercial',
-      openDays: ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'],
-      openHours: { start: '08:00', end: '18:00' }
-    }
-  }
-
-  // Commerces (fermés dimanche, 9h-19h)
-  const commercialKeywords = [
-    'magasin', 'boutique', 'acheter', 'courses', 'supermarché',
-    'boulangerie', 'pharmacie', 'pressing', 'coiffeur'
-  ]
-
-  if (commercialKeywords.some(k => content.includes(k))) {
-    return {
-      type: 'commercial',
-      openDays: ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'],
-      openHours: { start: '09:00', end: '19:00' }
-    }
-  }
-
-  // Pas de contrainte détectée
-  return null
-}
 
 /**
  * Filtre les créneaux selon les contraintes de service (HARD)
@@ -890,7 +947,28 @@ function filterSlotsByServiceConstraints(
     const serviceEnd = timeToMinutes(serviceConstraints.openHours.end)
 
     // Le créneau doit être entièrement dans les heures d'ouverture
-    return slotStart >= serviceStart && slotEnd <= serviceEnd
+    if (slotStart < serviceStart || slotEnd > serviceEnd) {
+      return false
+    }
+
+    // ⭐ EXCLUSION PAUSE DÉJEUNER pour le service administratif
+    // Services administratifs français fermés 12h-14h (mairie, préfecture, CAF, CPAM, etc.)
+    if (serviceConstraints.type === 'administrative') {
+      const lunchStart = 12 * 60  // 12h00
+      const lunchEnd = 14 * 60    // 14h00
+
+      // Exclure les créneaux qui commencent pendant la pause déjeuner
+      if (slotStart >= lunchStart && slotStart < lunchEnd) {
+        return false
+      }
+
+      // Exclure les créneaux qui chevauchent la pause déjeuner
+      if (slotStart < lunchStart && slotEnd > lunchStart) {
+        return false
+      }
+    }
+
+    return true
   })
 }
 

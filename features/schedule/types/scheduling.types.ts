@@ -1,5 +1,21 @@
 import type { Constraint } from '@/types'
 
+// ============================================
+// CHARGE COGNITIVE
+// ============================================
+
+/**
+ * Niveau de charge cognitive d'une tâche
+ * - high: Tâches complexes nécessitant concentration (réflexion, création, stratégie)
+ * - medium: Tâches standard (par défaut)
+ * - low: Tâches simples/routinières (admin, appels, courses)
+ */
+export type CognitiveLoad = 'high' | 'medium' | 'low'
+
+// ============================================
+// GOOGLE CALENDAR
+// ============================================
+
 export interface GoogleCalendarEvent {
     id: string
     summary: string
