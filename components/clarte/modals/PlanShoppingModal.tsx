@@ -93,8 +93,14 @@ export function PlanShoppingModal({ itemCount, onClose, onSuccess }: PlanShoppin
         onClick={onClose}
       />
 
-      {/* Modal - collé à la BottomNav */}
-      <div className="fixed z-[60] inset-x-0 rounded-t-3xl bg-white shadow-2xl animate-slide-up flex flex-col" style={{ bottom: 'calc(95px + env(safe-area-inset-bottom, 0px))', maxHeight: 'calc(100vh - 155px)' }}>
+      {/* Modal - collé à la BottomNav sur mobile, centrée sur desktop */}
+      <div
+        className="fixed z-[60] inset-x-0 md:inset-x-4 md:max-w-lg md:mx-auto rounded-t-3xl md:rounded-2xl bg-white shadow-2xl animate-slide-up flex flex-col md:top-1/2 md:-translate-y-1/2 md:bottom-auto md:max-h-[85vh]"
+        style={{
+          bottom: 'calc(95px + env(safe-area-inset-bottom, 0px))',
+          maxHeight: 'calc(100vh - 155px)'
+        }}
+      >
         {/* Header */}
         <div className="flex items-center justify-between p-4 border-b border-border flex-shrink-0 rounded-t-3xl">
           <div className="flex items-center gap-2 text-primary">

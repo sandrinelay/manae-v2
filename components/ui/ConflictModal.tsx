@@ -13,6 +13,21 @@ interface ConflictModalProps {
     onConfirm: () => void;
 }
 
+// Traduction des jours de la semaine
+const DAY_TRANSLATIONS: Record<string, string> = {
+    'monday': 'lundi',
+    'tuesday': 'mardi',
+    'wednesday': 'mercredi',
+    'thursday': 'jeudi',
+    'friday': 'vendredi',
+    'saturday': 'samedi',
+    'sunday': 'dimanche'
+}
+
+function translateDay(day: string): string {
+    return DAY_TRANSLATIONS[day.toLowerCase()] || day
+}
+
 // Helper pour détecter si on est côté client
 function subscribeMounted() {
     return () => {};
@@ -41,8 +56,10 @@ export const ConflictModal: React.FC<ConflictModalProps> = ({
     );
 
     const daysLabel = overlappingDays.length === 1
-        ? overlappingDays[0]
-        : `${overlappingDays.length} jours`;
+        ? translateDay(overlappingDays[0])
+        : overlappingDays.length === 2
+            ? `${translateDay(overlappingDays[0])} et ${translateDay(overlappingDays[1])}`
+            : `${overlappingDays.length} jours`;
 
     // Gérer le scroll du body (cet effet est OK car il ne fait pas de setState)
     useEffect(() => {
@@ -126,8 +143,7 @@ export const ConflictModal: React.FC<ConflictModalProps> = ({
 
                     <div className="bg-mint border-l-4 border-primary p-3 rounded-lg">
                         <p className="text-sm text-text-medium leading-relaxed">
-                            Tu peux avoir 2 indisponibilités en même temps, mais l&apos;IA ne pourra pas
-                            suggérer de tâches pendant ces créneaux.
+                            Les deux indisponibilités seront actives. L&apos;IA évitera de suggérer des tâches pendant ces créneaux.
                         </p>
                     </div>
                 </div>

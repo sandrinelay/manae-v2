@@ -700,8 +700,14 @@ export function CaptureModal({
         onClick={onClose}
       />
 
-      {/* Modal - collé à la BottomNav */}
-      <div className="fixed z-[60] inset-x-0 rounded-t-3xl bg-white shadow-2xl animate-slide-up" style={{ bottom: 'calc(95px + env(safe-area-inset-bottom, 0px))', maxHeight: 'calc(100vh - 155px)' }}>
+      {/* Modal - collé à la BottomNav sur mobile, centrée sur desktop */}
+      <div
+        className="fixed z-[60] inset-x-0 md:inset-x-4 md:max-w-lg md:mx-auto rounded-t-3xl md:rounded-2xl bg-white shadow-2xl animate-slide-up md:top-1/2 md:-translate-y-1/2 md:bottom-auto md:max-h-[85vh] flex flex-col"
+        style={{
+          bottom: 'calc(95px + env(safe-area-inset-bottom, 0px))',
+          maxHeight: 'calc(100vh - 155px)'
+        }}
+      >
         {/* Header - hauteur fixe */}
         <div className="h-[60px] flex items-center justify-between px-4 border-b border-border bg-white rounded-t-3xl">
           {currentStep === 'schedule' ? (
@@ -730,14 +736,7 @@ export function CaptureModal({
         </div>
 
         {/* Content - scrollable */}
-        <div
-          className="p-6 overflow-y-auto"
-          style={{
-            maxHeight: currentStep === 'schedule'
-              ? 'calc(100vh - 300px)' // Réserve large pour header + footer + marges
-              : 'calc(100vh - 220px)'
-          }}
-        >
+        <div className="p-6 overflow-y-auto flex-1 min-h-0">
           {currentStep === 'organize' ? OrganizeContent() : ScheduleContent()}
         </div>
 
