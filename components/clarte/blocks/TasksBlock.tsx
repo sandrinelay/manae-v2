@@ -3,7 +3,7 @@
 import { useState, useMemo } from 'react'
 import { Item } from '@/types/items'
 import { TaskCard } from '../cards/TaskCard'
-import { EmptyState } from '../EmptyState'
+import { EmptyState, EMPTY_STATE_CONFIG } from '../EmptyState'
 import { sortTasksForPreview } from '@/lib/task-utils'
 
 // Configuration
@@ -60,7 +60,7 @@ export function TasksBlock({
 
       {/* État vide */}
       {sortedTasks.length === 0 ? (
-        <EmptyState message="Aucune tâche pour le moment" />
+        <EmptyState {...EMPTY_STATE_CONFIG.tasks} />
       ) : (
         <>
           {/* Liste des tâches */}

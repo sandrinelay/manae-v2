@@ -355,7 +355,7 @@ export function CaptureModal({
       {captureResult.aiUsed && captureResult.suggestedType && (
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2 text-sm">
-            <span className="text-primary">IA suggère :</span>
+            <span className="text-primary">Manae suggère :</span>
             <span className="font-medium text-primary flex items-center gap-1">
               {(() => {
                 const SuggestedIcon = TYPE_CONFIG[captureResult.suggestedType].icon
@@ -581,6 +581,13 @@ export function CaptureModal({
               {scheduling.showAlternatives ? 'Créneaux suggérés' : 'Meilleur moment suggéré'}
             </h3>
 
+            {/* Message d'explication contextuel */}
+            {scheduling.explanation && (
+              <div className="mb-4 p-3 bg-primary/5 border border-primary/20 rounded-lg">
+                <p className="text-sm text-text-dark">{scheduling.explanation}</p>
+              </div>
+            )}
+
             {/* Meilleur créneau (toujours visible) */}
             <TimeSlotCard
               slot={scheduling.bestSlot}
@@ -693,8 +700,14 @@ export function CaptureModal({
         onClick={onClose}
       />
 
-      {/* Modal - positionné au-dessus du BottomNav */}
-      <div className="fixed z-[60] inset-x-0 bottom-[80px] rounded-t-3xl bg-white shadow-2xl animate-slide-up" style={{ maxHeight: 'calc(100vh - 140px)' }}>
+      {/* Modal - collé à la BottomNav sur mobile, centrée sur desktop */}
+      <div
+        className="fixed z-[60] inset-x-0 md:inset-x-4 md:max-w-lg md:mx-auto rounded-t-3xl md:rounded-2xl bg-white shadow-2xl animate-slide-up md:top-1/2 md:-translate-y-1/2 md:bottom-auto md:max-h-[85vh] flex flex-col"
+        style={{
+          bottom: 'calc(95px + env(safe-area-inset-bottom, 0px))',
+          maxHeight: 'calc(100vh - 155px)'
+        }}
+      >
         {/* Header - hauteur fixe */}
         <div className="h-[60px] flex items-center justify-between px-4 border-b border-border bg-white rounded-t-3xl">
           {currentStep === 'schedule' ? (
@@ -723,14 +736,7 @@ export function CaptureModal({
         </div>
 
         {/* Content - scrollable */}
-        <div
-          className="p-6 overflow-y-auto"
-          style={{
-            maxHeight: currentStep === 'schedule'
-              ? 'calc(100vh - 300px)' // Réserve large pour header + footer + marges
-              : 'calc(100vh - 220px)'
-          }}
-        >
+        <div className="p-6 overflow-y-auto flex-1 min-h-0">
           {currentStep === 'organize' ? OrganizeContent() : ScheduleContent()}
         </div>
 

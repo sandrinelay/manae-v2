@@ -136,7 +136,7 @@ export function TaskDetailModal({
               {/* Réactiver (toujours présent) */}
               <ActionButton
                 label="Réactiver"
-                icon={<UndoIcon />}
+                icon={<UndoIcon className="w-5 h-5" />}
                 variant="secondary"
                 onClick={() => {
                   onReactivate(task.id)
@@ -149,7 +149,7 @@ export function TaskDetailModal({
               {mode === 'done' && onStore && (
                 <ActionButton
                   label="Ranger"
-                  icon={<ArchiveIcon />}
+                  icon={<ArchiveIcon className="w-5 h-5" />}
                   variant="archive"
                   onClick={() => {
                     onStore(task.id)
@@ -162,7 +162,7 @@ export function TaskDetailModal({
               {mode === 'stored' && onDelete && (
                 <ActionButton
                   label="Supprimer"
-                  icon={<TrashIcon />}
+                  icon={<TrashIcon className="w-5 h-5" />}
                   variant="delete"
                   onClick={() => setShowDeleteConfirm(true)}
                   className="flex-1"

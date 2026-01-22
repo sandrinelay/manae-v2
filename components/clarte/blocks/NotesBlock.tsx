@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { Item } from '@/types/items'
 import { NoteRow } from '../cards/NoteRow'
-import { EmptyState } from '../EmptyState'
+import { EmptyState, EMPTY_STATE_CONFIG } from '../EmptyState'
 
 // Configuration
 const INITIAL_VISIBLE_COUNT = 4
@@ -36,7 +36,7 @@ export function NotesBlock({ notes, totalCount, onTapNote, onShowFullView }: Not
         <div className="flex items-center gap-2">
           {totalCount > 0 && (
             <span className="text-xs text-text-muted">
-              {totalCount} pensée{totalCount > 1 ? 's' : ''}
+              {totalCount} note{totalCount > 1 ? 's' : ''}
             </span>
           )}
           <span className="text-xs text-text-muted group-hover:text-primary transition-colors">
@@ -47,7 +47,7 @@ export function NotesBlock({ notes, totalCount, onTapNote, onShowFullView }: Not
 
       {/* État vide */}
       {notes.length === 0 ? (
-        <EmptyState message="Aucune note pour le moment" />
+        <EmptyState {...EMPTY_STATE_CONFIG.notes} />
       ) : (
         <>
           {/* Liste de notes */}
@@ -69,7 +69,7 @@ export function NotesBlock({ notes, totalCount, onTapNote, onShowFullView }: Not
             >
               {isExpanded
                 ? '− Réduire'
-                : `+ Voir les ${hiddenCount} autre${hiddenCount > 1 ? 's' : ''} pensée${hiddenCount > 1 ? 's' : ''}`
+                : `+ Voir les ${hiddenCount} autre${hiddenCount > 1 ? 's' : ''} note${hiddenCount > 1 ? 's' : ''}`
               }
             </button>
           )}

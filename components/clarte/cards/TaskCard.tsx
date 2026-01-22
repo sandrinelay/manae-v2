@@ -1,5 +1,6 @@
 'use client'
 
+import { useState } from 'react'
 import { Item, ItemState } from '@/types/items'
 import { CONTEXT_CONFIG } from '@/config/contexts'
 import { IconButton } from '@/components/ui/IconButton'
@@ -12,6 +13,7 @@ type CardMode = 'active' | 'done' | 'stored'
 interface TaskCardProps {
   item: Item
   mode?: CardMode // Par défaut 'active'
+  index?: number // Pour l'animation staggered
   onMarkDone?: (id: string) => void
   onPlan?: (id: string) => void
   onTap?: (id: string) => void // Pour ouvrir la modal de détail
@@ -66,7 +68,10 @@ const MODE_CONFIG: Record<'done' | 'stored', { dotColor: string; label: string; 
   }
 }
 
-export function TaskCard({ item, mode = 'active', onMarkDone, onPlan, onTap }: TaskCardProps) {
+export function TaskCard({ item, mode = 'active', index = 0, onMarkDone, onPlan, onTap }: TaskCardProps) {
+  const [isExiting, setIsExiting] = useState(false)
+  const [exitDirection, setExitDirection] = useState<'right' | 'left'>('right')
+
   const context = item.context || 'other'
   const contextConfig = CONTEXT_CONFIG[context]
   const ContextIcon = contextConfig.icon
@@ -101,6 +106,25 @@ export function TaskCard({ item, mode = 'active', onMarkDone, onPlan, onTap }: T
     }
   }
 
+  // Animation de sortie avant action
+  const handleMarkDoneWithAnimation = (e: React.MouseEvent) => {
+    e.stopPropagation()
+    if (!onMarkDone) return
+
+    setExitDirection('right')
+    setIsExiting(true)
+
+    setTimeout(() => {
+      onMarkDone(item.id)
+    }, 250)
+  }
+
+  // Classes d'animation
+  const staggerClass = index < 5 ? `stagger-${index + 1}` : ''
+  const animationClass = isExiting
+    ? `animate-slide-out-${exitDirection}`
+    : `animate-slide-in-right ${staggerClass}`
+
   return (
     <div
       onClick={handleCardClick}
@@ -114,9 +138,11 @@ export function TaskCard({ item, mode = 'active', onMarkDone, onPlan, onTap }: T
       }}
       className={`
         relative w-full text-left bg-white rounded-2xl p-4 border border-gray-100
-        transition-all duration-200 hover:shadow-md cursor-pointer
+        transition-all duration-200 hover:shadow-md active:scale-[0.98] cursor-pointer
         ${cardOpacity}
+        ${animationClass}
       `}
+      style={{ opacity: 0, animationFillMode: 'forwards' }}
     >
       {/* Indicateur + Titre */}
       <div className="flex items-start gap-3">
@@ -165,21 +191,18 @@ export function TaskCard({ item, mode = 'active', onMarkDone, onPlan, onTap }: T
             {/* Bouton Fait */}
             {onMarkDone && (
               <IconButton
-                icon={<Check />}
+                icon={<Check className="w-4 h-4" />}
                 label="Marquer comme fait"
                 variant="success"
                 size="sm"
-                onClick={(e) => {
-                  e.stopPropagation()
-                  onMarkDone(item.id)
-                }}
+                onClick={handleMarkDoneWithAnimation}
               />
             )}
 
             {/* Bouton Caler / Décaler */}
             {onPlan && (
               <IconButton
-                icon={<Calendar />}
+                icon={<Calendar className="w-4 h-4" />}
                 label={planButtonLabel}
                 variant="plan"
                 size="sm"

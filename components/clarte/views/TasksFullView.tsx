@@ -14,7 +14,7 @@ import { TaskCard } from '@/components/clarte/cards/TaskCard'
 import { TaskActiveModal } from '@/components/clarte/modals/TaskActiveModal'
 import { TaskDetailModal } from '@/components/clarte/modals/TaskDetailModal'
 import { PlanTaskModal } from '@/components/clarte/modals/PlanTaskModal'
-import { EmptyState } from '@/components/clarte/EmptyState'
+import { EmptyState, EMPTY_STATE_CONFIG } from '@/components/clarte/EmptyState'
 import {
   groupTasksByCategory,
   filterActiveTasks,
@@ -41,9 +41,21 @@ interface TasksFullViewProps {
   onRefresh: () => Promise<void>
   initialTaskToPlan?: Item | null // Tâche à planifier (pour reprise après connexion Google)
   onTaskToPlanHandled?: () => void // Callback pour signaler que la tâche a été traitée
+  // Props pour contrôle externe des modales (évite problème PullToRefresh + position:fixed)
+  externalModalControl?: boolean
+  onSelectTask?: (task: Item | null) => void
+  onSelectTaskToPlan?: (task: Item | null) => void
 }
 
-export function TasksFullView({ tasks: initialTasks, onRefresh, initialTaskToPlan, onTaskToPlanHandled }: TasksFullViewProps) {
+export function TasksFullView({
+  tasks: initialTasks,
+  onRefresh,
+  initialTaskToPlan,
+  onTaskToPlanHandled,
+  externalModalControl = false,
+  onSelectTask,
+  onSelectTaskToPlan
+}: TasksFullViewProps) {
   const [activeTab, setActiveTab] = useState<TabId>('active')
   const [selectedTask, setSelectedTask] = useState<Item | null>(null)
   const [taskToPlan, setTaskToPlan] = useState<Item | null>(initialTaskToPlan || null)
@@ -105,10 +117,15 @@ export function TasksFullView({ tasks: initialTasks, onRefresh, initialTaskToPla
   const handlePlan = useCallback((id: string) => {
     const task = allTasks.find(t => t.id === id)
     if (task) {
-      setSelectedTask(null) // Fermer la modal de détail si ouverte
-      setTaskToPlan(task)
+      if (externalModalControl) {
+        onSelectTask?.(null)
+        onSelectTaskToPlan?.(task)
+      } else {
+        setSelectedTask(null)
+        setTaskToPlan(task)
+      }
     }
-  }, [allTasks])
+  }, [allTasks, externalModalControl, onSelectTask, onSelectTaskToPlan])
 
   const handleDelete = useCallback(async (id: string) => {
     try {
@@ -162,8 +179,14 @@ export function TasksFullView({ tasks: initialTasks, onRefresh, initialTaskToPla
 
   const handleTapTask = useCallback((id: string) => {
     const task = allTasks.find(t => t.id === id)
-    if (task) setSelectedTask(task)
-  }, [allTasks])
+    if (task) {
+      if (externalModalControl) {
+        onSelectTask?.(task)
+      } else {
+        setSelectedTask(task)
+      }
+    }
+  }, [allTasks, externalModalControl, onSelectTask])
 
   const handleEditTask = useCallback(async (id: string, content: string, context: ItemContext) => {
     try {
@@ -180,7 +203,7 @@ export function TasksFullView({ tasks: initialTasks, onRefresh, initialTaskToPla
     (selectedTask.state === 'active' || selectedTask.state === 'planned' || selectedTask.state === 'captured')
 
   return (
-    <>
+    <div className="w-full">
       {/* Onglets discrets */}
       <TabBar
         tabs={tabsWithCounts}
@@ -190,11 +213,11 @@ export function TasksFullView({ tasks: initialTasks, onRefresh, initialTaskToPla
       />
 
       {/* Contenu selon l'onglet */}
-      <div className="mt-4 space-y-6">
+      <div className="w-full mt-4 space-y-6">
         {/* Onglet Actives */}
         {activeTab === 'active' && (
           activeTasks.length === 0 ? (
-            <EmptyState message="Aucune tâche en cours. Tes pensées capturées apparaîtront ici." />
+            <EmptyState {...EMPTY_STATE_CONFIG.tasks} />
           ) : (
             CATEGORY_ORDER.map(category => {
               const categoryTasks = groupedActiveTasks[category]
@@ -213,10 +236,11 @@ export function TasksFullView({ tasks: initialTasks, onRefresh, initialTaskToPla
 
                   {/* Liste des tâches */}
                   <div className="space-y-3">
-                    {categoryTasks.map(task => (
+                    {categoryTasks.map((task, idx) => (
                       <TaskCard
                         key={task.id}
                         item={task}
+                        index={idx}
                         mode="active"
                         onPlan={handlePlan}
                         onMarkDone={handleMarkDone}
@@ -233,13 +257,14 @@ export function TasksFullView({ tasks: initialTasks, onRefresh, initialTaskToPla
         {/* Onglet Terminées */}
         {activeTab === 'done' && (
           completedTasks.length === 0 ? (
-            <EmptyState message="Aucune tâche terminée. Tes accomplissements apparaîtront ici." />
+            <EmptyState {...EMPTY_STATE_CONFIG.tasksDone} />
           ) : (
             <div className="space-y-3">
-              {completedTasks.map(task => (
+              {completedTasks.map((task, idx) => (
                 <TaskCard
                   key={task.id}
                   item={task}
+                  index={idx}
                   mode="done"
                   onTap={handleTapTask}
                 />
@@ -251,13 +276,14 @@ export function TasksFullView({ tasks: initialTasks, onRefresh, initialTaskToPla
         {/* Onglet Rangées */}
         {activeTab === 'stored' && (
           archivedTasks.length === 0 ? (
-            <EmptyState message="Rien de rangé. Les tâches que tu ranges apparaîtront ici." />
+            <EmptyState {...EMPTY_STATE_CONFIG.tasksStored} />
           ) : (
             <div className="space-y-3">
-              {archivedTasks.map(task => (
+              {archivedTasks.map((task, idx) => (
                 <TaskCard
                   key={task.id}
                   item={task}
+                  index={idx}
                   mode="stored"
                   onTap={handleTapTask}
                 />
@@ -267,8 +293,8 @@ export function TasksFullView({ tasks: initialTasks, onRefresh, initialTaskToPla
         )}
       </div>
 
-      {/* Modal selon le type de tâche */}
-      {selectedTask && isSelectedTaskActive && (
+      {/* Modal selon le type de tâche (seulement si pas de contrôle externe) */}
+      {!externalModalControl && selectedTask && isSelectedTaskActive && (
         <TaskActiveModal
           task={selectedTask}
           onClose={() => setSelectedTask(null)}
@@ -280,7 +306,7 @@ export function TasksFullView({ tasks: initialTasks, onRefresh, initialTaskToPla
         />
       )}
 
-      {selectedTask && !isSelectedTaskActive && (
+      {!externalModalControl && selectedTask && !isSelectedTaskActive && (
         <TaskDetailModal
           task={selectedTask}
           mode={selectedTask.state === 'completed' ? 'done' : 'stored'}
@@ -291,8 +317,8 @@ export function TasksFullView({ tasks: initialTasks, onRefresh, initialTaskToPla
         />
       )}
 
-      {/* Modal de planification */}
-      {taskToPlan && (
+      {/* Modal de planification (seulement si pas de contrôle externe) */}
+      {!externalModalControl && taskToPlan && (
         <PlanTaskModal
           task={taskToPlan}
           onClose={() => {
@@ -302,6 +328,6 @@ export function TasksFullView({ tasks: initialTasks, onRefresh, initialTaskToPla
           onSuccess={handleRefresh}
         />
       )}
-    </>
+    </div>
   )
 }

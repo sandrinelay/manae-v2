@@ -199,7 +199,7 @@ export function ShoppingItemModal({
               {/* Acheté / Non acheté */}
               <ActionButton
                 label={isCompleted ? 'Non acheté' : 'Acheté'}
-                icon={<CheckIcon />}
+                icon={<CheckIcon className="w-5 h-5" />}
                 variant={isCompleted ? 'secondary' : 'done'}
                 onClick={handleToggle}
                 className="flex-1"
@@ -208,7 +208,7 @@ export function ShoppingItemModal({
               {/* Modifier */}
               <ActionButton
                 label="Modifier"
-                icon={<EditIcon />}
+                icon={<EditIcon className="w-5 h-5" />}
                 variant="secondary"
                 onClick={() => setIsEditMode(true)}
                 className="flex-1"
@@ -216,7 +216,7 @@ export function ShoppingItemModal({
 
               {/* Supprimer */}
               <IconButton
-                icon={<TrashIcon />}
+                icon={<TrashIcon className="w-5 h-5" />}
                 label="Supprimer"
                 variant="danger"
                 size="md"

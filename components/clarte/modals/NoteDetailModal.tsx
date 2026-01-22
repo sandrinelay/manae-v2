@@ -174,20 +174,20 @@ export function NoteDetailModal({ note, onClose, onEdit, onArchive, onDelete }: 
             <>
               <ActionButton
                 label="Modifier"
-                icon={<EditIcon />}
+                icon={<EditIcon className="w-5 h-5" />}
                 variant="secondary"
                 onClick={() => setIsEditMode(true)}
                 className="flex-1"
               />
               <ActionButton
                 label="Ranger"
-                icon={<ArchiveIcon />}
+                icon={<ArchiveIcon className="w-5 h-5" />}
                 variant="archive"
                 onClick={() => onArchive(note.id)}
                 className="flex-1"
               />
               <IconButton
-                icon={<TrashIcon />}
+                icon={<TrashIcon className="w-5 h-5" />}
                 label="Supprimer"
                 variant="danger"
                 size="md"

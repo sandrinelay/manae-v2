@@ -1,12 +1,13 @@
 'use client'
 
-import { useRef, useCallback } from 'react'
+import { useState, useRef, useCallback } from 'react'
 import { Item } from '@/types/items'
 import { SHOPPING_CATEGORY_CONFIG, type ShoppingCategory } from '@/config/shopping-categories'
 import { CheckIcon } from '@/components/ui/icons'
 
 interface ShoppingItemRowProps {
   item: Item
+  index?: number
   onToggle: (id: string) => void
   onTap?: (id: string) => void
   onLongPress?: (id: string) => void
@@ -14,7 +15,8 @@ interface ShoppingItemRowProps {
 
 const LONG_PRESS_DURATION = 500 // ms
 
-export function ShoppingItemRow({ item, onToggle, onTap, onLongPress }: ShoppingItemRowProps) {
+export function ShoppingItemRow({ item, index = 0, onToggle, onTap, onLongPress }: ShoppingItemRowProps) {
+  const [isAnimatingCheck, setIsAnimatingCheck] = useState(false)
   const isCompleted = item.state === 'completed'
   const category = (item.shopping_category || 'other') as ShoppingCategory
   const categoryConfig = SHOPPING_CATEGORY_CONFIG[category]
@@ -25,8 +27,15 @@ export function ShoppingItemRow({ item, onToggle, onTap, onLongPress }: Shopping
 
   const handleToggle = (e: React.MouseEvent) => {
     e.stopPropagation()
+    // Animation bounce sur le check
+    if (!isCompleted) {
+      setIsAnimatingCheck(true)
+      setTimeout(() => setIsAnimatingCheck(false), 300)
+    }
     onToggle(item.id)
   }
+
+  const staggerClass = index < 5 ? `stagger-${index + 1}` : ''
 
   const handleTap = () => {
     // Ne pas déclencher le tap si on vient de faire un long press
@@ -90,27 +99,32 @@ export function ShoppingItemRow({ item, onToggle, onTap, onLongPress }: Shopping
       }}
       className={`
         w-full flex items-center gap-3 p-3 rounded-xl border transition-all
+        active:scale-[0.98] animate-slide-in-right ${staggerClass}
         ${onTap ? 'cursor-pointer hover:shadow-sm' : ''}
         ${isCompleted
           ? 'bg-gray-50 border-gray-200'
           : 'bg-white border-border hover:border-primary/50'
         }
       `}
+      style={{ opacity: 0, animationFillMode: 'forwards' }}
     >
-      {/* Checkbox */}
+      {/* Checkbox avec zone tactile 44px */}
       <button
         onClick={handleToggle}
         aria-label={isCompleted ? 'Marquer comme non acheté' : 'Marquer comme acheté'}
-        className={`
+        className="min-w-[44px] min-h-[44px] -m-2 flex items-center justify-center shrink-0"
+      >
+        <span className={`
           w-6 h-6 rounded-lg border-2 flex items-center justify-center
-          transition-all shrink-0
+          transition-all
+          ${isAnimatingCheck ? 'animate-check-bounce' : ''}
           ${isCompleted
             ? 'bg-primary border-primary text-white'
             : 'border-gray-300 hover:border-primary'
           }
-        `}
-      >
-        {isCompleted && <CheckIcon className="w-4 h-4" />}
+        `}>
+          {isCompleted && <CheckIcon className="w-4 h-4" />}
+        </span>
       </button>
 
       {/* Contenu */}

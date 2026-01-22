@@ -3,13 +3,11 @@
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { CalendarIcon, CalendarOffIcon } from '@/components/ui/icons'
+import { useAuth } from '@/contexts/AuthContext'
 
-interface AppHeaderProps {
-  userName?: string
-}
-
-export function AppHeader({ userName }: AppHeaderProps) {
-  const displayName = userName || 'toi'
+export function AppHeader() {
+  const { firstName } = useAuth()
+  const displayName = firstName || 'toi'
   const [isCalendarConnected, setIsCalendarConnected] = useState(false)
 
   useEffect(() => {

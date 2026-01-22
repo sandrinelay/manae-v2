@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { Item } from '@/types/items'
 import { IdeaCard } from '../cards/IdeaCard'
-import { EmptyState } from '../EmptyState'
+import { EmptyState, EMPTY_STATE_CONFIG } from '../EmptyState'
 
 // Configuration
 const INITIAL_VISIBLE_COUNT = 4
@@ -47,7 +47,7 @@ export function IdeasBlock({ ideas, totalCount, onTapIdea, onShowFullView }: Ide
 
       {/* État vide */}
       {ideas.length === 0 ? (
-        <EmptyState message="Aucune idée pour le moment" />
+        <EmptyState {...EMPTY_STATE_CONFIG.ideas} />
       ) : (
         <>
           {/* Grille d'idées (2 colonnes) */}

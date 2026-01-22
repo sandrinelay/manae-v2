@@ -12,7 +12,7 @@ import { TabBar } from '@/components/clarte/tabs/TabBar'
 import { NoteRow } from '@/components/clarte/cards/NoteRow'
 import { NoteDetailModal } from '@/components/clarte/modals/NoteDetailModal'
 import { NoteArchivedModal } from '@/components/clarte/modals/NoteArchivedModal'
-import { EmptyState } from '@/components/clarte/EmptyState'
+import { EmptyState, EMPTY_STATE_CONFIG } from '@/components/clarte/EmptyState'
 import type { Item, ItemContext } from '@/types/items'
 
 type TabId = 'active' | 'archived'
@@ -34,18 +34,14 @@ export function NotesFullView({ notes: initialNotes, contextFilter = 'all', onRe
   const [activeTab, setActiveTab] = useState<TabId>('active')
   const [selectedNote, setSelectedNote] = useState<Item | null>(null)
   const [allNotes, setAllNotes] = useState<Item[]>(initialNotes)
-  const [isLoading, setIsLoading] = useState(false)
 
   // Fetch toutes les notes
   const fetchAllNotes = useCallback(async () => {
-    setIsLoading(true)
     try {
       const data = await fetchNotes()
       setAllNotes(data)
     } catch (error) {
       console.error('Erreur fetch notes:', error)
-    } finally {
-      setIsLoading(false)
     }
   }, [])
 
@@ -137,7 +133,7 @@ export function NotesFullView({ notes: initialNotes, contextFilter = 'all', onRe
   const displayedNotes = activeTab === 'active' ? activeNotes : archivedNotes
 
   return (
-    <>
+    <div className="w-full">
       {/* Onglets */}
       <TabBar
         tabs={tabsWithCounts}
@@ -147,24 +143,16 @@ export function NotesFullView({ notes: initialNotes, contextFilter = 'all', onRe
       />
 
       {/* Contenu */}
-      <div className="mt-4">
-        {isLoading ? (
-          <div className="flex justify-center py-8">
-            <div className="animate-spin h-6 w-6 border-2 border-primary border-t-transparent rounded-full" />
-          </div>
-        ) : displayedNotes.length === 0 ? (
-          <EmptyState
-            message={activeTab === 'active'
-              ? "Aucune note pour le moment"
-              : "Aucune note archivée"
-            }
-          />
+      <div className="w-full mt-4">
+        {displayedNotes.length === 0 ? (
+          <EmptyState {...(activeTab === 'active' ? EMPTY_STATE_CONFIG.notes : EMPTY_STATE_CONFIG.notesArchived)} />
         ) : (
           <div className="space-y-3">
-            {displayedNotes.map(note => (
+            {displayedNotes.map((note, idx) => (
               <NoteRow
                 key={note.id}
                 item={note}
+                index={idx}
                 onTap={handleTapNote}
               />
             ))}
@@ -193,6 +181,6 @@ export function NotesFullView({ notes: initialNotes, contextFilter = 'all', onRe
           onDelete={handleDelete}
         />
       )}
-    </>
+    </div>
   )
 }

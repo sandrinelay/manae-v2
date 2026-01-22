@@ -9,9 +9,10 @@ import { captureThought, saveItem, saveMultipleListItems, extractMultipleItems }
 import type { CaptureResult, MultiThoughtItem } from '@/services/capture'
 import type { ItemType, ItemContext, Mood as ItemMood } from '@/types/items'
 import type { ActionType } from './CaptureModal'
-import { useAIQuota } from '@/hooks/useAIQuota'
+import { useAIQuota } from '@/contexts/AIQuotaContext'
 import { SpinnerIcon, SendIcon } from '@/components/ui/icons'
 import { ActionButton } from '@/components/ui/ActionButton'
+import { PullToRefresh } from '@/components/ui/PullToRefresh'
 
 // Conversion des moods UI vers les moods DB
 function convertMoodToItemMood(mood: Mood | null): ItemMood | undefined {
@@ -36,7 +37,7 @@ export function CaptureFlow({ userId, onSuccess }: CaptureFlowProps) {
   const router = useRouter()
 
   // Hook quota IA
-  const { quota, maxQuota, isLow, isExhausted, isLoading: isQuotaLoading } = useAIQuota()
+  const { quota, maxQuota, isLow, isExhausted, isLoading: isQuotaLoading, refresh: refreshQuota } = useAIQuota()
 
   const handleUpgrade = () => {
     router.push('/settings/subscription')
@@ -128,6 +129,11 @@ export function CaptureFlow({ userId, onSuccess }: CaptureFlowProps) {
       if (!result.success) {
         setError(result.error || 'Erreur lors de la capture')
         return
+      }
+
+      // Rafraîchir le quota après utilisation de l'IA
+      if (result.aiUsed) {
+        refreshQuota()
       }
 
       // Multi-pensées détectées
@@ -239,139 +245,144 @@ export function CaptureFlow({ userId, onSuccess }: CaptureFlowProps) {
     setTimeout(() => textareaRef.current?.focus(), 100)
   }
 
+  const handlePullRefresh = async () => {
+    await refreshQuota()
+  }
+
   return (
-    <div className="flex-1 pb-32">
-      <div className="px-4 pt-4">
+    <>
+      <PullToRefresh onRefresh={handlePullRefresh} className="flex-1 pb-32 px-4 pt-4">
 
-      {/* Card principale */}
-      <div className="bg-white rounded-3xl p-5 shadow-sm mb-6">
-        {/* Titre */}
-        <h1 className="text-xl font-bold text-text-dark mb-1">
-          Qu&apos;as-tu en tête ?
-        </h1>
-        <p className="typo-hint mb-4">
-          Tâches, notes, idées, courses... Dépose tout ici.
-        </p>
+        {/* Card principale */}
+        <div className="bg-white rounded-3xl p-5 shadow-sm mb-6">
+          {/* Titre */}
+          <h1 className="text-xl font-bold text-text-dark mb-1">
+            Qu&apos;as-tu en tête ?
+          </h1>
+          <p className="typo-hint mb-4">
+            Tâches, notes, idées, courses... Dépose tout ici.
+          </p>
 
-        {/* Textarea */}
-        <textarea
-          ref={textareaRef}
-          value={content}
-          onChange={(e) => setContent(e.target.value)}
-          placeholder="Ex: Acheter du café, améliorer ma routine du matin, penser à envoyer le mail à Lena, réserver un créneau sport"
-          rows={4}
-          className="input-field p-4 rounded-2xl resize-none"
-          disabled={isCapturing}
-        />
+          {/* Textarea */}
+          <textarea
+            ref={textareaRef}
+            value={content}
+            onChange={(e) => setContent(e.target.value)}
+            placeholder="Ex: Acheter du café, améliorer ma routine du matin, penser à envoyer le mail à Lena, réserver un créneau sport"
+            rows={4}
+            className="input-field p-4 rounded-2xl resize-none"
+            disabled={isCapturing}
+          />
 
-        {/* Bottom row: icons (commentés pour l'instant) */}
-        {/*
-        <div className="flex items-center justify-between mt-3">
-          <div className="flex gap-3">
-            <button
-              disabled
-              className="w-9 h-9 flex items-center justify-center rounded-full bg-gray-light text-text-muted"
-              title="Dictée vocale (bientôt)"
-            >
-              <MicrophoneIcon />
-            </button>
-            <button
-              disabled
-              className="w-9 h-9 flex items-center justify-center rounded-full bg-gray-light text-text-muted"
-              title="Photo (bientôt)"
-            >
-              <CameraIcon />
-            </button>
-          </div>
-        </div>
-        */}
-      </div>
-
-      {/* Mood Selector */}
-      <div className="mb-6">
-        <MoodSelector
-          selectedMood={selectedMood}
-          onSelectMood={setSelectedMood}
-          disabled={isCapturing}
-        />
-      </div>
-
-      {/* Indicateur quota IA */}
-      {!isQuotaLoading && quota !== null && maxQuota !== null && (
-        <div className="mb-4">
-          {/* Compteur discret (toujours visible) */}
-          <div className="flex justify-end">
-            <span className={`text-xs ${
-              isExhausted || isLow ? 'text-[var(--accent)]' : 'text-text-muted'
-            }`}>
-              {quota}/{maxQuota} crédits IA
-            </span>
-          </div>
-
-          {/* Alerte quota faible (1-3) */}
-          {isLow && !isExhausted && (
-            <div className="alert-box mt-3">
-              <p className="alert-box-title">
-                Plus que {quota} crédit{quota > 1 ? 's' : ''} IA
-              </p>
-              <p className="alert-box-text">
-                Au-delà, tes pensées seront enregistrées sans tri automatique.
-              </p>
+          {/* Bottom row: icons (commentés pour l'instant) */}
+          {/*
+          <div className="flex items-center justify-between mt-3">
+            <div className="flex gap-3">
               <button
-                onClick={handleUpgrade}
-                className="text-[var(--accent)] text-xs mt-2 underline font-medium hover:text-[var(--accent-dark)]"
+                disabled
+                className="w-9 h-9 flex items-center justify-center rounded-full bg-gray-light text-text-muted"
+                title="Dictée vocale (bientôt)"
               >
-                Passer au forfait Plus
+                <MicrophoneIcon />
+              </button>
+              <button
+                disabled
+                className="w-9 h-9 flex items-center justify-center rounded-full bg-gray-light text-text-muted"
+                title="Photo (bientôt)"
+              >
+                <CameraIcon />
               </button>
             </div>
-          )}
+          </div>
+          */}
+        </div>
 
-          {/* Alerte quota épuisé (0) */}
-          {isExhausted && (
-            <div className="alert-box mt-3">
-              <p className="alert-box-title">
-                Crédits IA épuisés
-              </p>
-              <p className="alert-box-text">
-                Tes pensées seront enregistrées sans analyse automatique.
-                Tu pourras les trier manuellement dans &quot;Ma Liste&quot;.
-              </p>
-              <ActionButton
-                label="Passer au forfait Plus"
-                variant="save"
-                onClick={handleUpgrade}
-                className="mt-3"
-              />
+        {/* Mood Selector */}
+        <div className="mb-6">
+          <MoodSelector
+            selectedMood={selectedMood}
+            onSelectMood={setSelectedMood}
+            disabled={isCapturing}
+          />
+        </div>
+
+        {/* Indicateur quota IA */}
+        {!isQuotaLoading && quota !== null && maxQuota !== null && (
+          <div className="mb-4">
+            {/* Compteur discret (toujours visible) */}
+            <div className="flex justify-end">
+              <span className={`text-xs ${
+                isExhausted || isLow ? 'text-[var(--accent)]' : 'text-text-muted'
+              }`}>
+                {quota}/{maxQuota} crédits IA
+              </span>
             </div>
-          )}
-        </div>
-      )}
 
-      {/* Erreur */}
-      {error && (
-        <div className="alert-box mb-6">
-          <p className="alert-box-title">{error}</p>
-        </div>
-      )}
+            {/* Alerte quota faible (1-3) */}
+            {isLow && !isExhausted && (
+              <div className="alert-box mt-3">
+                <p className="alert-box-title">
+                  Plus que {quota} crédit{quota > 1 ? 's' : ''} IA
+                </p>
+                <p className="alert-box-text">
+                  Au-delà, tes pensées seront enregistrées sans tri automatique.
+                </p>
+                <button
+                  onClick={handleUpgrade}
+                  className="text-[var(--accent)] text-xs mt-2 underline font-medium hover:text-[var(--accent-dark)]"
+                >
+                  Passer au forfait Plus
+                </button>
+              </div>
+            )}
 
-      {/* Bouton CTA */}
-      <button
-        onClick={handleCapture}
-        disabled={!content.trim() || isCapturing}
-        className="w-full py-4 bg-primary text-white text-base font-semibold rounded-2xl hover:opacity-90 active:scale-[0.98] transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-lg flex items-center justify-center gap-3"
-      >
-        {isCapturing ? (
-          <>
-            <SpinnerIcon className="animate-spin h-5 w-5" />
-            Analyse en cours...
-          </>
-        ) : (
-          <>
-            Je dépose
-            <SendIcon className="w-5 h-5" />
-          </>
+            {/* Alerte quota épuisé (0) */}
+            {isExhausted && (
+              <div className="alert-box mt-3">
+                <p className="alert-box-title">
+                  Crédits IA épuisés
+                </p>
+                <p className="alert-box-text">
+                  Tes pensées seront enregistrées sans analyse automatique.
+                  Tu pourras les trier manuellement dans &quot;Ma Liste&quot;.
+                </p>
+                <ActionButton
+                  label="Passer au forfait Plus"
+                  variant="save"
+                  onClick={handleUpgrade}
+                  className="mt-3"
+                />
+              </div>
+            )}
+          </div>
         )}
-      </button>
+
+        {/* Erreur */}
+        {error && (
+          <div className="alert-box mb-6">
+            <p className="alert-box-title">{error}</p>
+          </div>
+        )}
+
+        {/* Bouton CTA */}
+        <button
+          onClick={handleCapture}
+          disabled={!content.trim() || isCapturing}
+          className="w-full py-4 bg-primary text-white text-base font-semibold rounded-2xl hover:opacity-90 active:scale-[0.98] transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-lg flex items-center justify-center gap-3"
+        >
+          {isCapturing ? (
+            <>
+              <SpinnerIcon className="animate-spin h-5 w-5" />
+              Analyse en cours...
+            </>
+          ) : (
+            <>
+              Je dépose
+              <SendIcon className="w-5 h-5" />
+            </>
+          )}
+        </button>
+      </PullToRefresh>
 
       {/* Modal Multi-Pensées */}
       {multiItems && multiItems.length > 1 && (
@@ -397,7 +408,6 @@ export function CaptureFlow({ userId, onSuccess }: CaptureFlowProps) {
           onSuccess={onSuccess}
         />
       )}
-      </div>
-    </div>
+    </>
   )
 }

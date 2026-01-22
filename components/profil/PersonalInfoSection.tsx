@@ -9,13 +9,18 @@ interface PersonalInfoSectionProps {
   lastName?: string
   email?: string
   onSave: (firstName: string, lastName: string) => Promise<void>
+  // Props pour contrôle externe des modales (évite problème PullToRefresh + position:fixed)
+  externalModalControl?: boolean
+  onShowEditModal?: () => void
 }
 
 export function PersonalInfoSection({
   firstName,
   lastName,
   email,
-  onSave
+  onSave,
+  externalModalControl = false,
+  onShowEditModal
 }: PersonalInfoSectionProps) {
   const [showEditModal, setShowEditModal] = useState(false)
 
@@ -32,7 +37,13 @@ export function PersonalInfoSection({
 
         {/* Nom / Prénom - Modifiable */}
         <button
-          onClick={() => setShowEditModal(true)}
+          onClick={() => {
+            if (externalModalControl && onShowEditModal) {
+              onShowEditModal()
+            } else {
+              setShowEditModal(true)
+            }
+          }}
           className="w-full flex items-center justify-between px-4 py-3 hover:bg-gray-50 transition-colors"
         >
           <div className="flex items-center gap-3">
@@ -55,7 +66,7 @@ export function PersonalInfoSection({
         </div>
       </section>
 
-      {showEditModal && (
+      {!externalModalControl && showEditModal && (
         <EditNameModal
           firstName={firstName}
           lastName={lastName}

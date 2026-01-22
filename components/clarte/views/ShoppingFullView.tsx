@@ -16,7 +16,7 @@ import { ShoppingItemRow } from '@/components/clarte/cards/ShoppingItemRow'
 import { ShoppingItemModal } from '@/components/clarte/modals/ShoppingItemModal'
 import { PlanShoppingModal } from '@/components/clarte/modals/PlanShoppingModal'
 import { CategorySelectorModal } from '@/components/clarte/modals/CategorySelectorModal'
-import { EmptyState } from '@/components/clarte/EmptyState'
+import { EmptyState, EMPTY_STATE_CONFIG } from '@/components/clarte/EmptyState'
 import {
   PlusIcon,
   CalendarIcon,
@@ -43,6 +43,8 @@ interface ShoppingFullViewProps {
   onRefresh: () => Promise<void>
   initialShowPlanModal?: boolean
   onPlanModalClosed?: () => void
+  onShowPlanModal?: (itemCount: number) => void
+  externalPlanModalControl?: boolean
 }
 
 // Groupe les articles par catégorie dans l'ordre logique du magasin
@@ -69,12 +71,13 @@ export function ShoppingFullView({
   items: initialItems,
   onRefresh,
   initialShowPlanModal = false,
-  onPlanModalClosed
+  onPlanModalClosed,
+  onShowPlanModal,
+  externalPlanModalControl = false
 }: ShoppingFullViewProps) {
   const [activeTab, setActiveTab] = useState<TabId>('active')
   const [selectedItem, setSelectedItem] = useState<Item | null>(null)
   const [allItems, setAllItems] = useState<Item[]>(initialItems)
-  const [isLoading, setIsLoading] = useState(false)
   const [newItemContent, setNewItemContent] = useState('')
   const [isAddingItem, setIsAddingItem] = useState(false)
   const [listId, setListId] = useState<string | null>(null)
@@ -107,14 +110,11 @@ export function ShoppingFullView({
 
   // Fetch tous les articles
   const fetchItems = useCallback(async () => {
-    setIsLoading(true)
     try {
       const data = await fetchAllShoppingItems()
       setAllItems(data)
     } catch (error) {
       console.error('Erreur fetch items:', error)
-    } finally {
-      setIsLoading(false)
     }
   }, [])
 
@@ -247,14 +247,20 @@ export function ShoppingFullView({
   const displayedItems = activeTab === 'active' ? activeItems : completedItems
 
   return (
-    <>
+    <div className="w-full">
       {/* Bouton principal */}
-      <div className="mb-4">
+      <div className="w-full mb-4">
         <ActionButton
           label="Faire les courses"
           icon={<CalendarIcon className="w-5 h-5" />}
           variant="plan"
-          onClick={() => setShowPlanModal(true)}
+          onClick={() => {
+            if (externalPlanModalControl && onShowPlanModal) {
+              onShowPlanModal(activeItems.length)
+            } else {
+              setShowPlanModal(true)
+            }
+          }}
           disabled={activeItems.length === 0}
           fullWidth
         />
@@ -297,18 +303,9 @@ export function ShoppingFullView({
       />
 
       {/* Contenu */}
-      <div className="mt-4">
-        {isLoading ? (
-          <div className="flex justify-center py-8">
-            <div className="animate-spin h-6 w-6 border-2 border-primary border-t-transparent rounded-full" />
-          </div>
-        ) : displayedItems.length === 0 ? (
-          <EmptyState
-            message={activeTab === 'active'
-              ? "Aucun article à acheter"
-              : "Aucun article acheté"
-            }
-          />
+      <div className="w-full mt-4">
+        {displayedItems.length === 0 ? (
+          <EmptyState {...(activeTab === 'active' ? EMPTY_STATE_CONFIG.shopping : EMPTY_STATE_CONFIG.shoppingDone)} />
         ) : activeTab === 'active' ? (
           // Vue groupée par catégorie pour les articles actifs
           <div className="space-y-4">
@@ -336,10 +333,11 @@ export function ShoppingFullView({
 
                   {/* Items de la catégorie */}
                   <div className="space-y-2">
-                    {items.map(item => (
+                    {items.map((item, idx) => (
                       <ShoppingItemRow
                         key={item.id}
                         item={item}
+                        index={idx}
                         onToggle={handleToggle}
                         onTap={handleTapItem}
                         onLongPress={handleLongPress}
@@ -353,10 +351,11 @@ export function ShoppingFullView({
         ) : (
           // Liste simple pour les articles achetés + bouton vider
           <div className="space-y-2">
-            {displayedItems.map(item => (
+            {displayedItems.map((item, idx) => (
               <ShoppingItemRow
                 key={item.id}
                 item={item}
+                index={idx}
                 onToggle={handleToggle}
                 onTap={handleTapItem}
               />
@@ -388,8 +387,8 @@ export function ShoppingFullView({
         />
       )}
 
-      {/* Modal de planification */}
-      {showPlanModal && (
+      {/* Modal de planification (seulement si pas de contrôle externe) */}
+      {!externalPlanModalControl && showPlanModal && (
         <PlanShoppingModal
           itemCount={activeItems.length}
           onClose={() => {
@@ -408,6 +407,6 @@ export function ShoppingFullView({
           onClose={() => setItemToChangeCategory(null)}
         />
       )}
-    </>
+    </div>
   )
 }

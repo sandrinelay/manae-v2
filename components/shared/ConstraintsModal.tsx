@@ -141,7 +141,7 @@ export function ConstraintsModal({
       />
 
       {/* Modal */}
-      <div className="fixed inset-x-4 top-1/2 -translate-y-1/2 z-50 bg-white rounded-2xl shadow-2xl max-w-md mx-auto max-h-[85vh] overflow-hidden flex flex-col">
+      <div className="fixed inset-x-4 top-1/2 -translate-y-1/2 z-50 bg-white rounded-2xl shadow-2xl max-w-md mx-auto overflow-hidden flex flex-col" style={{ maxHeight: 'calc(100vh - 200px)' }}>
         {/* Header */}
         <div className="flex items-center justify-between p-4 border-b border-gray-100 shrink-0">
           <div>

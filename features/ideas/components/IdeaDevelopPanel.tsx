@@ -5,6 +5,7 @@ import { useIdeaDevelop } from '../hooks/useIdeaDevelop'
 import { BLOCKER_CONFIG } from '../types'
 import type { IdeaBlocker } from '../types'
 import { ActionButton } from '@/components/ui/ActionButton'
+import { useAIQuota } from '@/contexts/AIQuotaContext'
 
 // ============================================
 // TYPES
@@ -29,6 +30,7 @@ export function IdeaDevelopPanel({
   onDeveloped
 }: IdeaDevelopPanelProps) {
   const contentRef = useRef<HTMLDivElement>(null)
+  const { refresh: refreshQuota } = useAIQuota()
 
   const {
     currentStep,
@@ -59,6 +61,13 @@ export function IdeaDevelopPanel({
       return () => clearTimeout(timer)
     }
   }, [currentStep])
+
+  // Rafraîchir le quota après un développement réussi (coûte 2 crédits)
+  useEffect(() => {
+    if (currentStep === 'result' && result) {
+      refreshQuota()
+    }
+  }, [currentStep, result, refreshQuota])
 
   // Peut-on lancer le développement ?
   const canDevelop = ideaAge !== null

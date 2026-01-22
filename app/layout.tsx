@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Nunito, Quicksand } from "next/font/google";
 import "../styles/globals.css";
 import { ServiceWorkerRegistration } from "@/components/pwa/ServiceWorkerRegistration";
+import { AppProviders } from "@/components/providers/AppProviders";
 
 const nunito = Nunito({
   variable: "--font-nunito",
@@ -65,9 +66,11 @@ export default function RootLayout({
         className={`${nunito.variable} ${quicksand.variable} antialiased`}
       >
         <ServiceWorkerRegistration />
-        <div className="app-container">
-          {children}
-        </div>
+        <AppProviders>
+          <div className="app-container">
+            {children}
+          </div>
+        </AppProviders>
       </body>
     </html>
   );

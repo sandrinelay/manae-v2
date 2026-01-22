@@ -4,6 +4,9 @@ import { createClient } from '@/lib/supabase/server'
 import { buildDevelopIdeaPrompt, DEVELOP_IDEA_CONFIG } from '@/prompts'
 import type { DevelopIdeaResponseAPI } from '@/prompts'
 
+// Coût en crédits pour le développement d'idée
+const DEVELOP_IDEA_COST = 2
+
 // ============================================
 // TYPES
 // ============================================
@@ -201,7 +204,20 @@ export async function POST(request: NextRequest) {
       throw stepsError
     }
 
-    // 9. Retourner le résultat
+    // 9. Tracker l'usage IA (2 crédits pour develop_idea)
+    try {
+      await supabase.rpc('track_ai_usage', {
+        p_user_id: user.id,
+        p_operation: 'develop_idea',
+        p_cost_credits: DEVELOP_IDEA_COST,
+        p_item_id: itemId
+      })
+    } catch (trackError) {
+      // Non-blocking: on ne bloque pas si le tracking échoue
+      console.error('Failed to track AI usage (non-blocking):', trackError)
+    }
+
+    // 10. Retourner le résultat
     return NextResponse.json({
       project: {
         id: itemId,
