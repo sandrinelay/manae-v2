@@ -10,21 +10,28 @@ function GoogleCallbackContent() {
         const code = searchParams.get('code');
         const error = searchParams.get('error');
 
+        console.log('[GoogleCallback] Code:', code, 'Error:', error, 'Has opener:', !!window.opener);
+
         if (window.opener) {
             if (code) {
+                console.log('[GoogleCallback] Sending success message to opener');
                 // Envoyer le code à la fenêtre parente
                 window.opener.postMessage(
                     { type: 'GOOGLE_AUTH_SUCCESS', code },
                     window.location.origin
                 );
+                console.log('[GoogleCallback] Closing popup');
                 window.close();
             } else if (error) {
+                console.log('[GoogleCallback] Sending error message to opener');
                 window.opener.postMessage(
                     { type: 'GOOGLE_AUTH_ERROR', error },
                     window.location.origin
                 );
                 window.close();
             }
+        } else {
+            console.error('[GoogleCallback] No window.opener found!');
         }
     }, [searchParams]);
 

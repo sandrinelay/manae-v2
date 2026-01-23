@@ -16,11 +16,15 @@ function OnboardingStep4Content() {
     const returnTo = searchParams.get('returnTo');
 
     const handleConnect = async () => {
+        console.log('[Step4] handleConnect - Starting Google auth');
         setIsLoading(true);
         setError(null);
         try {
+            console.log('[Step4] Opening Google auth popup');
             const code = await openGoogleAuthPopup();
+            console.log('[Step4] Received code from popup:', code);
             const tokens = await exchangeCodeForToken(code);
+            console.log('[Step4] Exchanged code for tokens:', tokens);
 
             // Calculer expires_at à partir de expires_in (en secondes)
             const tokensWithExpiry = {

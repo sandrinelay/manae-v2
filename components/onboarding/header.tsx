@@ -7,10 +7,10 @@ export default function OnboardingHeader() {
     const isStep1 = pathname === '/onboarding';
     const isStep2 = pathname === '/onboarding/step2';
     const isStep3 = pathname === '/onboarding/step3';
+    const isStep4 = pathname === '/onboarding/step4';
 
-    // 3 étapes maintenant (Google Calendar se fait via profil)
-    const stepNumber = isStep1 ? 1 : isStep2 ? 2 : isStep3 ? 3 : 1;
-    const totalSteps = 3;
+    const stepNumber = isStep1 ? 1 : isStep2 ? 2 : isStep3 ? 3 : isStep4 ? 4 : 1;
+    const totalSteps = 4;
 
     return (
         <>
