@@ -125,7 +125,7 @@ export default function OnboardingStep1() {
                             id="firstName"
                             name="firstName"
                             label="PRÉNOM"
-                            placeholder="Ex: Sandrine"
+                            placeholder="Ex: Lena"
                             value={formData.firstName}
                             onChange={handleChange}
                             onBlur={handleBlur}

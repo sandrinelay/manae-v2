@@ -1,7 +1,8 @@
 'use client'
 
 import { useState, useRef, useEffect } from 'react'
-import { useSearchParams, useRouter } from 'next/navigation'
+import { useSearchParams } from 'next/navigation'
+// import { useRouter } from 'next/navigation' // Commenté pour la beta
 import { CaptureModal } from './CaptureModal'
 import { MultiCaptureModal } from './MultiCaptureModal'
 import { MoodSelector, type Mood } from './MoodSelector'
@@ -11,7 +12,7 @@ import type { ItemType, ItemContext, Mood as ItemMood } from '@/types/items'
 import type { ActionType } from './CaptureModal'
 import { useAIQuota } from '@/contexts/AIQuotaContext'
 import { SpinnerIcon, SendIcon } from '@/components/ui/icons'
-import { ActionButton } from '@/components/ui/ActionButton'
+// import { ActionButton } from '@/components/ui/ActionButton' // Commenté pour la beta
 import { PullToRefresh } from '@/components/ui/PullToRefresh'
 
 // Conversion des moods UI vers les moods DB
@@ -34,14 +35,15 @@ interface CaptureFlowProps {
 export function CaptureFlow({ userId, onSuccess }: CaptureFlowProps) {
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const searchParams = useSearchParams()
-  const router = useRouter()
+  // const router = useRouter() // Commenté pour la beta
 
   // Hook quota IA
   const { quota, maxQuota, isLow, isExhausted, isLoading: isQuotaLoading, refresh: refreshQuota } = useAIQuota()
 
-  const handleUpgrade = () => {
-    router.push('/settings/subscription')
-  }
+  // Commenté pour la beta
+  // const handleUpgrade = () => {
+  //   router.push('/settings/subscription')
+  // }
 
   const [content, setContent] = useState('')
   const [selectedMood, setSelectedMood] = useState<Mood | null>(null)
@@ -268,7 +270,7 @@ export function CaptureFlow({ userId, onSuccess }: CaptureFlowProps) {
             ref={textareaRef}
             value={content}
             onChange={(e) => setContent(e.target.value)}
-            placeholder="Ex: Acheter du café, améliorer ma routine du matin, penser à envoyer le mail à Lena, réserver un créneau sport"
+            placeholder="Ex: Acheter du café, améliorer ma routine du matin, penser à envoyer le mail à Milo, réserver un créneau sport"
             rows={4}
             className="input-field p-4 rounded-2xl resize-none"
             disabled={isCapturing}
@@ -327,12 +329,17 @@ export function CaptureFlow({ userId, onSuccess }: CaptureFlowProps) {
                 <p className="alert-box-text">
                   Au-delà, tes pensées seront enregistrées sans tri automatique.
                 </p>
+{/* Bouton forfait Plus commenté pour la beta
                 <button
                   onClick={handleUpgrade}
                   className="text-[var(--accent)] text-xs mt-2 underline font-medium hover:text-[var(--accent-dark)]"
                 >
                   Passer au forfait Plus
                 </button>
+                */}
+                <p className="text-[var(--accent)] text-xs mt-2 font-medium">
+                  Beta : les crédits seront renouvelés chaque mois.
+                </p>
               </div>
             )}
 
@@ -346,12 +353,17 @@ export function CaptureFlow({ userId, onSuccess }: CaptureFlowProps) {
                   Tes pensées seront enregistrées sans analyse automatique.
                   Tu pourras les trier manuellement dans &quot;Ma Liste&quot;.
                 </p>
+{/* Bouton forfait Plus commenté pour la beta
                 <ActionButton
                   label="Passer au forfait Plus"
                   variant="save"
                   onClick={handleUpgrade}
                   className="mt-3"
                 />
+                */}
+                <p className="text-[var(--accent)] text-xs mt-3 font-medium">
+                  Beta : les crédits seront renouvelés chaque mois.
+                </p>
               </div>
             )}
           </div>
