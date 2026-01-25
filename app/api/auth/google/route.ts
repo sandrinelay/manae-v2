@@ -38,9 +38,13 @@ export async function POST(request: NextRequest) {
 
         if (!response.ok) {
             const errorData = await response.json()
-            console.error('Google token exchange error:', errorData)
+            console.error('Google token exchange error:', {
+                status: response.status,
+                error: errorData.error,
+                error_description: errorData.error_description
+            })
             return NextResponse.json(
-                { error: 'Failed to exchange code for token' },
+                { error: errorData.error_description || 'Failed to exchange code for token' },
                 { status: response.status }
             )
         }

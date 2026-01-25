@@ -39,6 +39,13 @@ function ProfilPageContent() {
   const [showEnergyModal, setShowEnergyModal] = useState(false)
   const [showConstraintsModal, setShowConstraintsModal] = useState(false)
 
+  // Rafraîchir les données du profil au montage de la page
+  useEffect(() => {
+    if (user) {
+      refetch()
+    }
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+
   // Scroll vers la section Connexions si connectCalendar=true
   useEffect(() => {
     if (connectCalendar && connectionsSectionRef.current) {

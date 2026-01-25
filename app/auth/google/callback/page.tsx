@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, Suspense } from 'react'
+import { useEffect, useState, Suspense, useRef } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { exchangeCodeForToken } from '@/lib/googleCalendar'
 import { updateUserProfile } from '@/services/supabaseService'
@@ -9,11 +9,13 @@ function GoogleCallbackContent() {
   const searchParams = useSearchParams()
   const [status, setStatus] = useState<'processing' | 'success' | 'error'>('processing')
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
-
-  console.log('[Callback] Page loaded, URL:', typeof window !== 'undefined' ? window.location.href : 'SSR')
+  const hasProcessed = useRef(false)
 
   useEffect(() => {
-    console.log('[Callback] useEffect running, code:', searchParams.get('code'), 'error:', searchParams.get('error'))
+    // Éviter double exécution (React 18 Strict Mode)
+    if (hasProcessed.current) return
+    hasProcessed.current = true
+
     const code = searchParams.get('code')
     const error = searchParams.get('error')
 
