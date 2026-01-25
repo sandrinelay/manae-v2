@@ -120,7 +120,7 @@ export const ACTION_LABELS = {
  * Labels des sections
  */
 export const SECTION_LABELS = {
-  moodQuestion: 'Comment te sens-tu ?',
+  moodQuestion: 'Comment te sens-tu ? (optionnel)',
   moodHint: 'Ton humeur colore ta perception, la connaître t\'aide à mieux organiser tes pensées.',
   progression: 'Progression',
   steps: 'Étapes',
