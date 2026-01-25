@@ -70,7 +70,8 @@ export async function proxy(request: NextRequest) {
   }
 
   // Si connecté, vérifier password_set et onboarding
-  if (user && !pathname.startsWith('/onboarding') && !pathname.startsWith('/set-password')) {
+  // Exclure les routes publiques (notamment /auth/google/callback)
+  if (user && !pathname.startsWith('/onboarding') && !pathname.startsWith('/set-password') && !isPublicRoute) {
     const { data: profile } = await supabase
       .from('users')
       .select('onboarding_completed, password_set')
