@@ -100,7 +100,12 @@ export default function SetPasswordPage() {
       })
 
       if (updateError) {
-        setError(updateError.message)
+        // Traduire les erreurs Supabase courantes
+        const errorTranslations: Record<string, string> = {
+          'New password should be different from the old password.': 'Le nouveau mot de passe doit être différent de l\'ancien.',
+          'Password should be at least 6 characters.': 'Le mot de passe doit contenir au moins 6 caractères.',
+        }
+        setError(errorTranslations[updateError.message] || 'Une erreur est survenue. Réessaie.')
         return
       }
 

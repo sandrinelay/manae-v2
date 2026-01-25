@@ -46,14 +46,14 @@ export function ProfileDataProvider({ children }: { children: ReactNode }) {
   const [error, setError] = useState<Error | null>(null)
   const [hasFetched, setHasFetched] = useState(false)
 
-  const fetchData = useCallback(async () => {
+  const fetchData = useCallback(async (force = false) => {
     if (!user) {
       setIsLoading(false)
       return
     }
 
-    // Ne pas recharger si déjà fetchées
-    if (hasFetched && profile) {
+    // Ne pas recharger si déjà fetchées (sauf si force=true)
+    if (!force && hasFetched && profile) {
       setIsLoading(false)
       return
     }
@@ -101,8 +101,7 @@ export function ProfileDataProvider({ children }: { children: ReactNode }) {
   }, [user, authLoading]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const refetch = useCallback(async () => {
-    setHasFetched(false)
-    await fetchData()
+    await fetchData(true)
   }, [fetchData])
 
   const updateName = useCallback(async (firstName: string, lastName: string) => {
