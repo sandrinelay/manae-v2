@@ -310,12 +310,15 @@ function ClartePageContent() {
   }, [filteredIdeas, activeContext])
 
   const isLoading = authLoading || dataLoading
+  // Ne pas afficher le spinner de chargement si un modal est ouvert
+  // pour éviter de perdre l'état du wizard (ex: développement d'idée)
+  const hasOpenModal = selectedNote || selectedTask || selectedIdea || ideaToDevelop || taskToPlan || showShoppingPlanModal
 
   const handlePullRefresh = useCallback(async () => {
     await refetch()
   }, [refetch])
 
-  if (isLoading) {
+  if (isLoading && !hasOpenModal) {
     return (
       <div className="min-h-screen bg-mint flex items-center justify-center">
         <div className="animate-spin h-8 w-8 border-4 border-primary border-t-transparent rounded-full" />
@@ -323,7 +326,7 @@ function ClartePageContent() {
     )
   }
 
-  if (!user) {
+  if (!user && !hasOpenModal) {
     return (
       <div className="min-h-screen bg-mint flex items-center justify-center p-6">
         <div className="text-center space-y-4">
@@ -336,7 +339,7 @@ function ClartePageContent() {
     )
   }
 
-  if (!data) {
+  if (!data && !hasOpenModal) {
     return (
       <div className="min-h-screen bg-mint flex items-center justify-center">
         <div className="text-red-500">Erreur de chargement</div>

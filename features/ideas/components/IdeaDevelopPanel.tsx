@@ -39,7 +39,8 @@ export function IdeaDevelopPanel({
     isLoading,
     error,
     result,
-    setIdeaAge,
+    selectAge,
+    confirmAge,
     toggleBlocker,
     develop,
     goBack
@@ -79,28 +80,41 @@ export function IdeaDevelopPanel({
           ÉTAPE 1 : Âge de l'idée
           ======================================== */}
       {currentStep === 'age' && (
-        <div className="space-y-3">
+        <div className="space-y-4">
           <p className="text-sm font-medium text-text-dark">
             Cette idée...
           </p>
           <div className="flex gap-2">
             <button
-              onClick={() => setIdeaAge('fresh')}
-              className="flex-1 py-3 px-4 rounded-xl border-2 border-border
-                         hover:border-primary hover:bg-mint transition-all
-                         text-sm font-medium text-text-dark"
+              onClick={() => selectAge('fresh')}
+              className={`flex-1 py-3 px-4 rounded-xl border-2 transition-all text-sm font-medium
+                ${ideaAge === 'fresh'
+                  ? 'border-primary bg-mint text-primary'
+                  : 'border-border hover:border-primary hover:bg-mint text-text-dark'
+                }`}
             >
               Elle est toute fraîche
             </button>
             <button
-              onClick={() => setIdeaAge('old')}
-              className="flex-1 py-3 px-4 rounded-xl border-2 border-border
-                         hover:border-primary hover:bg-mint transition-all
-                         text-sm font-medium text-text-dark"
+              onClick={() => selectAge('old')}
+              className={`flex-1 py-3 px-4 rounded-xl border-2 transition-all text-sm font-medium
+                ${ideaAge === 'old'
+                  ? 'border-primary bg-mint text-primary'
+                  : 'border-border hover:border-primary hover:bg-mint text-text-dark'
+                }`}
             >
               Elle traîne depuis un moment
             </button>
           </div>
+
+          {/* Bouton de validation */}
+          <ActionButton
+            label="Continuer"
+            variant="save"
+            onClick={confirmAge}
+            disabled={!ideaAge}
+            fullWidth
+          />
         </div>
       )}
 

@@ -28,7 +28,8 @@ interface UseIdeaDevelopReturn {
   result: DevelopIdeaResponse | null
 
   // Actions
-  setIdeaAge: (age: IdeaAge) => void
+  selectAge: (age: IdeaAge) => void
+  confirmAge: () => void
   toggleBlocker: (blocker: IdeaBlocker) => void
   develop: () => Promise<void>
   reset: () => void
@@ -51,12 +52,20 @@ export function useIdeaDevelop(options: UseIdeaDevelopOptions): UseIdeaDevelopRe
   const [result, setResult] = useState<DevelopIdeaResponse | null>(null)
 
   /**
-   * Définir l'âge de l'idée et passer à l'étape suivante
+   * Sélectionner l'âge de l'idée (sans passer à l'étape suivante)
    */
-  const setIdeaAge = useCallback((age: IdeaAge) => {
+  const selectAge = useCallback((age: IdeaAge) => {
     setIdeaAgeState(age)
-    setCurrentStep('blockers')
   }, [])
+
+  /**
+   * Confirmer l'âge et passer à l'étape suivante
+   */
+  const confirmAge = useCallback(() => {
+    if (ideaAge) {
+      setCurrentStep('blockers')
+    }
+  }, [ideaAge])
 
   /**
    * Toggle un blocage (sélection multiple)
@@ -138,7 +147,8 @@ export function useIdeaDevelop(options: UseIdeaDevelopOptions): UseIdeaDevelopRe
     isLoading,
     error,
     result,
-    setIdeaAge,
+    selectAge,
+    confirmAge,
     toggleBlocker,
     develop,
     reset,

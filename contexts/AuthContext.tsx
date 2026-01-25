@@ -16,7 +16,13 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined)
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
-  const [firstName, setFirstName] = useState<string | null>(null)
+  // Initialiser avec la valeur en cache pour éviter le flash "Bonjour toi"
+  const [firstName, setFirstName] = useState<string | null>(() => {
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem('manae_firstName')
+    }
+    return null
+  })
   const [isLoading, setIsLoading] = useState(true)
   const [isAnonymous, setIsAnonymous] = useState(false)
 
@@ -32,6 +38,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       if (profile?.first_name) {
         setFirstName(profile.first_name)
+        // Sauvegarder en cache pour éviter le flash au prochain chargement
+        localStorage.setItem('manae_firstName', profile.first_name)
       }
     } catch (error) {
       console.error('Error fetching user profile:', error)
@@ -87,6 +95,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           setFirstName(null)
           setIsAnonymous(false)
           setIsLoading(false)
+          // Nettoyer le cache
+          localStorage.removeItem('manae_firstName')
         }
       }
     )
