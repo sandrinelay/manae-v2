@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, Suspense } from 'react';
+import { useState, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Button } from '@/components/ui/Button';
 import { openGoogleAuthPopup, exchangeCodeForToken } from '@/lib/googleCalendar';
@@ -110,7 +110,7 @@ function OnboardingStep4Content() {
                         </div>
                         <h3 className="text-lg font-semibold text-text-dark mb-2">Google Calendar</h3>
                         <p className="text-sm text-text-muted mb-6">
-                            Synchronisation bidirectionnelle pour une planification parfaite.
+                            Consulte tes disponibilités et ajoute tes tâches directement dans ton agenda.
                         </p>
 
                         {error && (

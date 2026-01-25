@@ -1,10 +1,21 @@
 'use client'
 
+import { useEffect } from 'react'
 import { useAuth } from '@/contexts/AuthContext'
+import { useAIQuota } from '@/contexts/AIQuotaContext'
 import { CaptureFlow } from '@/features/capture/components'
 
 export default function CapturePage() {
   const { user, isLoading } = useAuth()
+  const { refresh: refreshQuota } = useAIQuota()
+
+  // Rafraîchir le quota à chaque montage de la page
+  // (important après onboarding ou retour sur la page)
+  useEffect(() => {
+    if (user && !isLoading) {
+      refreshQuota()
+    }
+  }, [user, isLoading, refreshQuota])
 
   // Loading state
   if (isLoading) {
