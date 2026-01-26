@@ -3,6 +3,7 @@
 import { AppHeader } from '@/components/layout/AppHeader'
 import { PageTransition } from '@/components/layout/PageTransition'
 import BottomNav from '@/components/layout/BottomNav'
+import { AddToHomeScreenBanner } from '@/components/layout/AddToHomeScreenBanner'
 
 export default function MainLayout({
   children,
@@ -16,6 +17,7 @@ export default function MainLayout({
         {children}
       </PageTransition>
       <BottomNav />
+      <AddToHomeScreenBanner />
     </div>
   )
 }
