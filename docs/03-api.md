@@ -10,7 +10,8 @@
 2. [Analyse IA - `/api/analyze-v2`](#2-analyse-ia---apianalyze-v2)
 3. [Développement d'Idée - `/api/develop-idea`](#3-développement-didée---apidevelop-idea)
 4. [Autres Endpoints](#4-autres-endpoints)
-5. [Gestion des Erreurs](#5-gestion-des-erreurs)
+5. [Endpoints RGPD](#5-endpoints-rgpd)
+6. [Gestion des Erreurs](#6-gestion-des-erreurs)
 
 ---
 
@@ -25,6 +26,9 @@
 | `/api/items/update` | PATCH | Oui | Mise à jour item générique |
 | `/api/auth/google` | POST | Non | OAuth token exchange |
 | `/api/auth/callback` | GET | Non | Supabase auth callback |
+| `/api/account/export` | GET | Oui | Export données RGPD (JSON) |
+| `/api/account/delete` | DELETE | Oui | Suppression compte RGPD |
+| `/api/cron/cleanup` | GET | Cron | Nettoyage auto (archivés, inactifs) |
 
 ---
 
@@ -623,9 +627,153 @@ ADAPTATION DES ÉTAPES SELON LES BLOCAGES :
 
 ---
 
-## 5. Gestion des Erreurs
+## 5. Endpoints RGPD
 
-### 5.1 Codes HTTP
+### 5.1 Export Données - `GET /api/account/export`
+
+**Objectif** : Exporter toutes les données utilisateur en JSON (droit à la portabilité RGPD).
+
+**Request** :
+```
+GET /api/account/export
+Cookie: sb-access-token=... (auth Supabase)
+```
+
+**Response** (200) :
+```json
+{
+  "export_info": {
+    "generated_at": "2026-01-26T10:00:00.000Z",
+    "user_id": "uuid",
+    "email": "user@email.com",
+    "format_version": "1.0"
+  },
+  "profile": {
+    "first_name": "Prénom",
+    "last_name": "Nom",
+    "email": "user@email.com",
+    "energy_moments": ["morning", "evening"],
+    "created_at": "...",
+    "updated_at": "..."
+  },
+  "items": [
+    {
+      "id": "uuid",
+      "type": "task",
+      "state": "active",
+      "content": "...",
+      "context": "personal",
+      "mood": null,
+      "scheduled_at": null,
+      "shopping_category": null,
+      "ai_analysis": {...},
+      "metadata": {...},
+      "created_at": "...",
+      "updated_at": "..."
+    }
+  ],
+  "constraints": [...],
+  "shopping_lists": [...],
+  "ai_usage_summary": {
+    "total_operations": 42,
+    "operations": [...]
+  },
+  "statistics": {
+    "total_items": 150,
+    "items_by_type": {...},
+    "items_by_state": {...}
+  }
+}
+```
+
+**Headers réponse** :
+- `Content-Type: application/json`
+- `Content-Disposition: attachment; filename="manae-export-2026-01-26.json"`
+
+**Erreurs** :
+- 401 : Non autorisé
+- 500 : Erreur serveur
+
+---
+
+### 5.2 Suppression Compte - `DELETE /api/account/delete`
+
+**Objectif** : Supprimer le compte et toutes les données (droit à l'effacement RGPD).
+
+**Request** :
+```
+DELETE /api/account/delete
+Cookie: sb-access-token=... (auth Supabase)
+```
+
+**Logique** :
+1. Vérifier authentification
+2. Supprimer dans l'ordre (foreign keys) :
+   - Items (tâches, notes, idées, courses)
+   - Contraintes horaires
+   - Listes de courses
+   - Usage IA
+   - Profil utilisateur
+3. Supprimer compte auth Supabase (via Admin API)
+
+**Response succès** (200) :
+```json
+{
+  "success": true,
+  "message": "Compte et données supprimés avec succès"
+}
+```
+
+**Erreurs** :
+- 401 : Non autorisé
+- 500 : Erreur lors de la suppression
+
+**Note** : Nécessite `SUPABASE_SERVICE_ROLE_KEY` pour supprimer le compte auth.
+
+---
+
+### 5.3 Nettoyage Automatique - `GET /api/cron/cleanup`
+
+**Objectif** : Cron job quotidien pour suppression automatique des données obsolètes.
+
+**Exécution** : Tous les jours à 3h00 UTC (configuré dans `vercel.json`).
+
+**Logique** :
+1. **Items archivés > 1 an** : Supprimés automatiquement
+2. **Comptes inactifs > 2 ans** : Supprimés (données + compte auth)
+
+**Configuration Vercel** (`vercel.json`) :
+```json
+{
+  "crons": [
+    {
+      "path": "/api/cron/cleanup",
+      "schedule": "0 3 * * *"
+    }
+  ]
+}
+```
+
+**Sécurité** : Vérifie l'en-tête `Authorization: Bearer CRON_SECRET`.
+
+**Response** (200) :
+```json
+{
+  "success": true,
+  "deletedArchivedItems": 12,
+  "deletedInactiveAccounts": 0
+}
+```
+
+**Erreurs** :
+- 401 : Token cron invalide
+- 500 : Erreur serveur
+
+---
+
+## 6. Gestion des Erreurs
+
+### 6.1 Codes HTTP
 
 | Code | Signification |
 |------|---------------|
@@ -636,7 +784,7 @@ ADAPTATION DES ÉTAPES SELON LES BLOCAGES :
 | 429 | Rate Limit (OpenAI) - retry automatique |
 | 500 | Internal Server Error |
 
-### 5.2 Format Erreur Standard
+### 6.2 Format Erreur Standard
 
 ```json
 {
@@ -644,7 +792,7 @@ ADAPTATION DES ÉTAPES SELON LES BLOCAGES :
 }
 ```
 
-### 5.3 Stratégie Retry (Rate Limit OpenAI)
+### 6.3 Stratégie Retry (Rate Limit OpenAI)
 
 **Endpoint** : `/api/analyze-v2`
 

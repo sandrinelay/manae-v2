@@ -316,39 +316,30 @@ export async function POST(request: NextRequest) {
 **Droits RGPD** :
 - ✅ **Accès** : User peut voir toutes ses données (via profil)
 - ✅ **Rectification** : User peut modifier ses données (via profil)
-- ✅ **Effacement** : User peut supprimer son compte
-- ✅ **Portabilité** : Export JSON (à implémenter)
-- ✅ **Opposition** : User peut refuser analytics (à implémenter)
+- ✅ **Effacement** : User peut supprimer son compte → `DELETE /api/account/delete`
+- ✅ **Portabilité** : Export JSON → `GET /api/account/export`
+- ⏳ **Opposition** : User peut refuser analytics (pas d'analytics pour l'instant)
 
 **Procédure suppression compte** :
 
-```sql
--- À implémenter via API /api/account/delete
-BEGIN;
-
--- 1. Supprimer items
-DELETE FROM items WHERE user_id = $1;
-
--- 2. Supprimer contraintes
-DELETE FROM constraints WHERE user_id = $1;
-
--- 3. Supprimer profil
-DELETE FROM users WHERE id = $1;
-
--- 4. Supprimer auth
--- (via Supabase Admin API)
-
-COMMIT;
-```
+Implémenté dans `app/api/account/delete/route.ts` :
+1. Suppression items (tâches, notes, idées, courses)
+2. Suppression contraintes horaires
+3. Suppression listes de courses
+4. Suppression usage IA
+5. Suppression profil utilisateur
+6. Suppression compte auth (via Supabase Admin API)
 
 ### 7.3 Durée de Conservation
 
-| Donnée | Durée |
-|--------|-------|
-| Items actifs | Illimité (tant que compte actif) |
-| Items archivés | 1 an puis suppression auto (à implémenter) |
-| Logs d'usage | 90 jours |
-| Compte inactif | 2 ans puis suppression (à implémenter) |
+| Donnée | Durée | Implémentation |
+|--------|-------|----------------|
+| Items actifs | Illimité (tant que compte actif) | - |
+| Items archivés | 1 an puis suppression auto | ✅ Cron `/api/cron/cleanup` |
+| Logs d'usage | 90 jours | - |
+| Compte inactif | 2 ans puis suppression | ✅ Cron `/api/cron/cleanup` |
+
+**Cron job** : Exécuté tous les jours à 3h UTC (`vercel.json`).
 
 ### 7.4 Sous-Traitants
 
@@ -497,12 +488,13 @@ Vous pouvez introduire une réclamation auprès de la CNIL.
 - [ ] CSRF : cookies SameSite (Supabase)
 
 **RGPD** :
-- [ ] Politique de confidentialité publiée
-- [ ] CGU publiées
-- [ ] Mentions légales publiées
-- [ ] Consentement Google Calendar explicite
-- [ ] Procédure suppression compte implémentée (à faire)
-- [ ] Export données implémenté (à faire)
+- [x] Politique de confidentialité publiée
+- [x] CGU publiées
+- [x] Mentions légales publiées
+- [x] Consentement Google Calendar explicite
+- [x] Procédure suppression compte implémentée (`/api/account/delete`)
+- [x] Export données implémenté (`/api/account/export`)
+- [x] Auto-suppression données obsolètes (`/api/cron/cleanup`)
 
 ### 10.2 Tests de Pénétration
 
@@ -590,11 +582,13 @@ Contact : [email]
 
 ### RGPD & Légal
 
-- [ ] Politique de confidentialité rédigée et publiée
-- [ ] CGU rédigées et publiées
-- [ ] Mentions légales publiées
-- [ ] Consentements explicites (Google Calendar)
-- [ ] Procédure suppression compte prête
+- [x] Politique de confidentialité rédigée et publiée
+- [x] CGU rédigées et publiées
+- [x] Mentions légales publiées
+- [x] Consentements explicites (Google Calendar)
+- [x] Procédure suppression compte prête (`/api/account/delete`)
+- [x] Export données prêt (`/api/account/export`)
+- [x] Auto-nettoyage données prêt (`/api/cron/cleanup`)
 - [ ] Registre traitements RGPD (si > 250 employés ou sensible)
 
 ### Monitoring
@@ -617,3 +611,4 @@ Contact : [email]
 ---
 
 **Document créé le 22 janvier 2026**
+**Dernière mise à jour : 26 janvier 2026**

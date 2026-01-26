@@ -34,7 +34,11 @@
 
 **Partiellement implémenté** :
 - ⚠️ Quotas IA - Message "forfait supérieur" avec lien vers page inexistante (Stripe pas encore intégré)
-- ⚠️ RGPD - Suppression compte et export données (boutons à ajouter dans le profil)
+
+**RGPD - Conformité complète** :
+- ✅ Export données JSON (portabilité)
+- ✅ Suppression compte utilisateur
+- ✅ Auto-suppression données archivées (1 an) et comptes inactifs (2 ans)
 
 **Non inclus dans beta V1.2** :
 - ❌ Capture vocale (prévu V2)
@@ -403,9 +407,10 @@ FROM users;
 ### Legal/Admin
 
 - [ ] **Vérifier CGU/Confidentialité** : À jour sur manae.app
-- [ ] **RGPD** : Consentements clairs, politique claire (voir SECURITY.md)
-- [ ] **RGPD - Suppression compte** : Ajouter bouton "Supprimer mon compte" dans le profil
-- [ ] **RGPD - Export données** : Ajouter bouton "Télécharger mes données" (JSON) dans le profil
+- [x] **RGPD** : Consentements clairs, politique claire (voir SECURITY.md)
+- [x] **RGPD - Suppression compte** : Bouton "Supprimer mon compte" dans le profil ✅
+- [x] **RGPD - Export données** : Bouton "Exporter mes données" (JSON) dans le profil ✅
+- [x] **RGPD - Auto-cleanup** : Cron job suppression automatique ✅
 - [ ] **Stripe** : Pas urgent (post-beta) mais garder en tête
 
 ---
@@ -497,6 +502,12 @@ FROM users;
 - ✅ **Déplacement tâches** : L'ancien événement est supprimé lors d'un déplacement
 - ✅ **Fix timezone** : Correction du parsing des heures d'événements
 - ✅ **Fix "Bonjour toi"** : Le prénom est maintenant en cache dès l'onboarding step 1
+- ✅ **RGPD - Export données** : Bouton "Exporter mes données" dans profil (JSON)
+- ✅ **RGPD - Suppression compte** : Bouton "Supprimer mon compte" avec confirmation
+- ✅ **RGPD - Auto-cleanup** : Cron job suppression auto (archivés >1 an, inactifs >2 ans)
+- ✅ **Refresh Clarté** : Système d'événements pour rafraîchir automatiquement les données
+- ✅ **Fix IdeaDevelopPanel** : Correction du bug de remontage après développement d'idée
+- ✅ **Harmonisation quotas** : Message quota épuisé unifié entre CaptureFlow et CaptureModal
 
 ### 25 janvier 2026
 - ✅ **Fix timezone** : Affichage correct des créneaux occupés en heure locale
@@ -508,4 +519,4 @@ FROM users;
 
 *Document créé le 22 janvier 2026*
 *Dernière mise à jour : 26 janvier 2026*
-*Roadmap Beta V1.2 - Manae*
+*Version : Beta V1.2.2 - Manae*
