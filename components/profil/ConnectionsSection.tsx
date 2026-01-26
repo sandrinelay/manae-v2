@@ -1,8 +1,9 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { CalendarIcon, LinkIcon, UnlinkIcon, CheckCircleIcon } from '@/components/ui/icons'
+import { CalendarIcon, LinkIcon, UnlinkIcon, CheckCircleIcon, SettingsIcon } from '@/components/ui/icons'
 import { openGoogleAuthPopup, exchangeCodeForToken } from '@/lib/googleCalendar'
+import { CalendarSelectorModal } from './CalendarSelectorModal'
 
 interface ConnectionsSectionProps {
   onConnectSuccess?: () => void
@@ -12,6 +13,7 @@ export function ConnectionsSection({ onConnectSuccess }: ConnectionsSectionProps
   const [isGoogleConnected, setIsGoogleConnected] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [showCalendarSelector, setShowCalendarSelector] = useState(false)
 
   useEffect(() => {
     // Vérifier si Google Calendar est connecté
@@ -58,6 +60,9 @@ export function ConnectionsSection({ onConnectSuccess }: ConnectionsSectionProps
 
       setIsGoogleConnected(true)
 
+      // Afficher le sélecteur de calendriers après connexion
+      setShowCalendarSelector(true)
+
       // Callback après connexion réussie
       onConnectSuccess?.()
     } catch (err) {
@@ -71,6 +76,7 @@ export function ConnectionsSection({ onConnectSuccess }: ConnectionsSectionProps
   const handleDisconnect = () => {
     // Suppression locale uniquement (recommandation beta)
     localStorage.removeItem('google_tokens')
+    localStorage.removeItem('manae_selected_calendars')
 
     // Dispatch event pour notifier les autres composants
     window.dispatchEvent(new CustomEvent('calendar-connection-changed'))
@@ -129,12 +135,32 @@ export function ConnectionsSection({ onConnectSuccess }: ConnectionsSectionProps
 
       {/* Indicateur de statut si connecté */}
       {isGoogleConnected && (
-        <div className="px-4 pb-3">
+        <div className="px-4 pb-3 space-y-2">
           <div className="flex items-center gap-2 text-sm text-green-600 bg-green-50 px-3 py-2 rounded-lg">
             <CheckCircleIcon className="w-4 h-4" />
             <span>Tes tâches peuvent être calées sur ton agenda</span>
           </div>
+
+          {/* Bouton pour gérer les calendriers */}
+          <button
+            onClick={() => setShowCalendarSelector(true)}
+            className="flex items-center gap-2 text-sm text-primary hover:underline"
+          >
+            <SettingsIcon className="w-4 h-4" />
+            <span>Gérer les calendriers synchronisés</span>
+          </button>
         </div>
+      )}
+
+      {/* Modal de sélection des calendriers */}
+      {showCalendarSelector && (
+        <CalendarSelectorModal
+          onClose={() => setShowCalendarSelector(false)}
+          onSaved={() => {
+            // Dispatch event pour que les autres composants sachent que les calendriers ont changé
+            window.dispatchEvent(new CustomEvent('calendar-selection-changed'))
+          }}
+        />
       )}
     </section>
   )

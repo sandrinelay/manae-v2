@@ -113,10 +113,66 @@ export async function ensureValidTokens(): Promise<void> {
 // ============================================
 
 /**
- * Récupère les événements du calendrier entre 2 dates
+ * Récupère les événements d'un calendrier spécifique entre 2 dates
+ */
+async function getEventsFromCalendar(
+  calendarId: string,
+  startDate: Date,
+  endDate: Date,
+  accessToken: string
+): Promise<GoogleCalendarEvent[]> {
+  const url = new URL(`${GOOGLE_CALENDAR_API_BASE}/calendars/${encodeURIComponent(calendarId)}/events`)
+  url.searchParams.append('timeMin', startDate.toISOString())
+  url.searchParams.append('timeMax', endDate.toISOString())
+  url.searchParams.append('singleEvents', 'true')
+  url.searchParams.append('orderBy', 'startTime')
+  url.searchParams.append('maxResults', '250')
+
+  const response = await fetch(url.toString(), {
+    method: 'GET',
+    headers: {
+      'Authorization': `Bearer ${accessToken}`,
+      'Content-Type': 'application/json'
+    }
+  })
+
+  if (!response.ok) {
+    if (response.status === 404) {
+      // Calendrier non trouvé (peut avoir été supprimé)
+      console.warn(`[calendar.service] Calendrier ${calendarId} non trouvé`)
+      return []
+    }
+    throw new Error(`Erreur API: ${response.status}`)
+  }
+
+  const data = await response.json()
+
+  return (data.items || [])
+    .filter((event: GoogleCalendarRawEvent) => {
+      if (event.status === 'cancelled') return false
+      if (!event.start?.dateTime && !event.start?.date) return false
+      return true
+    })
+    .map((event: GoogleCalendarRawEvent) => ({
+      id: event.id,
+      summary: event.summary || '(Sans titre)',
+      start: {
+        dateTime: event.start?.dateTime,
+        date: event.start?.date
+      },
+      end: {
+        dateTime: event.end?.dateTime,
+        date: event.end?.date
+      },
+      status: event.status || 'confirmed'
+    }))
+}
+
+/**
+ * Récupère les événements de TOUS les calendriers sélectionnés entre 2 dates
  * @param startDate - Date de début (incluse)
  * @param endDate - Date de fin (incluse)
- * @returns Liste des événements
+ * @returns Liste des événements fusionnés
  * @throws Error si tokens invalides ou erreur API
  */
 export async function getCalendarEvents(
@@ -131,72 +187,39 @@ export async function getCalendarEvents(
     throw new Error('Google Calendar non connecté')
   }
 
-  // 2. Construire l'URL avec paramètres
-  const url = new URL(`${GOOGLE_CALENDAR_API_BASE}/calendars/primary/events`)
-  url.searchParams.append('timeMin', startDate.toISOString())
-  url.searchParams.append('timeMax', endDate.toISOString())
-  url.searchParams.append('singleEvents', 'true') // Explose les événements récurrents
-  url.searchParams.append('orderBy', 'startTime')
-  url.searchParams.append('maxResults', '250') // Max autorisé par Google
+  // 2. Récupérer la liste des calendriers sélectionnés
+  const selectedCalendarIds = getSelectedCalendarIds()
+  console.log(`[calendar.service] Calendriers à interroger: ${selectedCalendarIds.join(', ')}`)
 
-  // 3. Appel API
+  // 3. Récupérer les événements de chaque calendrier en parallèle
   try {
-    const response = await fetch(url.toString(), {
-      method: 'GET',
-      headers: {
-        'Authorization': `Bearer ${tokens.access_token}`,
-        'Content-Type': 'application/json'
-      }
-    })
+    const eventsArrays = await Promise.all(
+      selectedCalendarIds.map(calendarId =>
+        getEventsFromCalendar(calendarId, startDate, endDate, tokens.access_token)
+          .catch(err => {
+            console.warn(`[calendar.service] Erreur calendrier ${calendarId}:`, err)
+            return [] // Continuer avec les autres calendriers en cas d'erreur
+          })
+      )
+    )
 
-    // Gestion des erreurs HTTP
-    if (!response.ok) {
-      if (response.status === 401) {
-        // Token invalide malgré le refresh
-        localStorage.removeItem(GOOGLE_TOKENS_KEY)
-        throw new Error('Session Google expirée, reconnexion requise')
-      }
-      if (response.status === 403) {
-        throw new Error('Permissions insuffisantes pour accéder au calendrier')
-      }
-      if (response.status === 429) {
-        throw new Error('Trop de requêtes, réessayez dans quelques instants')
-      }
-      throw new Error(`Erreur API Google Calendar: ${response.status}`)
-    }
+    // 4. Fusionner tous les événements
+    const allEvents = eventsArrays.flat()
 
-    const data = await response.json()
+    // 5. Dédupliquer (un événement peut apparaître sur plusieurs calendriers)
+    const uniqueEvents = allEvents.filter((event, index, self) =>
+      index === self.findIndex(e => e.id === event.id)
+    )
 
-    // 4. Filtrer et formater les événements
-    const events: GoogleCalendarEvent[] = (data.items || [])
-      .filter((event: GoogleCalendarRawEvent) => {
-        // Exclure les événements annulés
-        if (event.status === 'cancelled') return false
-
-        // Exclure les événements sans date (edge case)
-        if (!event.start?.dateTime && !event.start?.date) return false
-
-        return true
-      })
-      .map((event: GoogleCalendarRawEvent) => ({
-        id: event.id,
-        summary: event.summary || '(Sans titre)',
-        start: {
-          dateTime: event.start?.dateTime,
-          date: event.start?.date
-        },
-        end: {
-          dateTime: event.end?.dateTime,
-          date: event.end?.date
-        },
-        status: event.status || 'confirmed'
-      }))
-
-    console.log(`[calendar.service] Récupéré ${events.length} événements`)
-    return events
+    console.log(`[calendar.service] Récupéré ${uniqueEvents.length} événements (${selectedCalendarIds.length} calendriers)`)
+    return uniqueEvents
 
   } catch (error) {
     if (error instanceof Error) {
+      if (error.message.includes('401')) {
+        localStorage.removeItem(GOOGLE_TOKENS_KEY)
+        throw new Error('Session Google expirée, reconnexion requise')
+      }
       throw error
     }
     throw new Error('Impossible de récupérer les événements du calendrier')
@@ -293,4 +316,159 @@ export async function createCalendarEvent(params: {
     }
     throw new Error('Impossible de créer l\'événement dans le calendrier')
   }
+}
+
+// ============================================
+// SUPPRESSION D'ÉVÉNEMENT
+// ============================================
+
+/**
+ * Supprime un événement du Google Calendar
+ * @param eventId - L'ID de l'événement à supprimer
+ * @throws Error si échec de suppression
+ */
+export async function deleteCalendarEvent(eventId: string): Promise<void> {
+  // 1. Vérifier et refresh tokens si nécessaire
+  await ensureValidTokens()
+
+  const tokens = getGoogleTokens()
+  if (!tokens) {
+    throw new Error('Google Calendar non connecté')
+  }
+
+  // 2. Appel API DELETE
+  try {
+    const response = await fetch(
+      `${GOOGLE_CALENDAR_API_BASE}/calendars/primary/events/${encodeURIComponent(eventId)}`,
+      {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${tokens.access_token}`
+        }
+      }
+    )
+
+    // 204 No Content = succès
+    // 404 Not Found = événement déjà supprimé (on considère comme succès)
+    // 410 Gone = événement supprimé (on considère comme succès)
+    if (response.ok || response.status === 204 || response.status === 404 || response.status === 410) {
+      console.log(`[calendar.service] Événement ${eventId} supprimé`)
+      return
+    }
+
+    // Gestion des erreurs HTTP
+    if (response.status === 401) {
+      localStorage.removeItem(GOOGLE_TOKENS_KEY)
+      throw new Error('Session Google expirée, reconnexion requise')
+    }
+    if (response.status === 403) {
+      throw new Error('Permissions insuffisantes pour supprimer cet événement')
+    }
+
+    const errorData = await response.json().catch(() => ({}))
+    console.error('[calendar.service] Erreur suppression événement:', errorData)
+    throw new Error(`Échec suppression événement: ${response.status}`)
+
+  } catch (error) {
+    if (error instanceof Error) {
+      throw error
+    }
+    throw new Error('Impossible de supprimer l\'événement du calendrier')
+  }
+}
+
+// ============================================
+// GESTION DES CALENDRIERS MULTIPLES
+// ============================================
+
+const SELECTED_CALENDARS_KEY = 'manae_selected_calendars'
+
+export interface GoogleCalendar {
+  id: string
+  summary: string
+  backgroundColor?: string
+  primary?: boolean
+  accessRole?: string
+}
+
+/**
+ * Récupère la liste de tous les calendriers de l'utilisateur
+ */
+export async function getCalendarList(): Promise<GoogleCalendar[]> {
+  await ensureValidTokens()
+
+  const tokens = getGoogleTokens()
+  if (!tokens) {
+    throw new Error('Google Calendar non connecté')
+  }
+
+  try {
+    const response = await fetch(
+      `${GOOGLE_CALENDAR_API_BASE}/users/me/calendarList`,
+      {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${tokens.access_token}`,
+          'Content-Type': 'application/json'
+        }
+      }
+    )
+
+    if (!response.ok) {
+      if (response.status === 401) {
+        localStorage.removeItem(GOOGLE_TOKENS_KEY)
+        throw new Error('Session Google expirée, reconnexion requise')
+      }
+      throw new Error(`Erreur API Google Calendar: ${response.status}`)
+    }
+
+    const data = await response.json()
+
+    const calendars: GoogleCalendar[] = (data.items || [])
+      .filter((cal: { accessRole?: string }) =>
+        // Garder les calendriers où l'utilisateur peut au moins lire
+        ['owner', 'writer', 'reader'].includes(cal.accessRole || '')
+      )
+      .map((cal: { id: string; summary?: string; backgroundColor?: string; primary?: boolean; accessRole?: string }) => ({
+        id: cal.id,
+        summary: cal.summary || '(Sans nom)',
+        backgroundColor: cal.backgroundColor,
+        primary: cal.primary || false,
+        accessRole: cal.accessRole
+      }))
+
+    console.log(`[calendar.service] ${calendars.length} calendriers trouvés`)
+    return calendars
+
+  } catch (error) {
+    if (error instanceof Error) {
+      throw error
+    }
+    throw new Error('Impossible de récupérer la liste des calendriers')
+  }
+}
+
+/**
+ * Récupère les IDs des calendriers sélectionnés par l'utilisateur
+ * Par défaut, retourne ['primary'] si aucune sélection n'est sauvegardée
+ */
+export function getSelectedCalendarIds(): string[] {
+  const stored = localStorage.getItem(SELECTED_CALENDARS_KEY)
+  if (!stored) {
+    return ['primary']
+  }
+  try {
+    const ids = JSON.parse(stored)
+    return Array.isArray(ids) && ids.length > 0 ? ids : ['primary']
+  } catch {
+    return ['primary']
+  }
+}
+
+/**
+ * Sauvegarde les IDs des calendriers sélectionnés
+ */
+export function saveSelectedCalendarIds(calendarIds: string[]): void {
+  localStorage.setItem(SELECTED_CALENDARS_KEY, JSON.stringify(calendarIds))
+  console.log(`[calendar.service] Calendriers sélectionnés: ${calendarIds.join(', ')}`)
 }

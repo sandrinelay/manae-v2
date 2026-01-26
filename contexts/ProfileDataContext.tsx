@@ -109,6 +109,8 @@ export function ProfileDataProvider({ children }: { children: ReactNode }) {
       first_name: firstName,
       last_name: lastName
     })
+    // Mettre à jour le cache pour éviter le flash "Bonjour toi"
+    localStorage.setItem('manae_firstName', firstName)
     setProfile(prev => prev ? { ...prev, firstName, lastName } : null)
   }, [])
 

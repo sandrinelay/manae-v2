@@ -16,17 +16,19 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined)
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
-  // Initialiser avec la valeur en cache pour éviter le flash "Bonjour toi"
-  const [firstName, setFirstName] = useState<string | null>(() => {
-    if (typeof window !== 'undefined') {
-      return localStorage.getItem('manae_firstName')
-    }
-    return null
-  })
+  const [firstName, setFirstName] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [isAnonymous, setIsAnonymous] = useState(false)
 
   const supabase = createClient()
+
+  // Charger le prénom depuis le cache au montage (côté client uniquement)
+  useEffect(() => {
+    const cached = localStorage.getItem('manae_firstName')
+    if (cached) {
+      setFirstName(cached)
+    }
+  }, [])
 
   const fetchUserProfile = useCallback(async (userId: string) => {
     try {
@@ -64,14 +66,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           // Récupérer le prénom en arrière-plan (non bloquant)
           fetchUserProfile(currentUser.id)
         } else {
-          // Sign in anonymously if no user
-          const { data, error } = await supabase.auth.signInAnonymously()
-          if (error) {
-            console.error('Error signing in anonymously:', error)
-          } else if (data.user) {
-            setUser(data.user)
-            setIsAnonymous(true)
-          }
+          // Pas d'utilisateur connecté - laisser user à null
+          // L'utilisateur sera redirigé vers /login si nécessaire
+          setUser(null)
           setIsLoading(false)
         }
       } catch (error) {

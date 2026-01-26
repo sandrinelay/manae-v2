@@ -3,7 +3,7 @@
 
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import { getOrCreateUserProfile, getConstraints } from '@/services/supabaseService'
-import { getCalendarEvents, createCalendarEvent } from '@/features/schedule/services/calendar.service'
+import { getCalendarEvents, createCalendarEvent, deleteCalendarEvent } from '@/features/schedule/services/calendar.service'
 import { findAvailableSlots, selectTop3Diversified } from '@/features/schedule/services/slots.service'
 import { estimateTaskDuration } from '@/features/schedule/services/ai-duration.service'
 import { updateItem } from '@/services/supabase/items.service'
@@ -30,6 +30,8 @@ export interface UseSchedulingParams {
   temporalConstraint?: TemporalConstraint | null
   /** Si true, ne met pas à jour l'item en DB (utile pour les événements standalone comme les courses) */
   skipItemUpdate?: boolean
+  /** ID de l'événement Google Calendar existant (pour déplacer une tâche déjà planifiée) */
+  currentGoogleEventId?: string | null
 }
 
 // Info sur le filtrage service
@@ -66,7 +68,7 @@ export interface UseSchedulingReturn {
 // ============================================
 
 export function useScheduling(params: UseSchedulingParams): UseSchedulingReturn {
-  const { itemId, taskContent, mood, temporalConstraint, skipItemUpdate = false } = params
+  const { itemId, taskContent, mood, temporalConstraint, skipItemUpdate = false, currentGoogleEventId } = params
 
   // ============================================
   // ANALYSE DE LA TÂCHE (une seule fois)
@@ -293,7 +295,18 @@ export function useScheduling(params: UseSchedulingParams): UseSchedulingReturn 
     setError(null)
 
     try {
-      // 1. Créer l'événement dans Google Calendar
+      // 1. Supprimer l'ancien événement si on déplace une tâche déjà planifiée
+      if (currentGoogleEventId) {
+        try {
+          console.log('[useScheduling] Suppression ancien événement:', currentGoogleEventId)
+          await deleteCalendarEvent(currentGoogleEventId)
+        } catch (deleteErr) {
+          // Log l'erreur mais continue (l'événement peut avoir été supprimé manuellement)
+          console.warn('[useScheduling] Erreur suppression ancien événement (ignorée):', deleteErr)
+        }
+      }
+
+      // 2. Créer le nouvel événement dans Google Calendar
       // Obtenir le timezone offset local (ex: +01:00 pour Paris)
       const tzOffset = -new Date().getTimezoneOffset()
       const tzHours = Math.floor(Math.abs(tzOffset) / 60).toString().padStart(2, '0')
@@ -319,7 +332,7 @@ export function useScheduling(params: UseSchedulingParams): UseSchedulingReturn 
 
       console.log('[useScheduling] Événement créé:', eventId)
 
-      // 2. Update l'item en DB (sauf si skipItemUpdate)
+      // 3. Update l'item en DB (sauf si skipItemUpdate)
       if (!skipItemUpdate) {
         await updateItem(itemId, {
           state: 'planned',
@@ -357,7 +370,7 @@ export function useScheduling(params: UseSchedulingParams): UseSchedulingReturn 
     } finally {
       setIsLoading(false)
     }
-  }, [selectedSlot, taskContent, itemId, skipItemUpdate])
+  }, [selectedSlot, taskContent, itemId, skipItemUpdate, currentGoogleEventId])
 
   // ============================================
   // RETURN

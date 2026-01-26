@@ -32,7 +32,8 @@ export function PlanTaskModal({ task, onClose, onSuccess }: PlanTaskModalProps) 
     itemId: task.id,
     taskContent: task.content,
     mood: task.mood || undefined,
-    temporalConstraint: task.ai_analysis?.temporal_constraint || null
+    temporalConstraint: task.ai_analysis?.temporal_constraint || null,
+    currentGoogleEventId: task.google_event_id
   })
 
   // Charger les créneaux au montage si calendrier connecté

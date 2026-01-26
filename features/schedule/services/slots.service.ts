@@ -166,13 +166,21 @@ function getEventsForDay(events: GoogleCalendarEvent[], date: Date): GoogleCalen
 
 /**
  * Convertit les événements Google Calendar en blocs BUSY
+ * Gère correctement les fuseaux horaires en convertissant en heure locale
  */
 function eventsToBlocks(events: GoogleCalendarEvent[]): TimelineBlock[] {
   return events
     .filter(e => e.start.dateTime && e.end.dateTime) // Ignore les événements journée entière
     .map(event => {
-      const startTime = event.start.dateTime!.split('T')[1].substring(0, 5)
-      const endTime = event.end.dateTime!.split('T')[1].substring(0, 5)
+      // Parser les dates ISO et convertir en heure locale
+      const startDate = new Date(event.start.dateTime!)
+      const endDate = new Date(event.end.dateTime!)
+
+      // Extraire l'heure locale (pas UTC)
+      const startTime = `${String(startDate.getHours()).padStart(2, '0')}:${String(startDate.getMinutes()).padStart(2, '0')}`
+      const endTime = `${String(endDate.getHours()).padStart(2, '0')}:${String(endDate.getMinutes()).padStart(2, '0')}`
+
+      console.log(`[slots.service] Event "${event.summary}": ${event.start.dateTime} → ${startTime}-${endTime} (local)`)
 
       return {
         type: 'BUSY_EVENT' as const,

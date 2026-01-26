@@ -86,6 +86,9 @@ export default function OnboardingStep1() {
                 last_name: formData.lastName
             });
 
+            // Sauvegarder le prénom en cache pour éviter le flash "Bonjour toi"
+            localStorage.setItem('manae_firstName', formData.firstName);
+
             // Garder aussi en localStorage pour le flow onboarding
             const payload = {
                 step: 1,

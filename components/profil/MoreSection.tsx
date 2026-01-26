@@ -1,6 +1,6 @@
 'use client'
 
-import { ChevronRightIcon, HelpCircleIcon, FileTextIcon } from '@/components/ui/icons'
+import { ChevronRightIcon, HelpCircleIcon, FileTextIcon, BookOpenIcon } from '@/components/ui/icons'
 
 const SITE_URL = 'https://manae.app'
 
@@ -17,10 +17,24 @@ export function MoreSection() {
         Plus
       </h2>
 
+      {/* Guide simple */}
+      <a
+        href={`${SITE_URL}/guide-simple`}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="w-full flex items-center justify-between px-4 py-3 hover:bg-gray-50 transition-colors"
+      >
+        <div className="flex items-center gap-3">
+          <BookOpenIcon className="w-5 h-5 text-text-muted" />
+          <span className="text-text-dark">Guide simple</span>
+        </div>
+        <ChevronRightIcon className="w-5 h-5 text-text-muted" />
+      </a>
+
       {/* Support */}
       <a
         href="mailto:support@manae.app"
-        className="w-full flex items-center justify-between px-4 py-3 hover:bg-gray-50 transition-colors"
+        className="w-full flex items-center justify-between px-4 py-3 hover:bg-gray-50 transition-colors border-t border-gray-100"
       >
         <div className="flex items-center gap-3">
           <HelpCircleIcon className="w-5 h-5 text-text-muted" />

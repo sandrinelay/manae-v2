@@ -219,7 +219,7 @@ export default function SetPasswordPage() {
           type="submit"
           disabled={!isFormValid || isLoading}
         >
-          {isLoading ? 'Création...' : 'Créer mon compte'}
+          {isLoading ? 'Création...' : 'Confirmer'}
         </Button>
       </form>
 

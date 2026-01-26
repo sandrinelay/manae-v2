@@ -8,6 +8,23 @@ import type {
   ItemFilters
 } from '@/types/items'
 import { isValidListItem, isValidItemTypeState } from '@/types/items'
+import { deleteCalendarEvent } from '@/features/schedule/services/calendar.service'
+
+/**
+ * Supprime l'événement Google Calendar associé à un item (si existant)
+ * Ne bloque pas en cas d'erreur (l'événement peut avoir été supprimé manuellement)
+ */
+async function deleteAssociatedCalendarEvent(googleEventId: string | null | undefined): Promise<void> {
+  if (!googleEventId) return
+
+  try {
+    await deleteCalendarEvent(googleEventId)
+    console.log(`[items.service] Événement Google Calendar supprimé: ${googleEventId}`)
+  } catch (error) {
+    // Non-bloquant : l'événement peut avoir été supprimé manuellement
+    console.warn(`[items.service] Impossible de supprimer l'événement Calendar (ignoré):`, error)
+  }
+}
 
 function getSupabase() {
   return createClient()
@@ -289,10 +306,20 @@ export async function markItemActive(id: string): Promise<Item> {
 }
 
 export async function markItemCompleted(id: string): Promise<Item> {
+  // Récupérer l'item pour vérifier s'il a un événement Calendar
+  const item = await getItem(id)
+  if (item?.google_event_id) {
+    await deleteAssociatedCalendarEvent(item.google_event_id)
+  }
   return updateItemState(id, 'completed')
 }
 
 export async function markItemArchived(id: string): Promise<Item> {
+  // Récupérer l'item pour vérifier s'il a un événement Calendar
+  const item = await getItem(id)
+  if (item?.google_event_id) {
+    await deleteAssociatedCalendarEvent(item.google_event_id)
+  }
   return updateItemState(id, 'archived')
 }
 
@@ -316,6 +343,12 @@ export async function deleteItem(id: string): Promise<void> {
   const userId = await getCurrentUserId()
   const supabase = getSupabase()
 
+  // Récupérer l'item pour vérifier s'il a un événement Calendar
+  const item = await getItem(id)
+  if (item?.google_event_id) {
+    await deleteAssociatedCalendarEvent(item.google_event_id)
+  }
+
   const { error } = await supabase
     .from('items')
     .delete()
@@ -328,6 +361,21 @@ export async function deleteItem(id: string): Promise<void> {
 export async function deleteItems(ids: string[]): Promise<void> {
   const userId = await getCurrentUserId()
   const supabase = getSupabase()
+
+  // Récupérer les items pour vérifier s'ils ont des événements Calendar
+  const { data: items } = await supabase
+    .from('items')
+    .select('google_event_id')
+    .in('id', ids)
+    .eq('user_id', userId)
+
+  // Supprimer les événements Calendar associés en parallèle
+  if (items && items.length > 0) {
+    const calendarDeletions = items
+      .filter(item => item.google_event_id)
+      .map(item => deleteAssociatedCalendarEvent(item.google_event_id))
+    await Promise.all(calendarDeletions)
+  }
 
   const { error } = await supabase
     .from('items')

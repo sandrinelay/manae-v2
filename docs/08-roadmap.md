@@ -279,7 +279,7 @@
 ### 10.1 Outils & Services
 
 - **Design** : Figma
-- **Gestion projet** : Notion
+- **Gestion projet** : Linear, Notion
 - **Communication** : Slack
 - **CI/CD** : Vercel (auto-deploy)
 - **Monitoring** : Sentry, Datadog
