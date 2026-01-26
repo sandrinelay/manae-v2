@@ -20,8 +20,7 @@ import {
   IdeaIcon,
   TrashIcon,
   ArrowLeftIcon,
-  XIcon,
-  AlertIcon
+  XIcon
 } from '@/components/ui/icons'
 import { IconButton } from '@/components/ui/IconButton'
 import { ActionButton } from '@/components/ui/ActionButton'
@@ -335,19 +334,11 @@ export function CaptureModal({
     <div className="space-y-4">
       {/* Message quota IA dépassé */}
       {captureResult.quotaExceeded && (
-        <div className="bg-amber-50 border border-amber-200 rounded-lg p-3">
-          <div className="flex items-start gap-2">
-            <AlertIcon className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
-            <div className="text-sm">
-              <p className="font-medium text-amber-800">Quota IA épuisé cette semaine</p>
-              <p className="text-amber-700 mt-1">
-                Catégorise manuellement ou{' '}
-                <a href="/settings/subscription" className="text-primary underline font-medium hover:text-primary/80">
-                  passe au forfait supérieur
-                </a>
-              </p>
-            </div>
-          </div>
+        <div className="alert-box">
+          <p className="alert-box-title">Crédits IA épuisés</p>
+          <p className="text-[var(--accent)] text-xs mt-2 font-medium">
+            Beta : les crédits seront renouvelés au fur et à mesure.
+          </p>
         </div>
       )}
 

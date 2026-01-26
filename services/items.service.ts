@@ -103,6 +103,11 @@ export async function updateItemState(id: string, state: ItemState): Promise<voi
     .eq('id', id)
 
   if (error) throw error
+
+  // Notifier que les données ont changé (pour rafraîchir Clarté)
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new CustomEvent('clarte-data-changed'))
+  }
 }
 
 export async function archiveItem(id: string): Promise<void> {
@@ -170,6 +175,11 @@ export async function deleteItem(id: string): Promise<void> {
     .eq('id', id)
 
   if (error) throw error
+
+  // Notifier que les données ont changé (pour rafraîchir Clarté)
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new CustomEvent('clarte-data-changed'))
+  }
 }
 
 // ============ FETCH SINGLE ITEM ============

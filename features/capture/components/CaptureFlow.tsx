@@ -338,7 +338,7 @@ export function CaptureFlow({ userId, onSuccess }: CaptureFlowProps) {
                 </button>
                 */}
                 <p className="text-[var(--accent)] text-xs mt-2 font-medium">
-                  Beta : les crédits seront renouvelés chaque mois.
+                  Beta : les crédits seront renouvelés au fur et à mesure.
                 </p>
               </div>
             )}

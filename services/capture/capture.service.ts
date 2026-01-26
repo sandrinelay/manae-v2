@@ -215,6 +215,11 @@ export async function saveItem(input: SaveItemInput): Promise<string> {
     throw error
   }
 
+  // Notifier que les données ont changé (pour rafraîchir Clarté)
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new CustomEvent('clarte-data-changed'))
+  }
+
   return data.id
 }
 

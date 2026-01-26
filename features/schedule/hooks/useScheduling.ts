@@ -344,6 +344,9 @@ export function useScheduling(params: UseSchedulingParams): UseSchedulingReturn 
         console.log('[useScheduling] Skip item update (événement standalone)')
       }
 
+      // Notifier que les données ont changé (pour rafraîchir Clarté)
+      window.dispatchEvent(new CustomEvent('clarte-data-changed'))
+
       return true
 
     } catch (err) {

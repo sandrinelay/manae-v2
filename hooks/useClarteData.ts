@@ -141,6 +141,28 @@ export function useClarteData(options: UseClarteDataOptions = {}): UseClarteData
     }
   }, [isSearchMode]) // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Rafraîchir quand la page devient visible (retour depuis capture, etc.)
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible' && hasFullDataRef.current) {
+        fetchData(true)
+      }
+    }
+
+    // Écouter aussi un événement custom pour les changements de données
+    const handleDataChange = () => {
+      fetchData(true)
+    }
+
+    document.addEventListener('visibilitychange', handleVisibilityChange)
+    window.addEventListener('clarte-data-changed', handleDataChange)
+
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange)
+      window.removeEventListener('clarte-data-changed', handleDataChange)
+    }
+  }, [fetchData])
+
   const refetch = useCallback(() => fetchData(true), [fetchData])
 
   return { data, isLoading, error, refetch }
