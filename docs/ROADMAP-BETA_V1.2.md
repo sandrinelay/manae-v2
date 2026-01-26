@@ -34,6 +34,7 @@
 
 **Partiellement implémenté** :
 - ⚠️ Quotas IA - Message "forfait supérieur" avec lien vers page inexistante (Stripe pas encore intégré)
+- ⚠️ RGPD - Suppression compte et export données (boutons à ajouter dans le profil)
 
 **Non inclus dans beta V1.2** :
 - ❌ Capture vocale (prévu V2)
@@ -403,6 +404,8 @@ FROM users;
 
 - [ ] **Vérifier CGU/Confidentialité** : À jour sur manae.app
 - [ ] **RGPD** : Consentements clairs, politique claire (voir SECURITY.md)
+- [ ] **RGPD - Suppression compte** : Ajouter bouton "Supprimer mon compte" dans le profil
+- [ ] **RGPD - Export données** : Ajouter bouton "Télécharger mes données" (JSON) dans le profil
 - [ ] **Stripe** : Pas urgent (post-beta) mais garder en tête
 
 ---

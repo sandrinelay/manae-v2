@@ -95,6 +95,11 @@ export function useIdeaDevelop(options: UseIdeaDevelopOptions): UseIdeaDevelopRe
   const develop = useCallback(async () => {
     if (!ideaAge) return
 
+    // Éviter les doubles appels si déjà en cours ou déjà terminé
+    if (isLoading || result) {
+      return
+    }
+
     setIsLoading(true)
     setCurrentStep('loading')
     setError(null)
@@ -127,7 +132,7 @@ export function useIdeaDevelop(options: UseIdeaDevelopOptions): UseIdeaDevelopRe
     } finally {
       setIsLoading(false)
     }
-  }, [itemId, ideaAge, blockers, onSuccess, onError])
+  }, [itemId, ideaAge, blockers, isLoading, result, onSuccess, onError])
 
   /**
    * Réinitialiser le flow

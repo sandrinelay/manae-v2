@@ -24,6 +24,14 @@ export function CalendarSelectorModal({ onClose, onSaved }: CalendarSelectorModa
 
   // Charger la liste des calendriers
   const loadCalendars = useCallback(async () => {
+    // Vérifier d'abord si les tokens existent
+    const tokens = localStorage.getItem('google_tokens')
+    if (!tokens) {
+      // Pas connecté : fermer la modale
+      onClose()
+      return
+    }
+
     setIsLoading(true)
     setError(null)
 
@@ -40,11 +48,17 @@ export function CalendarSelectorModal({ onClose, onSaved }: CalendarSelectorModa
         setSelectedIds(currentSelection)
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Erreur de chargement')
+      const errorMsg = err instanceof Error ? err.message : 'Erreur de chargement'
+      // Si erreur de connexion, fermer la modale
+      if (errorMsg.includes('non connecté') || errorMsg.includes('expirée')) {
+        onClose()
+        return
+      }
+      setError(errorMsg)
     } finally {
       setIsLoading(false)
     }
-  }, [])
+  }, [onClose])
 
   useEffect(() => {
     loadCalendars()
