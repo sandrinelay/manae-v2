@@ -107,7 +107,8 @@ const SERVICE_PATTERNS = {
       'poste', 'la poste', 'bureau de poste',
       'carte d\'identité', 'passeport', 'permis',
       'école', 'crèche', 'périscolaire', 'cantine', 'garderie',
-      'maternelle', 'primaire', 'collège', 'lycée'
+      'maternelle', 'primaire', 'collège', 'lycée',
+      'déchetterie', 'dechetterie', 'déchèterie', 'decheterie'
     ],
     openDays: ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'],
     openHours: { start: '09:00', end: '16:30' }

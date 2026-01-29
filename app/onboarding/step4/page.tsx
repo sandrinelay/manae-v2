@@ -2,6 +2,7 @@
 
 import { useState, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
+import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/Button';
 import { openGoogleAuthPopup, exchangeCodeForToken } from '@/lib/googleCalendar';
 import { updateUserProfile } from '@/services/supabaseService';
@@ -9,6 +10,7 @@ import { updateUserProfile } from '@/services/supabaseService';
 function OnboardingStep4Content() {
     const router = useRouter();
     const searchParams = useSearchParams();
+    const { refreshProfile } = useAuth();
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
@@ -50,6 +52,9 @@ function OnboardingStep4Content() {
                 completed_at: new Date().toISOString()
             }));
 
+            // Rafraîchir le profil pour avoir le prénom à jour
+            await refreshProfile();
+
             // Rediriger vers la bonne destination
             if (returnTo === 'planning') {
                 // Vérifier si on vient de Clarté ou de Capture
@@ -84,6 +89,9 @@ function OnboardingStep4Content() {
             await updateUserProfile({
                 onboarding_completed: true
             });
+
+            // Rafraîchir le profil pour avoir le prénom à jour
+            await refreshProfile();
         } catch (error) {
             console.error('Error updating profile:', error);
         }

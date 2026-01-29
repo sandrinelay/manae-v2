@@ -178,6 +178,18 @@ export function ClarteDataProvider({ children }: { children: ReactNode }) {
     }
   }, [user]) // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Écouter les événements de changement de données (après capture)
+  useEffect(() => {
+    const handleDataChanged = () => {
+      fetchData(true)
+    }
+
+    window.addEventListener('clarte-data-changed', handleDataChanged)
+    return () => {
+      window.removeEventListener('clarte-data-changed', handleDataChanged)
+    }
+  }, [fetchData])
+
   const refetch = useCallback(() => fetchData(true), [fetchData])
   const loadFullData = useCallback(() => fetchData(true), [fetchData])
 

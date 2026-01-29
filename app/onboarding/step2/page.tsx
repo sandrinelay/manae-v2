@@ -103,7 +103,7 @@ export default function OnboardingStep2() {
                         Tes moments d&apos;énergie
                     </h2>
                     <p className="text-base text-text-medium mb-6 leading-relaxed">
-                        Quand préfères-tu avancer sur tes tâches ? ()
+                        Quand préfères-tu avancer sur tes tâches ? (obligatoire)
                     </p>
 
                     <form onSubmit={handleSubmit}>
