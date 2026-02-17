@@ -11,7 +11,6 @@ export default function SetPasswordPage() {
   const router = useRouter()
 
   const [password, setPassword] = useState('')
-  const [confirmPassword, setConfirmPassword] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(false)
   const [isValidSession, setIsValidSession] = useState(false)
@@ -86,11 +85,6 @@ export default function SetPasswordPage() {
       return
     }
 
-    if (password !== confirmPassword) {
-      setError('Les mots de passe ne correspondent pas')
-      return
-    }
-
     setIsLoading(true)
 
     try {
@@ -150,7 +144,7 @@ export default function SetPasswordPage() {
     }
   }
 
-  const isFormValid = password.length >= 8 && password === confirmPassword
+  const isFormValid = password.length >= 8
 
   // Loading state
   if (isCheckingSession) {
@@ -166,17 +160,14 @@ export default function SetPasswordPage() {
     return (
       <AuthLayout
         title="Lien expiré"
-        subtitle="Ce lien d'invitation n'est plus valide"
+        subtitle="Ce lien n'est plus valide"
       >
         <div className="text-center space-y-4">
           <p className="text-text-muted">
             Le lien que tu as utilisé a expiré ou a déjà été utilisé.
           </p>
-          <p className="text-text-muted">
-            Contacte-nous pour recevoir un nouveau lien d&apos;invitation :
-          </p>
           <a
-            href="mailto:contact@manae.app?subject=Nouveau lien d'invitation Manae"
+            href="/forgot-password"
             className="inline-block w-full py-3 px-4 bg-primary text-white font-medium rounded-xl hover:bg-primary/90 transition-colors"
           >
             Demander un nouveau lien
@@ -213,18 +204,6 @@ export default function SetPasswordPage() {
           onChange={(e) => setPassword(e.target.value)}
           autoComplete="new-password"
           autoFocus
-        />
-
-        <Input
-          id="confirmPassword"
-          name="confirmPassword"
-          type="password"
-          label="Confirmer le mot de passe"
-          placeholder="Répète ton mot de passe"
-          value={confirmPassword}
-          onChange={(e) => setConfirmPassword(e.target.value)}
-          autoComplete="new-password"
-          error={confirmPassword && password !== confirmPassword ? 'Les mots de passe ne correspondent pas' : undefined}
         />
 
         {error && (

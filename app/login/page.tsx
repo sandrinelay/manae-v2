@@ -118,19 +118,15 @@ function LoginForm() {
         </a>
       </div>
 
-      {/* Info beta */}
+      {/* Lien inscription */}
       <div className="mt-6 pt-6 border-t border-gray-100">
-        <p className="text-xs text-text-muted text-center">
-          Accès réservé aux beta-testeurs invités.
-          <br />
-          Tu n&apos;as pas reçu d&apos;invitation ?{' '}
+        <p className="text-sm text-text-muted text-center">
+          Pas encore de compte ?{' '}
           <a
-            href="https://manae.app"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-primary hover:underline"
+            href="/signup"
+            className="text-primary hover:underline font-medium"
           >
-            Rejoins la liste d&apos;attente
+            Inscris-toi
           </a>
         </p>
       </div>

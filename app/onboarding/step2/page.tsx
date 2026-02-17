@@ -3,86 +3,177 @@
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/Button';
-import { EnergyCard } from '@/components/ui/EnergyCard';
-import { SunriseIcon, CoffeeIcon, BriefcaseIcon, SunsetIcon, MoonIcon } from '@/components/ui/icons';
-import { updateUserProfile, getOrCreateUserProfile } from '@/services/supabaseService';
+import { ConstraintCard } from '@/components/ui/ConstraintCard';
+import { ConstraintForm } from '@/components/ui/ConstraintForm';
+import { Constraint } from '@/types';
+import { detectConflict } from '@/utils/conflictDetector';
+import { ConflictModal } from '@/components/ui/ConflictModal';
+import { DeleteConfirmModal } from '@/components/ui/DeleteConfirmModal';
+import { saveConstraints, getConstraints, updateUserProfile } from '@/services/supabaseService';
+import { PlusIcon } from '@/components/ui/icons';
+import { generateUUID } from '@/lib/utils/uuid';
 
-
-interface EnergyMoment {
-    id: string;
-    icon: React.FC<{ className?: string }>;
-    label: string;
-    timeRange: string;
-}
-
-const ENERGY_MOMENTS: EnergyMoment[] = [
-    { id: 'morning-energy', icon: SunriseIcon, label: 'Matin énergétique', timeRange: '6h-9h' },
-    { id: 'morning', icon: SunriseIcon, label: 'Matinée', timeRange: '9h-12h' },
-    { id: 'lunch', icon: CoffeeIcon, label: 'Pause midi', timeRange: '12h-14h' },
-    { id: 'afternoon', icon: BriefcaseIcon, label: 'Après-midi', timeRange: '14h-18h' },
-    { id: 'evening', icon: SunsetIcon, label: 'Fin de journée', timeRange: '18h-21h' },
-    { id: 'night', icon: MoonIcon, label: 'Nuit', timeRange: '21h-6h' },
-];
-
-export default function OnboardingStep2() {
+export default function OnboardingStep3() {
     const router = useRouter();
-    const [selectedMoments, setSelectedMoments] = useState<string[]>([]);
     const [isSaving, setIsSaving] = useState(false);
     const [isLoading, setIsLoading] = useState(true);
 
-    // Charger les energy_moments existants
+    // Contrainte "Travail" pré-remplie
+    const defaultConstraint: Constraint = {
+        id: generateUUID(),
+        name: 'Travail',
+        category: 'work',
+        days: ['monday', 'tuesday', 'wednesday', 'thursday', 'friday'],
+        start_time: '09:00',
+        end_time: '18:00',
+        allow_lunch_break: true
+    };
+
+    const [constraints, setConstraints] = useState<Constraint[]>([defaultConstraint]);
+
+    // Charger les contraintes existantes
     useEffect(() => {
-        const loadProfile = async () => {
+        const loadConstraints = async () => {
             try {
-                const profile = await getOrCreateUserProfile();
-                if (profile.energy_moments) {
-                    setSelectedMoments(profile.energy_moments);
+                const existingConstraints = await getConstraints();
+                if (existingConstraints && existingConstraints.length > 0) {
+                    // Convertir le format de la DB vers le format local
+                    const mapped: Constraint[] = existingConstraints.map(c => ({
+                        id: c.id,
+                        name: c.name,
+                        category: c.category as Constraint['category'],
+                        days: c.days,
+                        start_time: c.start_time,
+                        end_time: c.end_time,
+                        allow_lunch_break: c.allow_lunch_break ?? false
+                    }));
+                    setConstraints(mapped);
                 }
             } catch (error) {
-                console.error('Error loading profile:', error);
+                console.error('Error loading constraints:', error);
             } finally {
                 setIsLoading(false);
             }
         };
-        loadProfile();
+        loadConstraints();
     }, []);
+    const [showForm, setShowForm] = useState(false);
+    const [editingConstraint, setEditingConstraint] = useState<Constraint | undefined>();
+    const [pendingConstraint, setPendingConstraint] = useState<Omit<Constraint, 'id'> | null>(null);
+    const [conflictInfo, setConflictInfo] = useState<{ constraint: Constraint; days: string[] } | null>(null);
+    const [deleteTarget, setDeleteTarget] = useState<{ id: string; name: string } | null>(null);
 
-    const toggleMoment = (id: string) => {
-        setSelectedMoments(prev =>
-            prev.includes(id)
-                ? prev.filter(m => m !== id)
-                : [...prev, id]
-        );
+    const handleAddConstraint = (data: Omit<Constraint, 'id'>) => {
+        // Détecter les conflits
+        const conflict = detectConflict(data, constraints);
+
+        console.log('🔍 Détection de conflit:', {
+            nouveauNom: data.name,
+            hasConflict: conflict.hasConflict,
+            conflictingConstraint: conflict.conflictingConstraint,
+            overlappingDays: conflict.overlappingDays
+        });
+
+        if (conflict.hasConflict && conflict.conflictingConstraint) {
+            // Afficher la modale de conflit
+            console.log('⚠️ Conflit détecté! Affichage de la modale');
+            setPendingConstraint(data);
+            setConflictInfo({
+                constraint: conflict.conflictingConstraint,
+                days: conflict.overlappingDays || []
+            });
+        } else {
+            // Pas de conflit, ajouter directement
+            console.log('✅ Pas de conflit, ajout direct');
+            const newConstraint: Constraint = {
+                ...data,
+                id: generateUUID()
+            };
+            setConstraints(prev => [...prev, newConstraint]);
+            setShowForm(false);
+        }
+    };
+
+    const handleEditConstraint = (data: Omit<Constraint, 'id'>) => {
+        if (editingConstraint) {
+            // Détecter les conflits (en excluant la contrainte en cours d'édition)
+            const conflict = detectConflict(data, constraints, editingConstraint.id);
+
+            if (conflict.hasConflict && conflict.conflictingConstraint) {
+                setPendingConstraint(data);
+                setConflictInfo({
+                    constraint: conflict.conflictingConstraint,
+                    days: conflict.overlappingDays || []
+                });
+            } else {
+                setConstraints(prev => prev.map(c =>
+                    c.id === editingConstraint.id ? { ...data, id: c.id } : c
+                ));
+                setEditingConstraint(undefined);
+                setShowForm(false);
+            }
+        }
+    };
+
+    const handleDeleteConstraint = (id: string) => {
+        const constraint = constraints.find(c => c.id === id);
+        if (constraint) {
+            setDeleteTarget({ id: constraint.id, name: constraint.name });
+        }
+    };
+
+    const handleConfirmDelete = () => {
+        if (deleteTarget) {
+            setConstraints(prev => prev.filter(c => c.id !== deleteTarget.id));
+            setDeleteTarget(null);
+        }
+    };
+
+    const handleCancelDelete = () => {
+        setDeleteTarget(null);
+    };
+
+    const handleEdit = (constraint: Constraint) => {
+        setEditingConstraint(constraint);
+        setShowForm(true);
+    };
+
+    const handleCancelForm = () => {
+        setShowForm(false);
+        setEditingConstraint(undefined);
     };
 
     const handleBack = () => {
-        router.push('/onboarding');
+        router.push('/onboarding/step1');
     };
 
-    const handleSubmit = async (e: React.FormEvent) => {
-        e.preventDefault();
-        if (selectedMoments.length === 0 || isSaving) return;
-
+    const handleSubmit = async () => {
+        if (isSaving) return;
         setIsSaving(true);
 
         try {
             // Sauvegarder vers Supabase
-            await updateUserProfile({
-                energy_moments: selectedMoments
-            });
+            const constraintsForDb = constraints.map(c => ({
+                name: c.name,
+                category: c.category,
+                days: c.days,
+                start_time: c.start_time,
+                end_time: c.end_time,
+                allow_lunch_break: c.allow_lunch_break
+            }));
+            await saveConstraints(constraintsForDb);
 
-            // Garder aussi en localStorage pour le flow
+            // Garder en localStorage
             const existingData = localStorage.getItem('manae_onboarding');
             const parsedData = existingData ? JSON.parse(existingData) : {};
             const payload = {
                 ...parsedData,
-                step: 2,
-                energy_moments: selectedMoments,
-                completed_at: new Date().toISOString()
+                step: 3,
+                constraints: constraints
             };
             localStorage.setItem('manae_onboarding', JSON.stringify(payload));
 
-            console.log('Saved to Supabase and localStorage');
+            // Rediriger vers step4 (connexion Google Calendar - optionnelle)
             router.push('/onboarding/step3');
         } catch (error) {
             console.error('Error saving:', error);
@@ -92,57 +183,132 @@ export default function OnboardingStep2() {
         }
     };
 
+    const handleConfirmConflict = () => {
+        if (pendingConstraint) {
+            if (editingConstraint) {
+                // Mode édition
+                setConstraints(prev => prev.map(c =>
+                    c.id === editingConstraint.id ? { ...pendingConstraint, id: c.id } : c
+                ));
+                setEditingConstraint(undefined);
+            } else {
+                // Mode ajout
+                const newConstraint: Constraint = {
+                    ...pendingConstraint,
+                    id: generateUUID()
+                };
+                setConstraints(prev => [...prev, newConstraint]);
+            }
+            setShowForm(false);
+            setPendingConstraint(null);
+            setConflictInfo(null);
+        }
+    };
+
+    const handleCancelConflict = () => {
+        setPendingConstraint(null);
+        setConflictInfo(null);
+        // Garde le formulaire ouvert pour modification
+    };
+
     return (
         <div className="min-h-screen bg-mint flex items-start justify-center">
             <div className="w-full max-w-md">
 
 
+
                 {/* Content */}
                 <main>
                     <h2 className="text-2xl font-bold text-text-dark mb-3">
-                        Tes moments d&apos;énergie
+                        Tes créneaux occupés
                     </h2>
                     <p className="text-base text-text-medium mb-6 leading-relaxed">
-                        Quand préfères-tu avancer sur tes tâches ? (obligatoire)
+                    Indique tes créneaux pris (travail, enfants...) pour que je te propose uniquement des moments où tu es libre.
                     </p>
 
-                    <form onSubmit={handleSubmit}>
-                        {/* Grid de cards */}
-                        <div className="grid grid-cols-2 gap-3 mb-6">
-                            {ENERGY_MOMENTS.map(moment => (
-                                <EnergyCard
-                                    key={moment.id}
-                                    id={moment.id}
-                                    icon={moment.icon}
-                                    label={moment.label}
-                                    timeRange={moment.timeRange}
-                                    selected={selectedMoments.includes(moment.id)}
-                                    onClick={() => toggleMoment(moment.id)}
-                                />
-                            ))}
-                        </div>
+                    {/* Liste des contraintes */}
+                    <div className="mb-4">
+                        {constraints.map(constraint => (
+                            <ConstraintCard
+                                key={constraint.id}
+                                constraint={constraint}
+                                onEdit={handleEdit}
+                                onDelete={handleDeleteConstraint}
+                            />
+                        ))}
+                    </div>
 
-                        {/* Boutons navigation */}
-                        <div className="flex gap-3 pt-4">
-                            <Button
-                                type="button"
-                                variant="secondary"
-                                onClick={handleBack}
-                                className="flex-1"
-                            >
-                                ← Retour
-                            </Button>
-                            <Button
-                                type="submit"
-                                disabled={selectedMoments.length === 0 || isSaving || isLoading}
-                                className="flex-1"
-                            >
-                                {isSaving ? 'Sauvegarde...' : 'Continuer →'}
-                            </Button>
-                        </div>
-                    </form>
+                    {/* Formulaire d'ajout/édition */}
+                    {showForm && (
+                        <ConstraintForm
+                            constraint={editingConstraint}
+                            existingConstraints={constraints}
+                            onSave={editingConstraint ? handleEditConstraint : handleAddConstraint}
+                            onCancel={handleCancelForm}
+                        />
+                    )}
+
+                    {/* Bouton ajouter */}
+                    {!showForm && (
+                        <Button
+                            type="button"
+                            variant="secondary"
+                            onClick={() => setShowForm(true)}
+                            className="mb-6"
+                        >
+                            <PlusIcon className="w-5 h-5" />
+                            Ajouter une indisponibilité
+                        </Button>
+                    )}
+
+                    {/* Boutons navigation */}
+                    <div className="flex gap-3 pt-4">
+                        <Button
+                            type="button"
+                            variant="secondary"
+                            onClick={handleBack}
+                            className="flex-1"
+                        >
+                            ← Retour
+                        </Button>
+                        <Button
+                            type="button"
+                            onClick={handleSubmit}
+                            disabled={isSaving || isLoading}
+                            className="flex-1"
+                        >
+                            {isSaving ? 'Sauvegarde...' : 'Continuer →'}
+                        </Button>
+                    </div>
+
+                    {/* Modale de conflit */}
+                    {(() => {
+                        console.log('🎭 Vérification condition modale:', {
+                            conflictInfo,
+                            pendingConstraint,
+                            shouldShow: !!(conflictInfo && pendingConstraint)
+                        });
+                        return conflictInfo && pendingConstraint && (
+                            <ConflictModal
+                                newConstraintName={pendingConstraint.name}
+                                conflictingConstraint={conflictInfo.constraint}
+                                overlappingDays={conflictInfo.days}
+                                onCancel={handleCancelConflict}
+                                onConfirm={handleConfirmConflict}
+                            />
+                        );
+                    })()}
+
+                    {/* Modale de suppression */}
+                    {deleteTarget && (
+                        <DeleteConfirmModal
+                            itemName={deleteTarget.name}
+                            onCancel={handleCancelDelete}
+                            onConfirm={handleConfirmDelete}
+                        />
+                    )}
                 </main>
             </div>
-        </div>
+        </div >
     );
 }

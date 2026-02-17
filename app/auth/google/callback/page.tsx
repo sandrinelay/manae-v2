@@ -96,7 +96,7 @@ function GoogleCallbackContent() {
         <p className="text-text-dark font-medium">Erreur de connexion</p>
         <p className="text-text-medium text-sm mt-2">{errorMessage}</p>
         <button
-          onClick={() => window.location.href = '/onboarding/step4'}
+          onClick={() => window.location.href = '/onboarding/step3'}
           className="mt-4 text-primary underline"
         >
           Réessayer
