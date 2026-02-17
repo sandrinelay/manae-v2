@@ -11,11 +11,11 @@ export default function SetPasswordPage() {
   const router = useRouter()
 
   const [password, setPassword] = useState('')
-  const [confirmPassword, setConfirmPassword] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(false)
   const [isValidSession, setIsValidSession] = useState(false)
   const [isCheckingSession, setIsCheckingSession] = useState(true)
+  const [isLinkExpired, setIsLinkExpired] = useState(false)
 
   // Vérifier que l'utilisateur vient d'un lien d'invitation ou de reset
   useEffect(() => {
@@ -66,8 +66,8 @@ export default function SetPasswordPage() {
       if (session?.user) {
         setIsValidSession(true)
       } else {
-        // Pas de session valide, rediriger vers login
-        router.push('/login')
+        // Pas de session valide, afficher message lien expiré
+        setIsLinkExpired(true)
       }
       setIsCheckingSession(false)
     }
@@ -82,11 +82,6 @@ export default function SetPasswordPage() {
     // Validation
     if (password.length < 8) {
       setError('Le mot de passe doit contenir au moins 8 caractères')
-      return
-    }
-
-    if (password !== confirmPassword) {
-      setError('Les mots de passe ne correspondent pas')
       return
     }
 
@@ -149,7 +144,7 @@ export default function SetPasswordPage() {
     }
   }
 
-  const isFormValid = password.length >= 8 && password === confirmPassword
+  const isFormValid = password.length >= 8
 
   // Loading state
   if (isCheckingSession) {
@@ -160,9 +155,37 @@ export default function SetPasswordPage() {
     )
   }
 
-  // Session invalide
+  // Lien expiré
+  if (isLinkExpired) {
+    return (
+      <AuthLayout
+        title="Lien expiré"
+        subtitle="Ce lien n'est plus valide"
+      >
+        <div className="text-center space-y-4">
+          <p className="text-text-muted">
+            Le lien que tu as utilisé a expiré ou a déjà été utilisé.
+          </p>
+          <a
+            href="/forgot-password"
+            className="inline-block w-full py-3 px-4 bg-primary text-white font-medium rounded-xl hover:bg-primary/90 transition-colors"
+          >
+            Demander un nouveau lien
+          </a>
+          <a
+            href="/login"
+            className="block text-sm text-primary hover:underline mt-4"
+          >
+            Retour à la connexion
+          </a>
+        </div>
+      </AuthLayout>
+    )
+  }
+
+  // Session invalide (cas imprévu)
   if (!isValidSession) {
-    return null // Redirection en cours
+    return null
   }
 
   return (
@@ -181,18 +204,6 @@ export default function SetPasswordPage() {
           onChange={(e) => setPassword(e.target.value)}
           autoComplete="new-password"
           autoFocus
-        />
-
-        <Input
-          id="confirmPassword"
-          name="confirmPassword"
-          type="password"
-          label="Confirmer le mot de passe"
-          placeholder="Répète ton mot de passe"
-          value={confirmPassword}
-          onChange={(e) => setConfirmPassword(e.target.value)}
-          autoComplete="new-password"
-          error={confirmPassword && password !== confirmPassword ? 'Les mots de passe ne correspondent pas' : undefined}
         />
 
         {error && (

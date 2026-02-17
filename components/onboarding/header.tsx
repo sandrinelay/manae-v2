@@ -4,13 +4,15 @@ import { usePathname } from "next/navigation";
 
 export default function OnboardingHeader() {
     const pathname = usePathname()
-    const isStep1 = pathname === '/onboarding';
-    const isStep2 = pathname === '/onboarding/step2';
-    const isStep3 = pathname === '/onboarding/step3';
-    const isStep4 = pathname === '/onboarding/step4';
 
-    const stepNumber = isStep1 ? 1 : isStep2 ? 2 : isStep3 ? 3 : isStep4 ? 4 : 1;
-    const totalSteps = 4;
+    const stepNumber = pathname === '/onboarding/step1' ? 1
+        : pathname === '/onboarding/step2' ? 2
+        : pathname === '/onboarding/step3' ? 3
+        : 0;
+    const totalSteps = 3;
+
+    // Ne pas afficher le header sur la page de redirect
+    if (stepNumber === 0) return null;
 
     return (
         <>

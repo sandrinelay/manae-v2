@@ -193,7 +193,7 @@ export const ConstraintForm: React.FC<ConstraintFormProps> = ({
                         className="w-5 h-5 rounded border-2 border-border text-primary focus:ring-primary"
                     />
                     <span className="text-sm text-text-dark">
-                        Inclure une pause déjeuner (12h-14h disponible)
+                        Inclure une pause déjeuner (12h-14h où je suis disponible)
                     </span>
                 </label>
 
