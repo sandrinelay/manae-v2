@@ -94,6 +94,12 @@ export default function SignupPage() {
         return
       }
 
+      // Si identities est vide, le compte existe déjà (Supabase ne retourne pas d'erreur avec confirm email)
+      if (authData.user.identities?.length === 0) {
+        setError('Cet email est déjà utilisé. Connecte-toi ou utilise un autre email.')
+        return
+      }
+
       // Le profil et la subscription sont créés automatiquement par le trigger Supabase
       // Stocker le statut founder pour l'afficher dans l'onboarding
       if (isFounder) {
