@@ -462,3 +462,93 @@ Each item type follows this pattern:
 - [ ] `'use client'` sur composants interactifs
 - [ ] Types partagés dans `/types/`
 - [ ] Constantes dans `/constants/` ou `/config/`
+
+
+# SaaS
+
+This is a SaaS application built with Next.js, using a multi-agent development pipeline. The orchestrator coordinates brainstorming, planning, development, review, and testing phases. Each agent follows domain-specific conventions defined in linked skills.
+
+## Principles
+
+- Ship fast, iterate often — prefer working software over perfect plans
+- User-first design — every feature must solve a real user problem
+- Type safety everywhere — leverage TypeScript strict mode
+- Convention over configuration — follow established patterns
+- Security by default — auth and validation on every boundary
+
+## Conventions
+
+- Use Server Components by default, Client Components only when needed
+- Server Actions for all mutations
+- Zod validation at API boundaries
+- Mobile-first responsive design
+- Semantic HTML with ARIA attributes for accessibility
+
+## Commands
+
+```bash
+npm run dev          # Start development server
+npm run build        # Build for production
+npm run lint         # Run linter
+npm test             # Run tests
+```
+
+<!-- loomcraft:agents:start -->
+## Agents
+
+This project uses 13 agents (including the orchestrator) in `.claude/agents/`. The orchestrator (`.claude/agents/orchestrator/AGENT.md`) coordinates the development pipeline.
+
+| Agent | Role | Description |
+|-------|------|-------------|
+| `brainstormer` | Brainstormer | Explores requirements through Socratic questioning, surfaces assumptions, and produces structured briefs |
+| `planner` | Planner | Decomposes briefs into atomic tasks with dependencies, assigns agents, and organizes execution waves |
+| `frontend` | Frontend | Handles React/Next.js components, pages, layouts, and client-side logic |
+| `backend` | Backend | Handles API routes, server actions, database queries, and authentication |
+| `database` | Database | Designs schemas, writes migrations, and optimizes queries |
+| `ux-ui` | UX/UI | Designs UI components, creates design system tokens, and handles accessibility |
+| `marketing` | Marketing | Writes marketing copy, landing pages, email templates, and SEO content |
+| `security` | Security | Audits code for vulnerabilities, hardens configurations, and enforces security best practices |
+| `performance` | Performance | Audits and optimizes application performance, bundle size, and runtime efficiency |
+| `tests` | Tests | Writes unit tests, integration tests, and end-to-end tests |
+| `review-qa` | Review & QA | Reviews code quality, security, and performance. Suggests improvements. |
+| `devops` | DevOps | Manages CI/CD pipelines, deployment configuration, monitoring, and infrastructure |
+
+<!-- loomcraft:agents:end -->
+
+<!-- loomcraft:skills:start -->
+## Skills
+
+Installed skills providing domain-specific conventions and patterns:
+
+- `brainstorming`
+- `task-planning`
+- `code-review`
+- `project-bootstrap`
+- `auth-rbac`
+- `better-auth-patterns`
+- `stripe-integration`
+- `i18n-patterns`
+- `layered-architecture`
+- `drizzle-patterns`
+- `server-actions-patterns`
+- `form-validation`
+- `react-query-patterns`
+- `table-pagination`
+- `testing-patterns`
+- `resend-email`
+- `env-validation`
+- `nextjs-conventions`
+- `tailwind-patterns`
+- `shadcn-ui`
+- `api-design`
+- `ui-ux-guidelines`
+- `seo-optimization`
+- `hero-copywriting`
+
+<!-- loomcraft:skills:end -->
+
+## How to use
+
+For any task, invoke the **orchestrator** agent. It runs a pipeline (brainstorm → plan → dev → review → test) and delegates to the appropriate specialized agents. Each agent has access to its assigned skills for domain-specific guidance.
+
+All agents are in `.claude/agents/` and skills in `.claude/skills/`.

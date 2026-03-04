@@ -1,9 +1,12 @@
 const GOOGLE_CLIENT_ID = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID;
 
-// Scopes pour lire ET écrire dans le calendrier
+// Scopes Google Calendar utilisés :
+// - calendar.events : lecture + création/modification/suppression des événements
+// - calendar.calendarlist.readonly : lecture de la liste des calendriers de l'utilisateur
+//   (nécessaire pour CalendarSelectorModal et la vue agenda)
 const SCOPES = [
-    'https://www.googleapis.com/auth/calendar',
-    'https://www.googleapis.com/auth/calendar.events'
+    'https://www.googleapis.com/auth/calendar.events',
+    'https://www.googleapis.com/auth/calendar.calendarlist.readonly',
 ].join(' ');
 
 /**
@@ -16,6 +19,10 @@ export const openGoogleAuthPopup = (): Promise<string> => {
         const left = window.screen.width / 2 - width / 2;
         const top = window.screen.height / 2 - height / 2;
 
+        // Générer un state aléatoire pour protection CSRF
+        const state = crypto.randomUUID();
+        document.cookie = `google_oauth_state=${state}; path=/; max-age=600; samesite=lax`;
+
         // URL d'autorisation Google
         const authUrl = new URL('https://accounts.google.com/o/oauth2/v2/auth');
         authUrl.searchParams.append('client_id', GOOGLE_CLIENT_ID || '');
@@ -24,6 +31,7 @@ export const openGoogleAuthPopup = (): Promise<string> => {
         authUrl.searchParams.append('scope', SCOPES);
         authUrl.searchParams.append('access_type', 'offline');
         authUrl.searchParams.append('prompt', 'consent');
+        authUrl.searchParams.append('state', state);
 
         // Ouvrir la popup
         const popup = window.open(
@@ -43,6 +51,14 @@ export const openGoogleAuthPopup = (): Promise<string> => {
             if (event.origin !== window.location.origin) return;
 
             if (event.data.type === 'GOOGLE_AUTH_SUCCESS') {
+                // Vérifier le state pour protection CSRF
+                const storedState = document.cookie.match(/google_oauth_state=([^;]+)/)?.[1];
+                document.cookie = 'google_oauth_state=; path=/; max-age=0';
+                if (!storedState || event.data.state !== storedState) {
+                    window.removeEventListener('message', handleMessage);
+                    reject(new Error('Requête invalide (state mismatch)'));
+                    return;
+                }
                 window.removeEventListener('message', handleMessage);
                 resolve(event.data.code);
             } else if (event.data.type === 'GOOGLE_AUTH_ERROR') {

@@ -1,0 +1,5 @@
+{
+  "target": "claude-code",
+  "targetDir": ".claude",
+  "contextFile": "CLAUDE.md"
+}
