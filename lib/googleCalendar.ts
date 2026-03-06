@@ -9,10 +9,35 @@ const SCOPES = [
     'https://www.googleapis.com/auth/calendar.calendarlist.readonly',
 ].join(' ');
 
+// Génère un code_verifier aléatoire URL-safe (PKCE)
+const generateCodeVerifier = (): string => {
+    const array = new Uint8Array(32);
+    crypto.getRandomValues(array);
+    return btoa(String.fromCharCode(...array))
+        .replace(/\+/g, '-')
+        .replace(/\//g, '_')
+        .replace(/=/g, '');
+};
+
+// Génère le code_challenge = BASE64URL(SHA256(code_verifier)) (PKCE)
+const generateCodeChallenge = async (verifier: string): Promise<string> => {
+    const data = new TextEncoder().encode(verifier);
+    const digest = await crypto.subtle.digest('SHA-256', data);
+    return btoa(String.fromCharCode(...new Uint8Array(digest)))
+        .replace(/\+/g, '-')
+        .replace(/\//g, '_')
+        .replace(/=/g, '');
+};
+
 /**
  * Ouvrir la popup d'autorisation Google
  */
-export const openGoogleAuthPopup = (): Promise<string> => {
+export const openGoogleAuthPopup = async (): Promise<string> => {
+    // PKCE : générer verifier + challenge avant d'ouvrir la popup
+    const codeVerifier = generateCodeVerifier();
+    const codeChallenge = await generateCodeChallenge(codeVerifier);
+    document.cookie = `google_pkce_verifier=${codeVerifier}; path=/; max-age=600; samesite=lax`;
+
     return new Promise((resolve, reject) => {
         const width = 500;
         const height = 600;
@@ -32,6 +57,8 @@ export const openGoogleAuthPopup = (): Promise<string> => {
         authUrl.searchParams.append('access_type', 'offline');
         authUrl.searchParams.append('prompt', 'consent');
         authUrl.searchParams.append('state', state);
+        authUrl.searchParams.append('code_challenge', codeChallenge);
+        authUrl.searchParams.append('code_challenge_method', 'S256');
 
         // Ouvrir la popup
         const popup = window.open(
@@ -87,12 +114,17 @@ export const openGoogleAuthPopup = (): Promise<string> => {
 export const exchangeCodeForToken = async (code: string) => {
     const redirectUri = `${window.location.origin}/auth/google/callback`;
 
+    // Récupérer et supprimer le code_verifier PKCE
+    const codeVerifier = document.cookie.match(/google_pkce_verifier=([^;]+)/)?.[1] ?? '';
+    document.cookie = 'google_pkce_verifier=; path=/; max-age=0';
+
     const response = await fetch('/api/auth/google', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
             code,
-            redirect_uri: redirectUri
+            redirect_uri: redirectUri,
+            code_verifier: codeVerifier
         })
     });
 
