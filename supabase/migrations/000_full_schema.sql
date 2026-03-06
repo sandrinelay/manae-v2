@@ -320,7 +320,11 @@ BEGIN
     NEW.raw_user_meta_data->>'first_name',
     NEW.raw_user_meta_data->>'last_name',
     true
-  );
+  )
+  ON CONFLICT (id) DO UPDATE SET
+    first_name = EXCLUDED.first_name,
+    last_name = EXCLUDED.last_name,
+    password_set = true;
 
   INSERT INTO public.user_subscriptions (user_id, plan_id, ai_quota_weekly, week_reset_date)
   VALUES (
@@ -328,7 +332,8 @@ BEGIN
     'essential',
     10,
     DATE_TRUNC('week', NOW() + INTERVAL '7 days')::DATE
-  );
+  )
+  ON CONFLICT (user_id) DO NOTHING;
 
   RETURN NEW;
 END;

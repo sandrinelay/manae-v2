@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 
 export async function POST(request: NextRequest) {
     try {
-        const { code, redirect_uri } = await request.json()
+        const { code, redirect_uri, code_verifier } = await request.json()
 
         if (!code) {
             return NextResponse.json(
@@ -32,7 +32,8 @@ export async function POST(request: NextRequest) {
                 client_id: clientId,
                 client_secret: clientSecret,
                 redirect_uri,
-                grant_type: 'authorization_code'
+                grant_type: 'authorization_code',
+                code_verifier
             })
         })
 

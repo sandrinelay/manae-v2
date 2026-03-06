@@ -3,6 +3,7 @@ import { Nunito, Quicksand } from "next/font/google";
 import "../styles/globals.css";
 import { ServiceWorkerRegistration } from "@/components/pwa/ServiceWorkerRegistration";
 import { AppProviders } from "@/components/providers/AppProviders";
+import { VoiceButtonGlobal } from "@/features/voice/components/VoiceButtonGlobal";
 
 const nunito = Nunito({
   variable: "--font-nunito",
@@ -70,6 +71,7 @@ export default function RootLayout({
           <div className="app-container">
             {children}
           </div>
+          <VoiceButtonGlobal />
         </AppProviders>
       </body>
     </html>

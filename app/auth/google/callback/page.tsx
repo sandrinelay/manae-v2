@@ -18,13 +18,15 @@ function GoogleCallbackContent() {
 
     const code = searchParams.get('code')
     const error = searchParams.get('error')
+    const state = searchParams.get('state')
 
     const handleCallback = async () => {
       if (code) {
         // Cas 1: On est dans une popup avec window.opener
+        // La vérification du state est faite côté parent
         if (window.opener) {
           window.opener.postMessage(
-            { type: 'GOOGLE_AUTH_SUCCESS', code },
+            { type: 'GOOGLE_AUTH_SUCCESS', code, state },
             window.location.origin
           )
           window.close()
@@ -32,7 +34,15 @@ function GoogleCallbackContent() {
         }
 
         // Cas 2: On est dans la fenêtre principale (pas de popup)
-        // Traiter le code directement ici
+        // Vérifier le state contre le cookie
+        const storedState = document.cookie.match(/google_oauth_state=([^;]+)/)?.[1]
+        document.cookie = 'google_oauth_state=; path=/; max-age=0'
+        if (!storedState || state !== storedState) {
+          setStatus('error')
+          setErrorMessage('Requête invalide')
+          return
+        }
+
         try {
           const tokens = await exchangeCodeForToken(code)
           const tokensWithExpiry = {

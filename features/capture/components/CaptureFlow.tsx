@@ -14,6 +14,7 @@ import { useAIQuota } from '@/contexts/AIQuotaContext'
 import { SpinnerIcon, SendIcon } from '@/components/ui/icons'
 // import { ActionButton } from '@/components/ui/ActionButton' // Commenté pour la beta
 import { PullToRefresh } from '@/components/ui/PullToRefresh'
+import { VoiceButton } from '@/features/voice/components/VoiceButton'
 
 // Conversion des moods UI vers les moods DB
 function convertMoodToItemMood(mood: Mood | null): ItemMood | undefined {
@@ -52,6 +53,7 @@ export function CaptureFlow({ userId, onSuccess }: CaptureFlowProps) {
   const [multiItems, setMultiItems] = useState<MultiThoughtItem[] | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [resumedPlanning, setResumedPlanning] = useState(false)
+
 
   // Restaurer le contexte de planification après connexion Google Calendar
   useEffect(() => {
@@ -116,8 +118,21 @@ export function CaptureFlow({ userId, onSuccess }: CaptureFlowProps) {
     textareaRef.current?.focus()
   }, [])
 
-  const handleCapture = async () => {
-    if (!content.trim()) {
+  // Récupérer un transcript vocal venant du bouton flottant (autres pages)
+  useEffect(() => {
+    const pendingTranscript = localStorage.getItem('manae_voice_transcript')
+    if (pendingTranscript) {
+      localStorage.removeItem('manae_voice_transcript')
+      setContent(pendingTranscript)
+      handleCapture(pendingTranscript)
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  const handleCapture = async (overrideContent?: string) => {
+    const textToCapture = overrideContent ?? content
+
+    if (!textToCapture.trim()) {
       setError('Veuillez saisir une pensée')
       return
     }
@@ -126,7 +141,7 @@ export function CaptureFlow({ userId, onSuccess }: CaptureFlowProps) {
     setError(null)
 
     try {
-      const result = await captureThought(userId, content)
+      const result = await captureThought(userId, textToCapture)
 
       if (!result.success) {
         setError(result.error || 'Erreur lors de la capture')
@@ -276,27 +291,16 @@ export function CaptureFlow({ userId, onSuccess }: CaptureFlowProps) {
             disabled={isCapturing}
           />
 
-          {/* Bottom row: icons (commentés pour l'instant) */}
-          {/*
-          <div className="flex items-center justify-between mt-3">
-            <div className="flex gap-3">
-              <button
-                disabled
-                className="w-9 h-9 flex items-center justify-center rounded-full bg-gray-light text-text-muted"
-                title="Dictée vocale (bientôt)"
-              >
-                <MicrophoneIcon />
-              </button>
-              <button
-                disabled
-                className="w-9 h-9 flex items-center justify-center rounded-full bg-gray-light text-text-muted"
-                title="Photo (bientôt)"
-              >
-                <CameraIcon />
-              </button>
-            </div>
+          {/* Bouton micro inline dans la card */}
+          <div className="flex justify-end mt-3">
+            <VoiceButton
+              variant="inline"
+              onTranscript={(text) => {
+                setContent(text)
+                handleCapture(text)
+              }}
+            />
           </div>
-          */}
         </div>
 
         {/* Mood Selector */}
@@ -378,7 +382,7 @@ export function CaptureFlow({ userId, onSuccess }: CaptureFlowProps) {
 
         {/* Bouton CTA */}
         <button
-          onClick={handleCapture}
+          onClick={() => handleCapture()}
           disabled={!content.trim() || isCapturing}
           className="w-full py-4 bg-primary text-white text-base font-semibold rounded-2xl hover:opacity-90 active:scale-[0.98] transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-lg flex items-center justify-center gap-3"
         >
