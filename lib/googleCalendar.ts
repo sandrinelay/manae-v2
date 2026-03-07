@@ -82,7 +82,9 @@ export const openGoogleAuthPopup = async (): Promise<string> => {
         );
 
         if (!popup) {
-            reject(new Error('Popup bloquée par le navigateur'));
+            // Popup bloquée (PWA ou navigateur restrictif) → redirect pleine page
+            // La page de callback gère l'échange de token et redirige vers /capture
+            window.location.href = authUrl.toString();
             return;
         }
 
