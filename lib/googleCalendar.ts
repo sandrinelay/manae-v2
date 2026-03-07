@@ -29,36 +29,50 @@ const generateCodeChallenge = async (verifier: string): Promise<string> => {
         .replace(/=/g, '');
 };
 
+// Détecte si l'app tourne en mode PWA standalone (popups bloquées)
+const isPWA = (): boolean =>
+    window.matchMedia('(display-mode: standalone)').matches ||
+    (window.navigator as Navigator & { standalone?: boolean }).standalone === true;
+
 /**
- * Ouvrir la popup d'autorisation Google
+ * Ouvrir l'autorisation Google.
+ * - Mode web : popup
+ * - Mode PWA : redirect pleine page (popups bloquées en mode standalone)
  */
 export const openGoogleAuthPopup = async (): Promise<string> => {
-    // PKCE : générer verifier + challenge avant d'ouvrir la popup
+    // PKCE : générer verifier + challenge
     const codeVerifier = generateCodeVerifier();
     const codeChallenge = await generateCodeChallenge(codeVerifier);
     document.cookie = `google_pkce_verifier=${codeVerifier}; path=/; max-age=600; samesite=lax`;
+
+    // CSRF state
+    const state = crypto.randomUUID();
+    document.cookie = `google_oauth_state=${state}; path=/; max-age=600; samesite=lax`;
+
+    // URL d'autorisation Google
+    const authUrl = new URL('https://accounts.google.com/o/oauth2/v2/auth');
+    authUrl.searchParams.append('client_id', GOOGLE_CLIENT_ID || '');
+    authUrl.searchParams.append('redirect_uri', `${window.location.origin}/auth/google/callback`);
+    authUrl.searchParams.append('response_type', 'code');
+    authUrl.searchParams.append('scope', SCOPES);
+    authUrl.searchParams.append('access_type', 'offline');
+    authUrl.searchParams.append('prompt', 'consent');
+    authUrl.searchParams.append('state', state);
+    authUrl.searchParams.append('code_challenge', codeChallenge);
+    authUrl.searchParams.append('code_challenge_method', 'S256');
+
+    // En PWA, les popups sont bloquées → redirect pleine page
+    // La page de callback gère l'échange de token et redirige vers /capture
+    if (isPWA()) {
+        window.location.href = authUrl.toString();
+        return new Promise(() => { /* la page se redirige, la promise ne résout jamais */ });
+    }
 
     return new Promise((resolve, reject) => {
         const width = 500;
         const height = 600;
         const left = window.screen.width / 2 - width / 2;
         const top = window.screen.height / 2 - height / 2;
-
-        // Générer un state aléatoire pour protection CSRF
-        const state = crypto.randomUUID();
-        document.cookie = `google_oauth_state=${state}; path=/; max-age=600; samesite=lax`;
-
-        // URL d'autorisation Google
-        const authUrl = new URL('https://accounts.google.com/o/oauth2/v2/auth');
-        authUrl.searchParams.append('client_id', GOOGLE_CLIENT_ID || '');
-        authUrl.searchParams.append('redirect_uri', `${window.location.origin}/auth/google/callback`);
-        authUrl.searchParams.append('response_type', 'code');
-        authUrl.searchParams.append('scope', SCOPES);
-        authUrl.searchParams.append('access_type', 'offline');
-        authUrl.searchParams.append('prompt', 'consent');
-        authUrl.searchParams.append('state', state);
-        authUrl.searchParams.append('code_challenge', codeChallenge);
-        authUrl.searchParams.append('code_challenge_method', 'S256');
 
         // Ouvrir la popup
         const popup = window.open(
