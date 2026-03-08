@@ -1,5 +1,6 @@
 'use client'
 
+import { useRef } from 'react'
 import { Mic, MicOff, X, Loader2 } from 'lucide-react'
 import { useVoiceCapture } from '../hooks/useVoiceCapture'
 
@@ -11,7 +12,47 @@ interface VoiceButtonProps {
 export function VoiceButton({ onTranscript, variant = 'floating' }: VoiceButtonProps) {
   const { state, transcript, recordingTime, error, startRecording, stopRecording, confirmTranscript, cancelRecording, clearError, setTranscript } = useVoiceCapture({ onTranscript })
 
+  const pressTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const isLongPressRef = useRef(false)
+
+  // Appui long (≥200ms) : démarre l'enregistrement tant que le doigt est maintenu
+  const handlePointerDown = () => {
+    if (state !== 'idle' && state !== 'error') return
+    isLongPressRef.current = false
+    pressTimerRef.current = setTimeout(() => {
+      isLongPressRef.current = true
+      startRecording()
+    }, 200)
+  }
+
+  // Relâchement : arrête si on était en mode appui long
+  const handlePointerUp = async () => {
+    if (pressTimerRef.current) {
+      clearTimeout(pressTimerRef.current)
+      pressTimerRef.current = null
+    }
+    if (isLongPressRef.current && state === 'recording') {
+      await stopRecording()
+      // Conserver le flag jusqu'après l'événement click (déclenché après pointerup)
+      setTimeout(() => { isLongPressRef.current = false }, 50)
+    }
+  }
+
+  // Doigt qui glisse hors du bouton : arrête aussi l'enregistrement
+  const handlePointerLeave = async () => {
+    if (pressTimerRef.current) {
+      clearTimeout(pressTimerRef.current)
+      pressTimerRef.current = null
+    }
+    if (isLongPressRef.current && state === 'recording') {
+      isLongPressRef.current = false
+      await stopRecording()
+    }
+  }
+
+  // Clic court : toggle classique — clic pour démarrer, clic pour arrêter
   const handleClick = async () => {
+    if (isLongPressRef.current) return // long press déjà traité, on ignore le click synthétique
     if (state === 'idle' || state === 'error') {
       await startRecording()
     } else if (state === 'recording') {
@@ -34,6 +75,9 @@ export function VoiceButton({ onTranscript, variant = 'floating' }: VoiceButtonP
       {/* Bouton principal */}
       <button
         onClick={handleClick}
+        onPointerDown={handlePointerDown}
+        onPointerUp={handlePointerUp}
+        onPointerLeave={handlePointerLeave}
         disabled={state === 'processing'}
         aria-label={
           state === 'idle' ? 'Démarrer la capture vocale'

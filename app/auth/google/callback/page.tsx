@@ -56,8 +56,10 @@ function GoogleCallbackContent() {
 
           setStatus('success')
           // Rediriger vers capture après un court délai
+          // Si un contexte de planification est en attente, le restaurer
           setTimeout(() => {
-            window.location.href = '/capture'
+            const hasPendingPlanning = localStorage.getItem('manae_pending_planning')
+            window.location.href = hasPendingPlanning ? '/capture?resumePlanning=true' : '/capture'
           }, 1000)
         } catch (err) {
           console.error('Error exchanging code:', err)
