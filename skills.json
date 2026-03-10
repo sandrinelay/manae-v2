@@ -1,16 +1,7 @@
 {
-  "target": "claude-code",
-  "targetDir": ".claude",
-  "contextFile": "CLAUDE.md",
-  "agents": [
-    "loomcrafthq/agents/database",
-    "loomcrafthq/agents/backend",
-    "loomcrafthq/agents/frontend",
-    "loomcrafthq/agents/ux-ui",
-    "loomcrafthq/agents/tester",
-    "loomcrafthq/agents/review-qa",
-    "loomcrafthq/agents/security"
-  ],
+  "name": "loomcraft-saas",
+  "version": "1.0.0",
+  "description": "Full-stack SaaS web application with auth, billing, and complete TDD pipeline.",
   "skills": [
     "obra/superpowers/brainstorming",
     "obra/superpowers/writing-plans",
@@ -30,6 +21,5 @@
     "better-auth/skills/better-auth-best-practices",
     "wshobson/agents/tailwind-design-system",
     "anthropics/skills/webapp-testing"
-  ],
-  "preset": "loomcrafthq/presets/saas"
+  ]
 }

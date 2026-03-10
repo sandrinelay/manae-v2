@@ -1,0 +1,95 @@
+{
+  "version": 1,
+  "skills": {
+    "better-auth-best-practices": {
+      "source": "better-auth/skills",
+      "sourceType": "github",
+      "computedHash": "a4c830509e85557b59339d8d93a4e243e9e59c686e7678854d39230e12c2a6dc"
+    },
+    "brainstorming": {
+      "source": "obra/superpowers",
+      "sourceType": "github",
+      "computedHash": "8e99026256fdd857520640b72e0181221ae02bcba16bdb9d644191c1b1b3b9e4"
+    },
+    "conventional-commit": {
+      "source": "github/awesome-copilot",
+      "sourceType": "github",
+      "computedHash": "f29c9486cede6c7b2df0cfb0a2e4aa67446552b991bcf17d1b309e903171f03d"
+    },
+    "executing-plans": {
+      "source": "obra/superpowers",
+      "sourceType": "github",
+      "computedHash": "2f709d1a2c7564f8ce6a9bb707e7f5451117ba80f8e8e2302662c29bc61246a6"
+    },
+    "frontend-design": {
+      "source": "anthropics/skills",
+      "sourceType": "github",
+      "computedHash": "063a0e6448123cd359ad0044cc46b0e490cc7964d45ef4bb9fd842bd2ffbca67"
+    },
+    "next-best-practices": {
+      "source": "vercel-labs/next-skills",
+      "sourceType": "github",
+      "computedHash": "515ba75178bd44875812d9a560bdf14651f86709f89cf1d4f209638e879807f3"
+    },
+    "receiving-code-review": {
+      "source": "obra/superpowers",
+      "sourceType": "github",
+      "computedHash": "2760c85d4f4117b0006e7ba755f4bbd61f8f4c185f347999763c97f507274e30"
+    },
+    "requesting-code-review": {
+      "source": "obra/superpowers",
+      "sourceType": "github",
+      "computedHash": "132fe05b4fe9c16dfe93920b0840b0c9e90c7422ecdbfcd40df42a914e3a9f76"
+    },
+    "security-audit": {
+      "source": "loomcrafthq/skills",
+      "sourceType": "github",
+      "computedHash": "719b1310506fc51ba8f7bea24383a6eeaff9f34780d2b06cd4b84410a8a6e0da"
+    },
+    "systematic-debugging": {
+      "source": "obra/superpowers",
+      "sourceType": "github",
+      "computedHash": "72e9ab72627e4fd8ed26a582e82309a98ecdc4f6e1c99418430ac05682c9e91d"
+    },
+    "tailwind-design-system": {
+      "source": "wshobson/agents",
+      "sourceType": "github",
+      "computedHash": "7ff2f4650597e98ca4cd8f01231fb432ab4d187d6b12e641485aa871a04448cc"
+    },
+    "test-driven-development": {
+      "source": "obra/superpowers",
+      "sourceType": "github",
+      "computedHash": "126f1ebf6ccd414f42544f6e83d8cc5adb089e1108eaffb7c400701e37eecd9f"
+    },
+    "testing-patterns": {
+      "source": "loomcrafthq/skills",
+      "sourceType": "github",
+      "computedHash": "3ad0333cef718c3b0bb185479a6b40ea13d9d6948250419e0fbfe664a761614e"
+    },
+    "ticket-craft": {
+      "source": "loomcrafthq/skills",
+      "sourceType": "github",
+      "computedHash": "da4803119bdfcb87f5e8fcf2f8ba9f2c0ada0fd4b25889556dd1d7c659ee3b7a"
+    },
+    "vercel-react-best-practices": {
+      "source": "vercel-labs/agent-skills",
+      "sourceType": "github",
+      "computedHash": "3462ec83f862abb2d532953df33a4dbf87f4616849da5d4b5cc7c13601aaf997"
+    },
+    "web-design-guidelines": {
+      "source": "vercel-labs/agent-skills",
+      "sourceType": "github",
+      "computedHash": "a6a44d5498f7e8f68289902f3dedfc6f38ae0cee1e96527c80724cf27f727c2a"
+    },
+    "webapp-testing": {
+      "source": "anthropics/skills",
+      "sourceType": "github",
+      "computedHash": "cf8e5916d474886bd67b09691247f43f331523008b7d366064bc607ab42d6302"
+    },
+    "writing-plans": {
+      "source": "obra/superpowers",
+      "sourceType": "github",
+      "computedHash": "0a4f401596106cfa62c8fd821326c23ef6969a99792dc64691163ec2737f3ec7"
+    }
+  }
+}
