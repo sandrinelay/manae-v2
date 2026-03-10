@@ -493,62 +493,83 @@ npm run lint         # Run linter
 npm test             # Run tests
 ```
 
+<!-- loomcraft:workflow:start -->
+## Workflow
+
+Preset: **SaaS** — Full-stack SaaS web application with auth, billing, and complete TDD pipeline.
+
+### Pipeline
+
+When implementing a feature, delegate to agents in this order:
+
+1. **database** — if migrations needed
+2. **tester** (tdd) [scope: database + backend]
+3. **backend**
+4. **ux-ui** — if UI needed
+5. **frontend**
+6. **tester** (test-after) [scope: frontend]
+
+### Verification
+
+After implementation, always run:
+
+1. **review-qa**
+2. **tester**
+3. **security**
+
+### Conventions
+
+- Commits: conventional commits (`feat`, `fix`, `chore`, etc.)
+- Branches: `feat/<ticket-id>-<description>`
+
+<!-- loomcraft:workflow:end -->
+
 <!-- loomcraft:agents:start -->
 ## Agents
 
-This project uses 13 agents (including the orchestrator) in `.claude/agents/`. The orchestrator (`.claude/agents/orchestrator/AGENT.md`) coordinates the development pipeline.
+This project uses 7 agents in `.claude/agents/`.
 
-| Agent | Role | Description |
-|-------|------|-------------|
-| `brainstormer` | Brainstormer | Explores requirements through Socratic questioning, surfaces assumptions, and produces structured briefs |
-| `planner` | Planner | Decomposes briefs into atomic tasks with dependencies, assigns agents, and organizes execution waves |
-| `frontend` | Frontend | Handles React/Next.js components, pages, layouts, and client-side logic |
-| `backend` | Backend | Handles API routes, server actions, database queries, and authentication |
-| `database` | Database | Designs schemas, writes migrations, and optimizes queries |
-| `ux-ui` | UX/UI | Designs UI components, creates design system tokens, and handles accessibility |
-| `marketing` | Marketing | Writes marketing copy, landing pages, email templates, and SEO content |
-| `security` | Security | Audits code for vulnerabilities, hardens configurations, and enforces security best practices |
-| `performance` | Performance | Audits and optimizes application performance, bundle size, and runtime efficiency |
-| `tests` | Tests | Writes unit tests, integration tests, and end-to-end tests |
-| `review-qa` | Review & QA | Reviews code quality, security, and performance. Suggests improvements. |
-| `devops` | DevOps | Manages CI/CD pipelines, deployment configuration, monitoring, and infrastructure |
+| Agent | Description |
+|-------|-------------|
+| `database` | Use for schema design, migrations, query optimization, seed data, and data integrity enforcement. |
+| `backend` | Use for any server-side task: API endpoints, business logic, authentication, authorization, middleware, and backend architecture. |
+| `frontend` | Use for UI components, pages, layouts, client-side state, accessibility (WCAG 2.1 AA), and performance optimization. |
+| `ux-ui` | Use for design systems, component styling, interaction patterns, usability heuristics, and responsive design. |
+| `tester` | Use for writing and running unit, integration, and end-to-end tests following the testing pyramid. |
+| `review-qa` | Use for code review and quality analysis. Read-only — reports findings with severity and actionable recommendations. |
+| `security` | Use for security audits, vulnerability detection (OWASP Top 10), and secure coding pattern enforcement. |
 
 <!-- loomcraft:agents:end -->
 
 <!-- loomcraft:skills:start -->
 ## Skills
 
-Installed skills providing domain-specific conventions and patterns:
+Installed via `skills.json` (skills.sh).
 
 - `brainstorming`
-- `task-planning`
-- `code-review`
-- `project-bootstrap`
-- `auth-rbac`
-- `better-auth-patterns`
-- `stripe-integration`
-- `i18n-patterns`
-- `layered-architecture`
-- `drizzle-patterns`
-- `server-actions-patterns`
-- `form-validation`
-- `react-query-patterns`
-- `table-pagination`
+- `writing-plans`
+- `executing-plans`
+- `systematic-debugging`
+- `requesting-code-review`
+- `receiving-code-review`
+- `conventional-commit`
+- `ticket-craft`
 - `testing-patterns`
-- `resend-email`
-- `env-validation`
-- `nextjs-conventions`
-- `tailwind-patterns`
-- `shadcn-ui`
-- `api-design`
-- `ui-ux-guidelines`
-- `seo-optimization`
-- `hero-copywriting`
+- `security-audit`
+- `test-driven-development`
+- `frontend-design`
+- `web-design-guidelines`
+- `vercel-react-best-practices`
+- `next-best-practices`
+- `better-auth-best-practices`
+- `tailwind-design-system`
+- `webapp-testing`
 
 <!-- loomcraft:skills:end -->
 
-## How to use
+<!-- loomcraft:custom:start -->
+## Custom Rules
 
-For any task, invoke the **orchestrator** agent. It runs a pipeline (brainstorm → plan → dev → review → test) and delegates to the appropriate specialized agents. Each agent has access to its assigned skills for domain-specific guidance.
+<!-- Add your project-specific rules here. This section is never overwritten by loomcraft sync. -->
 
-All agents are in `.claude/agents/` and skills in `.claude/skills/`.
+<!-- loomcraft:custom:end -->

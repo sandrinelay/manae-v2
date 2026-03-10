@@ -49,7 +49,7 @@ export function AddToHomeScreenBanner() {
   if (!isVisible) return null
 
   return (
-    <div className="fixed bottom-20 inset-x-4 z-50 animate-slide-up">
+    <div className="fixed bottom-40 inset-x-4 z-50 animate-slide-up">
       <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-4">
         <button
           onClick={handleDismiss}
