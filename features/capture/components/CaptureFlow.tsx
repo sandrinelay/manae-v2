@@ -14,7 +14,9 @@ import { useAIQuota } from '@/contexts/AIQuotaContext'
 import { SpinnerIcon, SendIcon } from '@/components/ui/icons'
 // import { ActionButton } from '@/components/ui/ActionButton' // Commenté pour la beta
 import { PullToRefresh } from '@/components/ui/PullToRefresh'
-import { VoiceButton } from '@/features/voice/components/VoiceButton'
+import { useVoiceCapture } from '@/features/voice/hooks/useVoiceCapture'
+import { RecordButton } from '@/features/voice/components/RecordButton'
+import { RecordingFeedback } from '@/features/voice/components/RecordingFeedback'
 
 // Conversion des moods UI vers les moods DB
 function convertMoodToItemMood(mood: Mood | null): ItemMood | undefined {
@@ -47,6 +49,11 @@ export function CaptureFlow({ userId, onSuccess }: CaptureFlowProps) {
   // }
 
   const [content, setContent] = useState('')
+
+  const { state: voiceState, recordingTime, startRecording, stopRecording, cancelRecording } = useVoiceCapture({
+    onTranscript: (text) => setContent(text),
+  })
+
   const [selectedMood, setSelectedMood] = useState<Mood | null>(null)
   const [isCapturing, setIsCapturing] = useState(false)
   const [captureResult, setCaptureResult] = useState<CaptureResult | null>(null)
@@ -57,6 +64,15 @@ export function CaptureFlow({ userId, onSuccess }: CaptureFlowProps) {
 
   // Restaurer le contexte de planification après connexion Google Calendar
   useEffect(() => {
+    // Transcript vocal passé depuis VoiceButtonGlobal ("Modifier dans Capture")
+    const voiceParam = searchParams.get('voice')
+    if (voiceParam) {
+      setContent(decodeURIComponent(voiceParam))
+      const url = new URL(window.location.href)
+      url.searchParams.delete('voice')
+      window.history.replaceState({}, '', url.pathname)
+    }
+
     const resumePlanning = searchParams.get('resumePlanning')
 
     if (resumePlanning === 'true' && !resumedPlanning) {
@@ -116,17 +132,6 @@ export function CaptureFlow({ userId, onSuccess }: CaptureFlowProps) {
 
   useEffect(() => {
     textareaRef.current?.focus()
-  }, [])
-
-  // Récupérer un transcript vocal venant du bouton flottant (autres pages)
-  useEffect(() => {
-    const pendingTranscript = localStorage.getItem('manae_voice_transcript')
-    if (pendingTranscript) {
-      localStorage.removeItem('manae_voice_transcript')
-      setContent(pendingTranscript)
-      handleCapture(pendingTranscript)
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   const handleCapture = async (overrideContent?: string) => {
@@ -271,7 +276,10 @@ export function CaptureFlow({ userId, onSuccess }: CaptureFlowProps) {
       <PullToRefresh onRefresh={handlePullRefresh} className="flex-1 pb-32 px-4 pt-4">
 
         {/* Card principale */}
-        <div className="bg-white rounded-3xl p-5 shadow-sm mb-6">
+        <div className={[
+          'rounded-3xl p-5 shadow-sm mb-6 transition-colors duration-200',
+          voiceState === 'recording' ? 'bg-black/5' : 'bg-white',
+        ].join(' ')}>
           {/* Titre */}
           <h1 className="text-xl font-bold text-text-dark mb-1">
             Qu&apos;as-tu en tête ?
@@ -292,13 +300,19 @@ export function CaptureFlow({ userId, onSuccess }: CaptureFlowProps) {
           />
 
           {/* Bouton micro inline dans la card */}
-          <div className="flex justify-end mt-3">
-            <VoiceButton
-              variant="inline"
-              onTranscript={(text) => {
-                setContent(text)
-                handleCapture(text)
-              }}
+          <div className="flex items-center justify-end gap-3 mt-3">
+            {voiceState === 'recording' && (
+              <RecordingFeedback
+                recordingTime={recordingTime}
+                onCancel={cancelRecording}
+              />
+            )}
+            <RecordButton
+              state={voiceState}
+              onStart={startRecording}
+              onStop={stopRecording}
+              onCancel={cancelRecording}
+              size="sm"
             />
           </div>
         </div>
