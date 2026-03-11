@@ -2,7 +2,7 @@
 
 import { createClient } from '@/lib/supabase/client'
 import { checkAIQuota, trackAIUsage } from '@/services/quota'
-import type { ItemType, ItemState, AIAnalysis } from '@/types/items'
+import type { ItemType, ItemState, ItemContext, AIAnalysis } from '@/types/items'
 import { detectShoppingCategory } from '@/config/shopping-categories'
 
 // ============================================
@@ -14,7 +14,7 @@ export interface MultiThoughtItem {
   content: string
   type: ItemType
   state: ItemState
-  context?: 'personal' | 'family' | 'work' | 'health' | 'other'
+  context?: ItemContext
   ai_analysis: AIAnalysis
 }
 
@@ -24,7 +24,7 @@ export interface CaptureResult {
   multiple?: boolean
   items?: MultiThoughtItem[]
   suggestedType?: ItemType
-  suggestedContext?: 'personal' | 'family' | 'work' | 'health' | 'other'
+  suggestedContext?: ItemContext
   aiAnalysis?: AIAnalysis
   creditsRemaining?: number | null
   quotaExceeded?: boolean
@@ -38,7 +38,7 @@ export interface SaveItemInput {
   state?: ItemState
   aiAnalysis?: AIAnalysis
   mood?: 'energetic' | 'neutral' | 'overwhelmed' | 'tired'
-  context?: 'personal' | 'family' | 'work' | 'health' | 'other'
+  context?: ItemContext
   listId?: string // Pour list_item
   shoppingCategory?: string // Catégorie pour list_item
 }

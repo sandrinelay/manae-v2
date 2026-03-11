@@ -84,6 +84,8 @@ export const CONTEXT_LABELS = {
   family: 'Famille',
   work: 'Travail',
   health: 'Santé',
+  admin: 'Admin',
+  home: 'Maison',
   other: 'Autre'
 } as const
 
