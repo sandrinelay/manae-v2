@@ -113,6 +113,7 @@ export async function POST(request: NextRequest) {
       console.log('[analyze-v2] AI response items:', JSON.stringify(aiResponse.items?.map(i => ({
         content: i.content,
         type: i.type,
+        context: i.context,
         temporal_constraint: i.temporal_constraint
       })), null, 2))
     } catch {

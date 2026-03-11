@@ -24,7 +24,7 @@ interface MemoryValue {
 }
 
 // Seuil minimum d'occurrences pour injecter dans le prompt
-const MIN_COUNT_TO_INJECT = 2
+const MIN_COUNT_TO_INJECT = 1
 
 // ============================================
 // RECORD CORRECTION
@@ -141,17 +141,18 @@ export async function getMemoryContext(
     const significant = data
       .filter(row => (row.value as MemoryValue).count >= MIN_COUNT_TO_INJECT)
       .map(row => {
-        const { count } = row.value as MemoryValue
+        const { count, lastExample } = row.value as MemoryValue
         // key format: "context:personal→work" ou "type:task→note"
         const [dimension, transition] = row.key.split(':')
         const [from, to] = transition.split('→')
         const label = dimension === 'context' ? 'contexte' : 'type'
-        return `${label} '${from}' → '${to}' (${count}×)`
+        const example = lastExample ? ` (ex: "${lastExample}")` : ''
+        return `- Utiliser TOUJOURS ${label} '${to}' au lieu de '${from}'${example} — corrigé ${count}× par l'utilisateur`
       })
 
     if (significant.length === 0) return ''
 
-    return `Corrections fréquentes : ${significant.join(', ')}`
+    return significant.join('\n')
   } catch (err) {
     console.warn('[memory] getMemoryContext failed:', err)
     return ''

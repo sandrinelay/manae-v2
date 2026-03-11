@@ -125,6 +125,8 @@ const CONTEXT_SHORT_LABELS: Record<ItemContext, string> = {
   family: 'Famille',
   work: 'Travail',
   health: 'Santé',
+  admin: 'Admin',
+  home: 'Maison',
   other: 'Autre'
 }
 

@@ -205,9 +205,9 @@ export function buildAnalyzePrompt(context: AnalysisContext): string {
     ? `\n⚠️ SAISIE VOCALE : Ce texte a été dicté à voix haute. Tolère les fautes de syntaxe, phrases sans verbe, hésitations. Applique l'Étape 1 (Nettoyer) avec soin.\n`
     : ''
 
-  // Section mémoire : injectée uniquement si des corrections existent
+  // Section mémoire : injectée après les exemples pour prendre le dessus sur les règles par défaut
   const memorySection = memoryContext
-    ? `\n## Préférences apprises de cet utilisateur\n${memoryContext}\nTiens compte de ces préférences pour ajuster ta classification.\n`
+    ? `\n⚠️ CORRECTIONS UTILISATEUR (PRIORITAIRES — ignorent les règles par défaut ci-dessus) :\n${memoryContext}\n`
     : ''
 
   return `Analyse cette pensée et structure-la.
@@ -223,9 +223,9 @@ DATES DE RÉFÉRENCE :
 
 ⚠️ RÈGLE CRITIQUE : Si la pensée contient "fin du mois" ou "fin de mois", alors temporal_constraint.date = "${endOfMonthStr}"
 
-${historyContext ? `HISTORIQUE : ${historyContext}\n` : ''}${memorySection}${RULES}
+${historyContext ? `HISTORIQUE : ${historyContext}\n` : ''}${RULES}
 ${EXAMPLES}
-${JSON_FORMAT}`
+${memorySection}${JSON_FORMAT}`
 }
 
 // ============================================
