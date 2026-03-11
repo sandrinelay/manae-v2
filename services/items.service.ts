@@ -1,4 +1,5 @@
 import { createClient } from '@/lib/supabase/client'
+import type { SupabaseClient } from '@supabase/supabase-js'
 import type { Item, ItemType, ItemState, ItemContext } from '@/types/items'
 import { deleteCalendarEvent } from '@/features/schedule/services/calendar.service'
 
@@ -134,21 +135,82 @@ export async function completeItem(id: string): Promise<void> {
 
 // ============ UPDATE CONTENT ============
 
+// ============================================
+// DÉTECTION CORRECTION IA (helper interne)
+// ============================================
+
+const CORRECTION_WINDOW_MINUTES = 10
+
+/**
+ * Détecte si une mise à jour de type/contexte est une correction rapide de l'IA.
+ * Si oui, enregistre silencieusement dans user_ai_memory.
+ * Fire-and-forget : ne bloque jamais la mise à jour principale.
+ */
+async function detectAndRecordCorrection(
+  supabase: SupabaseClient,
+  itemId: string,
+  updates: { content: string; context?: ItemContext; type?: ItemType }
+): Promise<void> {
+  // Récupérer l'item original avec created_at et valeurs actuelles
+  const { data: original } = await supabase
+    .from('items')
+    .select('user_id, type, context, created_at')
+    .eq('id', itemId)
+    .single()
+
+  if (!original) return
+
+  // Vérifier que c'est dans la fenêtre de correction (10 min)
+  const createdAt = new Date(original.created_at).getTime()
+  const now = Date.now()
+  const ageMinutes = (now - createdAt) / 1000 / 60
+  if (ageMinutes > CORRECTION_WINDOW_MINUTES) return
+
+  // Vérifier qu'il y a effectivement un changement
+  const hasTypeChange = updates.type !== undefined && updates.type !== original.type
+  const hasContextChange = updates.context !== undefined && updates.context !== original.context
+  if (!hasTypeChange && !hasContextChange) return
+
+  const { recordCorrection } = await import('@/services/ai/memory.service')
+
+  await recordCorrection(supabase, original.user_id, itemId, {
+    oldType: original.type,
+    newType: updates.type,
+    oldContext: original.context,
+    newContext: updates.context,
+    content: updates.content
+  })
+}
+
+/**
+ * Met à jour le contenu d'un item et optionnellement son contexte et/ou type.
+ * Quand context ou type est passé, déclenche silencieusement la détection
+ * de correction IA (fire-and-forget, < 10 min après création).
+ *
+ * ⚠️ ÉCRITURE DB : si `type` est passé, il est bien écrit en base.
+ *    Les callers existants (2 ou 3 args) ne sont pas affectés.
+ */
 export async function updateItemContent(
   id: string,
   content: string,
-  context?: ItemContext
+  context?: ItemContext,
+  type?: ItemType
 ): Promise<void> {
   const supabase = getSupabase()
+
+  // Détecter les corrections de classification (type ou contexte changé rapidement)
+  if (context !== undefined || type !== undefined) {
+    detectAndRecordCorrection(supabase, id, { content, context, type })
+      .catch(err => console.warn('[items] detectAndRecordCorrection failed:', err))
+  }
 
   const updateData: Record<string, unknown> = {
     content,
     updated_at: new Date().toISOString()
   }
 
-  if (context !== undefined) {
-    updateData.context = context
-  }
+  if (context !== undefined) updateData.context = context
+  if (type !== undefined) updateData.type = type
 
   const { error } = await supabase
     .from('items')
