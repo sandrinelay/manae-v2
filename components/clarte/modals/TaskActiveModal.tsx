@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect } from 'react'
 import { Item, ItemContext } from '@/types/items'
-import { CONTEXT_CONFIG } from '@/config/contexts'
+import { CONTEXT_CONFIG, SELECTABLE_CONTEXTS } from '@/config/contexts'
 import {
   TaskIcon,
   XIcon,
@@ -49,7 +49,7 @@ export function TaskActiveModal({
   const isPlanned = task.state === 'planned'
 
   // Liste des contextes pour le sélecteur
-  const contexts: ItemContext[] = ['personal', 'family', 'work', 'health', 'other']
+  const contexts = SELECTABLE_CONTEXTS
 
   // Ajuste la hauteur du textarea au contenu
   const adjustTextareaHeight = () => {

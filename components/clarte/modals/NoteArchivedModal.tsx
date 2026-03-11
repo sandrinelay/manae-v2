@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect } from 'react'
 import { Item, ItemContext } from '@/types/items'
-import { CONTEXT_CONFIG } from '@/config/contexts'
+import { CONTEXT_CONFIG, SELECTABLE_CONTEXTS } from '@/config/contexts'
 import { NoteIcon, XIcon, EditIcon, UndoIcon, TrashIcon } from '@/components/ui/icons'
 import { IconButton } from '@/components/ui/IconButton'
 import { ActionButton } from '@/components/ui/ActionButton'
@@ -69,7 +69,7 @@ export function NoteArchivedModal({ note, onClose, onEdit, onReactivate, onDelet
   const isContentValid = editContent.trim().length > 0
   const hasChanges = editContent !== note.content || editContext !== (note.context || 'other')
 
-  const contexts: ItemContext[] = ['personal', 'family', 'work', 'health', 'other']
+  const contexts = SELECTABLE_CONTEXTS
 
   return (
     <>
