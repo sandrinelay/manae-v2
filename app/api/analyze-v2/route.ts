@@ -6,6 +6,7 @@ import {
   analyzeWithRules,
   ANALYZE_CONFIG
 } from '@/services/ai/analysis.service'
+import { getMemoryContext } from '@/services/ai/memory.service'
 import type { OpenAIAnalysisResponse } from '@/services/ai/analysis.service'
 import type { AIAnalyzedItem, ItemType, ItemState } from '@/types/items'
 import { isValidItemTypeState } from '@/types/items'
@@ -53,7 +54,18 @@ export async function POST(request: NextRequest) {
       ? `Historique récent : ${pastItems.map(i => `"${i.content}" → ${i.type}/${i.context}`).join(', ')}`
       : ''
 
-    // 5. Appel OpenAI
+    // 5. Récupérer le contexte mémoire utilisateur (corrections passées)
+    let memoryContext = ''
+    try {
+      memoryContext = await getMemoryContext(supabase, user.id)
+      if (memoryContext) {
+        console.log('[analyze-v2] memory context:', memoryContext)
+      }
+    } catch {
+      // Silencieux : la mémoire est une amélioration, pas une dépendance critique
+    }
+
+    // 6. Appel OpenAI
     const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
 
     let completion
@@ -66,7 +78,7 @@ export async function POST(request: NextRequest) {
           model: ANALYZE_CONFIG.model,
           messages: [
             { role: 'system', content: ANALYZE_CONFIG.system },
-            { role: 'user', content: buildAnalysisPrompt(rawText, historyContext, source) }
+            { role: 'user', content: buildAnalysisPrompt(rawText, historyContext, source, memoryContext) }
           ],
           temperature: ANALYZE_CONFIG.temperature,
           max_tokens: ANALYZE_CONFIG.maxTokens
@@ -87,7 +99,7 @@ export async function POST(request: NextRequest) {
       throw new Error('Failed to get completion after retries')
     }
 
-    // 6. Parser la réponse
+    // 7. Parser la réponse
     const content = completion.choices[0].message.content || ''
     const cleanContent = content
       .replace(/```json\n?/g, '')
@@ -113,7 +125,7 @@ export async function POST(request: NextRequest) {
       })
     }
 
-    // 7. Valider et transformer les items
+    // 8. Valider et transformer les items
     const validatedItems: AIAnalyzedItem[] = aiResponse.items
       .map(item => {
         // Valider type/state

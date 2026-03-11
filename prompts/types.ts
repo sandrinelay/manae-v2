@@ -99,6 +99,8 @@ export interface AnalysisContext {
   historyContext?: string
   /** Source de la saisie — adapte le traitement du prompt pour la voix */
   source?: 'voice' | 'text'
+  /** Corrections mémorisées de l'utilisateur — injectées dans le prompt si non vide */
+  memoryContext?: string
 }
 
 /**

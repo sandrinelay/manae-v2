@@ -177,7 +177,7 @@ FORMAT JSON (strict) :
  * Construit le prompt d'analyse complet
  */
 export function buildAnalyzePrompt(context: AnalysisContext): string {
-  const { rawText, today, historyContext, source } = context
+  const { rawText, today, historyContext, source, memoryContext } = context
 
   // Calculer les dates de référence
   const todayStr = today.toISOString().split('T')[0]
@@ -205,6 +205,11 @@ export function buildAnalyzePrompt(context: AnalysisContext): string {
     ? `\n⚠️ SAISIE VOCALE : Ce texte a été dicté à voix haute. Tolère les fautes de syntaxe, phrases sans verbe, hésitations. Applique l'Étape 1 (Nettoyer) avec soin.\n`
     : ''
 
+  // Section mémoire : injectée uniquement si des corrections existent
+  const memorySection = memoryContext
+    ? `\n## Préférences apprises de cet utilisateur\n${memoryContext}\nTiens compte de ces préférences pour ajuster ta classification.\n`
+    : ''
+
   return `Analyse cette pensée et structure-la.
 ${sourceNote}
 PENSÉE : "${rawText}"
@@ -218,8 +223,7 @@ DATES DE RÉFÉRENCE :
 
 ⚠️ RÈGLE CRITIQUE : Si la pensée contient "fin du mois" ou "fin de mois", alors temporal_constraint.date = "${endOfMonthStr}"
 
-${historyContext ? `HISTORIQUE : ${historyContext}\n` : ''}
-${RULES}
+${historyContext ? `HISTORIQUE : ${historyContext}\n` : ''}${memorySection}${RULES}
 ${EXAMPLES}
 ${JSON_FORMAT}`
 }
