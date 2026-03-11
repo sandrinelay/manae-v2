@@ -12,7 +12,7 @@ import { useGoogleCalendarStatus } from '@/hooks/useGoogleCalendarStatus'
 import { saveItem } from '@/services/capture'
 import type { Mood as ItemMood } from '@/types/items'
 import { IdeaDevelopPanel } from '@/features/ideas/components/IdeaDevelopPanel'
-import { CONTEXT_CONFIG } from '@/config/contexts'
+import { CONTEXT_CONFIG, SELECTABLE_CONTEXTS } from '@/config/contexts'
 import {
   TaskIcon,
   NoteIcon,
@@ -397,7 +397,7 @@ export function CaptureModal({
         <div className="space-y-2">
           <p className="text-sm font-medium text-text-dark">Contexte :</p>
           <div className="flex gap-2">
-            {(Object.keys(CONTEXT_CONFIG) as ItemContext[]).map((ctx) => {
+            {SELECTABLE_CONTEXTS.map((ctx) => {
               const ctxConfig = CONTEXT_CONFIG[ctx]
               const CtxIcon = ctxConfig.icon
               const isSelected = selectedContext === ctx
