@@ -53,7 +53,8 @@ export interface SaveItemInput {
  */
 export async function captureThought(
   userId: string,
-  content: string
+  content: string,
+  source?: 'voice' | 'text'
 ): Promise<CaptureResult> {
   console.log('🔍 [captureThought] START - userId:', userId, 'content:', content.substring(0, 50))
 
@@ -71,7 +72,7 @@ export async function captureThought(
         const response = await fetch('/api/analyze-v2', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ rawText: content })
+          body: JSON.stringify({ rawText: content, source })
         })
 
         console.log('🔍 [captureThought] API response status:', response.status)

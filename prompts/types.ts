@@ -97,6 +97,8 @@ export interface AnalysisContext {
   rawText: string
   today: Date
   historyContext?: string
+  /** Source de la saisie — adapte le traitement du prompt pour la voix */
+  source?: 'voice' | 'text'
 }
 
 /**

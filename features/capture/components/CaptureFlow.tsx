@@ -12,6 +12,7 @@ import type { ItemType, ItemContext, Mood as ItemMood } from '@/types/items'
 import type { ActionType } from './CaptureModal'
 import { useAIQuota } from '@/contexts/AIQuotaContext'
 import { SpinnerIcon, SendIcon } from '@/components/ui/icons'
+import { X } from 'lucide-react'
 // import { ActionButton } from '@/components/ui/ActionButton' // Commenté pour la beta
 import { PullToRefresh } from '@/components/ui/PullToRefresh'
 import { useVoiceCapture } from '@/features/voice/hooks/useVoiceCapture'
@@ -49,10 +50,21 @@ export function CaptureFlow({ userId, onSuccess }: CaptureFlowProps) {
   // }
 
   const [content, setContent] = useState('')
+  const contentSourceRef = useRef<'voice' | 'text'>('text')
 
-  const { state: voiceState, recordingTime, startRecording, stopRecording, cancelRecording } = useVoiceCapture({
-    onTranscript: (text) => setContent(text),
+  const { state: voiceState, recordingTime, startRecording, stopRecording, cancelRecording, confirmTranscript } = useVoiceCapture({
+    onTranscript: (text) => {
+      contentSourceRef.current = 'voice'
+      setContent(text)
+    },
   })
+
+  // Dès que la transcription est prête, l'injecter dans le textarea et revenir à idle
+  useEffect(() => {
+    if (voiceState === 'preview') {
+      confirmTranscript()
+    }
+  }, [voiceState, confirmTranscript])
 
   const [selectedMood, setSelectedMood] = useState<Mood | null>(null)
   const [isCapturing, setIsCapturing] = useState(false)
@@ -146,7 +158,7 @@ export function CaptureFlow({ userId, onSuccess }: CaptureFlowProps) {
     setError(null)
 
     try {
-      const result = await captureThought(userId, textToCapture)
+      const result = await captureThought(userId, textToCapture, contentSourceRef.current)
 
       if (!result.success) {
         setError(result.error || 'Erreur lors de la capture')
@@ -264,6 +276,7 @@ export function CaptureFlow({ userId, onSuccess }: CaptureFlowProps) {
     setContent('')
     setSelectedMood(null)
     setError(null)
+    contentSourceRef.current = 'text'
     setTimeout(() => textareaRef.current?.focus(), 100)
   }
 
@@ -289,15 +302,26 @@ export function CaptureFlow({ userId, onSuccess }: CaptureFlowProps) {
           </p>
 
           {/* Textarea */}
-          <textarea
-            ref={textareaRef}
-            value={content}
-            onChange={(e) => setContent(e.target.value)}
-            placeholder="Ex: Acheter du café, améliorer ma routine du matin, penser à envoyer le mail à Milo, réserver un créneau sport"
-            rows={4}
-            className="input-field p-4 rounded-2xl resize-none"
-            disabled={isCapturing}
-          />
+          <div className="relative">
+            <textarea
+              ref={textareaRef}
+              value={content}
+              onChange={(e) => { contentSourceRef.current = 'text'; setContent(e.target.value) }}
+              placeholder="Ex: Acheter du café, améliorer ma routine du matin, penser à envoyer le mail à Milo, réserver un créneau sport"
+              rows={4}
+              className="input-field p-4 rounded-2xl resize-none w-full"
+              disabled={isCapturing}
+            />
+            {content && !isCapturing && (
+              <button
+                onClick={() => { setContent(''); textareaRef.current?.focus() }}
+                aria-label="Effacer le texte"
+                className="absolute top-2 right-2 w-6 h-6 flex items-center justify-center rounded-full bg-[var(--color-border)] text-[var(--color-text-muted)] hover:bg-gray-300 transition-colors"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            )}
+          </div>
 
           {/* Bouton micro inline dans la card */}
           <div className="flex items-center justify-end gap-3 mt-3">
@@ -312,7 +336,7 @@ export function CaptureFlow({ userId, onSuccess }: CaptureFlowProps) {
               onStart={startRecording}
               onStop={stopRecording}
               onCancel={cancelRecording}
-              size="sm"
+              size="lg"
             />
           </div>
         </div>

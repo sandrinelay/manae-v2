@@ -22,7 +22,7 @@ export async function POST(request: NextRequest) {
 
     // 2. Récupérer le texte à analyser
     const body = await request.json()
-    const { rawText } = body
+    const { rawText, source } = body as { rawText: string; source?: 'voice' | 'text' }
 
     if (!rawText || typeof rawText !== 'string' || rawText.trim().length === 0) {
       return NextResponse.json(
@@ -66,7 +66,7 @@ export async function POST(request: NextRequest) {
           model: ANALYZE_CONFIG.model,
           messages: [
             { role: 'system', content: ANALYZE_CONFIG.system },
-            { role: 'user', content: buildAnalysisPrompt(rawText, historyContext) }
+            { role: 'user', content: buildAnalysisPrompt(rawText, historyContext, source) }
           ],
           temperature: ANALYZE_CONFIG.temperature,
           max_tokens: ANALYZE_CONFIG.maxTokens
