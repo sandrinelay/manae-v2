@@ -114,9 +114,12 @@ function mergeToDays(
     }
   }
 
-  // Ajouter les tâches Manae planifiées
+  // Ajouter les tâches Manae planifiées (sauf celles déjà présentes dans GCal)
+  const gcalEventIds = new Set(gcalEvents.map(e => e.id))
   for (const item of manaeItems) {
     if (!item.scheduled_at) continue
+    // Si la tâche a un événement GCal correspondant, on l'affiche via GCal (évite le doublon)
+    if (item.google_event_id && gcalEventIds.has(item.google_event_id)) continue
     const itemDate = new Date(item.scheduled_at)
     const day = days.find(d => isSameDay(d.date, itemDate))
     if (day) {
