@@ -1,6 +1,6 @@
 'use client'
 
-import { AppHeader } from '@/components/layout/AppHeader'
+import { AgendaWrapper } from '@/components/agenda/AgendaWrapper'
 import { PageTransition } from '@/components/layout/PageTransition'
 import BottomNav from '@/components/layout/BottomNav'
 import { AddToHomeScreenBanner } from '@/components/layout/AddToHomeScreenBanner'
@@ -12,7 +12,7 @@ export default function MainLayout({
 }) {
   return (
     <div className="min-h-screen bg-mint flex flex-col">
-      <AppHeader />
+      <AgendaWrapper />
       <PageTransition>
         {children}
       </PageTransition>

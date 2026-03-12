@@ -386,6 +386,16 @@ body {
   animation: check-bounce 0.3s ease-out;
 }
 
+/* Animation pour AgendaPanel (slide depuis le haut) */
+@keyframes slide-down {
+  from { transform: translateY(-100%); }
+  to { transform: translateY(0); }
+}
+
+.animate-slide-down {
+  animation: slide-down 250ms ease-out forwards;
+}
+
 /* Staggered animation delay pour les listes */
 .stagger-1 { animation-delay: 0.03s; }
 .stagger-2 { animation-delay: 0.06s; }
