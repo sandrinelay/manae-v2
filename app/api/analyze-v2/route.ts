@@ -58,9 +58,6 @@ export async function POST(request: NextRequest) {
     let memoryContext = ''
     try {
       memoryContext = await getMemoryContext(supabase, user.id)
-      if (memoryContext) {
-        console.log('[analyze-v2] memory context:', memoryContext)
-      }
     } catch {
       // Silencieux : la mémoire est une amélioration, pas une dépendance critique
     }
