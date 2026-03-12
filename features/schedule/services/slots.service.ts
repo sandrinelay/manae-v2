@@ -898,11 +898,21 @@ export async function findAvailableSlots(params: FindSlotsParams): Promise<FindS
     }
   }
 
-  // 9. Trier par score décroissant (sauf pour ASAP qui trie par date)
+  // 9. Trier les créneaux
   let sortedSlots: TimeSlot[]
   if (temporalConstraint?.type === 'asap') {
     // Pour ASAP, déjà trié par date dans filterSlotsByTemporalConstraint
     sortedSlots = filteredSlots
+  } else if (temporalConstraint?.type === 'fixed_date' && temporalConstraint.date?.includes('T')) {
+    // Pour un RDV à heure précise, trier par proximité à l'heure demandée
+    // (le créneau exact prime sur le scoring énergie/mood)
+    const targetDate = new Date(temporalConstraint.date)
+    const targetMinutes = targetDate.getHours() * 60 + targetDate.getMinutes()
+    sortedSlots = filteredSlots.sort((a, b) => {
+      const diffA = Math.abs(timeToMinutes(a.startTime) - targetMinutes)
+      const diffB = Math.abs(timeToMinutes(b.startTime) - targetMinutes)
+      return diffA - diffB
+    })
   } else {
     sortedSlots = filteredSlots.sort((a, b) => b.score - a.score)
   }

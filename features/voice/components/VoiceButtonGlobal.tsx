@@ -3,7 +3,6 @@
 import { usePathname, useRouter } from 'next/navigation'
 import { useAuth } from '@/contexts/AuthContext'
 import { useVoiceCapture } from '../hooks/useVoiceCapture'
-import { saveItem } from '@/services/capture'
 import { RecordButton } from './RecordButton'
 import { RecordingFeedback } from './RecordingFeedback'
 import { VoiceCaptureOverlay } from './VoiceCaptureOverlay'
@@ -16,22 +15,11 @@ export function VoiceButtonGlobal() {
   const { user, isLoading } = useAuth()
 
   const { state, transcript, recordingTime, startRecording, stopRecording, cancelRecording, setTranscript } = useVoiceCapture({
-    onTranscript: () => {}, // transcript lu directement depuis le hook en état 'preview'
+    onTranscript: () => {},
   })
 
   if (isLoading || !user) return null
   if (HIDDEN_ROUTES.some((route) => pathname.startsWith(route))) return null
-
-  const handleSend = async () => {
-    if (!transcript) return
-    await saveItem({
-      userId: user.id,
-      type: 'note',
-      content: transcript,
-      state: 'active',
-    })
-    cancelRecording()
-  }
 
   const handleEdit = () => {
     if (!transcript) return
@@ -64,7 +52,6 @@ export function VoiceButtonGlobal() {
         <VoiceCaptureOverlay
           transcript={transcript}
           onTranscriptChange={setTranscript}
-          onSend={handleSend}
           onEdit={handleEdit}
           onClose={cancelRecording}
         />

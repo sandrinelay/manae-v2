@@ -1,9 +1,7 @@
 'use client'
 
-import { useState, useEffect } from 'react'
 import { CalendarDays } from 'lucide-react'
 import Link from 'next/link'
-import { CalendarIcon, CalendarOffIcon } from '@/components/ui/icons'
 import { useAuth } from '@/contexts/AuthContext'
 
 interface AppHeaderProps {
@@ -13,30 +11,6 @@ interface AppHeaderProps {
 export function AppHeader({ onAgendaOpen }: AppHeaderProps) {
   const { firstName } = useAuth()
   const displayName = firstName || 'toi'
-  const [isCalendarConnected, setIsCalendarConnected] = useState(false)
-
-  useEffect(() => {
-    // Vérifier l'état de connexion Google Calendar
-    const checkConnection = () => {
-      const tokens = localStorage.getItem('google_tokens')
-      setIsCalendarConnected(!!tokens)
-    }
-
-    checkConnection()
-
-    // Écouter les changements de connexion
-    const handleConnectionChange = () => {
-      checkConnection()
-    }
-
-    window.addEventListener('calendar-connection-changed', handleConnectionChange)
-    window.addEventListener('storage', handleConnectionChange)
-
-    return () => {
-      window.removeEventListener('calendar-connection-changed', handleConnectionChange)
-      window.removeEventListener('storage', handleConnectionChange)
-    }
-  }, [])
 
   return (
     <div>
@@ -46,7 +20,7 @@ export function AppHeader({ onAgendaOpen }: AppHeaderProps) {
           manae
         </span>
 
-        {/* Right section: Calendar indicator + Greeting */}
+        {/* Right section: Agenda button + Greeting */}
         <div className="flex items-center gap-3">
           {/* Bouton agenda */}
           {onAgendaOpen && (
@@ -59,23 +33,10 @@ export function AppHeader({ onAgendaOpen }: AppHeaderProps) {
             </button>
           )}
 
-          {/* Indicateur discret Google Calendar - cliquable vers profil */}
-          <Link
-            href="/profil"
-            className="flex items-center p-1 -m-1 rounded-full hover:bg-gray-100 transition-colors"
-            title={isCalendarConnected ? 'Google Calendar connecté' : 'Connecter Google Calendar'}
-          >
-            {isCalendarConnected ? (
-              <CalendarIcon className="w-4 h-4 text-green-500" />
-            ) : (
-              <CalendarOffIcon className="w-4 h-4 text-gray-300" />
-            )}
-          </Link>
-
-          {/* Greeting */}
-          <span className="text-sm text-text-muted">
+          {/* Greeting + lien profil */}
+          <Link href="/profil" className="text-sm text-text-muted hover:text-text-dark transition-colors">
             Bonjour {displayName}
-          </span>
+          </Link>
         </div>
       </header>
       {/* Barre décorative gradient */}

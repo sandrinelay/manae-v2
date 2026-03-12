@@ -61,25 +61,14 @@ export function AgendaPanel({
         aria-hidden="true"
       />
 
-      {/* Panel */}
+      {/* Panel — positionné sous le header (60px) */}
       <div
         ref={panelRef}
         role="dialog"
         aria-label="Agenda — 7 jours"
-        className="fixed inset-x-0 top-0 z-50 h-[70vh] bg-white rounded-b-3xl shadow-2xl flex flex-col animate-slide-down"
-        style={{ maxHeight: '70vh' }}
+        className="fixed inset-x-0 z-50 bg-white rounded-b-3xl shadow-2xl flex flex-col animate-slide-down-header"
+        style={{ top: '60px', maxHeight: 'calc(70vh - 60px)' }}
       >
-        {/* Header panel */}
-        <div className="flex items-center justify-between px-4 py-4 border-b border-gray-100 shrink-0">
-          <h2 className="typo-section-title text-text-dark">Agenda — 7 jours</h2>
-          <button
-            onClick={onClose}
-            aria-label="Fermer l'agenda"
-            className="p-2 rounded-full hover:bg-gray-100 active:scale-95 transition-all"
-          >
-            <X className="w-5 h-5 text-text-muted" />
-          </button>
-        </div>
 
         {/* Bandeaux d'état GCal */}
         {!isGcalConnected && (

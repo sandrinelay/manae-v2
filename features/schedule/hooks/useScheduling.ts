@@ -206,7 +206,10 @@ export function useScheduling(params: UseSchedulingParams): UseSchedulingReturn 
         mood: mood || 'neutral',
         cognitiveLoad: taskAnalysis.cognitiveLoad,
         // Ne pas passer temporalConstraint si on a détecté une targetDate depuis le texte
-        temporalConstraint: targetDate ? null : temporalConstraint,
+        // EXCEPTION : si le texte contient une heure explicite (ex: "réunion demain à 14h"),
+        // on transmet la contrainte AI pour filtrer aux créneaux proches de cette heure.
+        // On vérifie le texte (pas juste la contrainte AI) pour éviter les heures hallucinées.
+        temporalConstraint: (targetDate && !(temporalConstraint?.type === 'fixed_date' && temporalConstraint.date?.includes('T') && /\b([0-1]?\d|2[0-3])[h:]\d{0,2}\b/i.test(taskContent))) ? null : temporalConstraint,
         taskContent,
         ignoreServiceConstraints: forceIgnoreService
       })
@@ -223,15 +226,27 @@ export function useScheduling(params: UseSchedulingParams): UseSchedulingReturn 
       // Et par plage horaire si spécifiée (ex: "jeudi soir" → 18h-21h)
       const slotsForTarget = filterSlotsByTargetDate(result.slots, targetDate, isExactDay, isStartOfPeriod, isWeekend, isDeadline, timeRange)
 
-      // 6. Sélectionner les 3 meilleurs créneaux diversifiés
-      const top3 = selectTop3Diversified(slotsForTarget)
+      // 6. Sélectionner les 3 meilleurs créneaux
+      // Pour un RDV à heure précise : prendre les 3 premiers en ordre chronologique
+      // (déjà triés par proximité dans slots.service.ts, la diversification n'a pas de sens)
+      // Sinon : diversification pour proposer des jours différents
+      const hasExplicitTimeInText = temporalConstraint?.type === 'fixed_date'
+        && temporalConstraint.date?.includes('T')
+        && /\b([0-1]?\d|2[0-3])[h:]\d{0,2}\b/i.test(taskContent)
+
+      const top3 = hasExplicitTimeInText
+        ? slotsForTarget.slice(0, 3).map((slot, i) => ({
+            ...slot,
+            label: i === 0 ? 'Meilleur moment' : 'Alternative'
+          }))
+        : selectTop3Diversified(slotsForTarget)
 
       console.log('[useScheduling] Top 3 diversifiés:', top3)
 
       if (top3.length > 0) {
         setBestSlot(top3[0])
         setAlternativeSlots(top3.slice(1)) // Les 2 autres (ou 1 si seulement 2 dispo)
-        // Ne pas présélectionner - l'utilisateur doit choisir
+        setSelectedSlot(top3[0]) // Pré-sélectionner le meilleur créneau
       }
 
       if (top3.length === 0) {

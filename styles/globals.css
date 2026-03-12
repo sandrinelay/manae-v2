@@ -386,14 +386,14 @@ body {
   animation: check-bounce 0.3s ease-out;
 }
 
-/* Animation pour AgendaPanel (slide depuis le haut) */
-@keyframes slide-down {
-  from { transform: translateY(-100%); }
-  to { transform: translateY(0); }
+/* Animation pour AgendaPanel (slide depuis le bas du header) */
+@keyframes slide-down-header {
+  from { transform: translateY(-100%); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
 }
 
-.animate-slide-down {
-  animation: slide-down 250ms ease-out forwards;
+.animate-slide-down-header {
+  animation: slide-down-header 250ms ease-out forwards;
 }
 
 /* Staggered animation delay pour les listes */

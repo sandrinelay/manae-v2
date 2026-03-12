@@ -47,3 +47,7 @@ next-env.d.ts
 # agents
 .agents/
 .agent/
+
+# security audit reports
+.security/
+certificates

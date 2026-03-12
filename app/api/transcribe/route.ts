@@ -36,8 +36,21 @@ export async function POST(request: NextRequest) {
 
     const duration = (Date.now() - startTime) / 1000
 
+    // Whisper hallucinations courantes sur silence ou audio vide
+    const WHISPER_HALLUCINATIONS = [
+      'amara.org',
+      'sous-titres réalisés',
+      'sous titres réalisés',
+      'merci d\'avoir regardé',
+      'merci d\'avoir écouté',
+    ]
+    const transcript = transcription.text.trim()
+    const isHallucination = WHISPER_HALLUCINATIONS.some((h) =>
+      transcript.toLowerCase().includes(h.toLowerCase())
+    )
+
     return NextResponse.json({
-      transcript: transcription.text,
+      transcript: isHallucination ? '' : transcript,
       language: 'fr',
       duration,
     })
