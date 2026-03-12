@@ -1,11 +1,13 @@
 'use client'
 
 import { useSyncExternalStore, useCallback } from 'react'
+import { CalendarDays } from 'lucide-react'
 import CalendarBadge from '@/lib/layout/CalendarBadge'
 import Link from 'next/link'
 
 interface HeaderProps {
     userName?: string
+    onAgendaOpen?: () => void
 }
 
 // Helper pour lire le statut Google Calendar depuis localStorage
@@ -18,7 +20,7 @@ function getServerSnapshot() {
     return false
 }
 
-export default function Header({ userName }: HeaderProps) {
+export default function Header({ userName, onAgendaOpen }: HeaderProps) {
     // Subscribe aux changements (storage event + custom event)
     const subscribe = useCallback((callback: () => void) => {
         const handleConnectionChange = () => callback()
@@ -45,6 +47,16 @@ export default function Header({ userName }: HeaderProps) {
             </Link>
 
             <div className="flex items-center gap-4">
+                {onAgendaOpen && (
+                    <button
+                        onClick={onAgendaOpen}
+                        aria-label="Ouvrir l'agenda"
+                        className="p-2 rounded-full hover:bg-gray-100 active:scale-95 transition-all"
+                    >
+                        <CalendarDays className="w-5 h-5 text-text-muted" />
+                    </button>
+                )}
+
                 <CalendarBadge connected={isCalendarConnected} />
 
                 {userName && (

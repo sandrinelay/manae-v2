@@ -1,11 +1,16 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { CalendarDays } from 'lucide-react'
 import Link from 'next/link'
 import { CalendarIcon, CalendarOffIcon } from '@/components/ui/icons'
 import { useAuth } from '@/contexts/AuthContext'
 
-export function AppHeader() {
+interface AppHeaderProps {
+  onAgendaOpen?: () => void
+}
+
+export function AppHeader({ onAgendaOpen }: AppHeaderProps) {
   const { firstName } = useAuth()
   const displayName = firstName || 'toi'
   const [isCalendarConnected, setIsCalendarConnected] = useState(false)
@@ -43,6 +48,17 @@ export function AppHeader() {
 
         {/* Right section: Calendar indicator + Greeting */}
         <div className="flex items-center gap-3">
+          {/* Bouton agenda */}
+          {onAgendaOpen && (
+            <button
+              onClick={onAgendaOpen}
+              aria-label="Ouvrir l'agenda"
+              className="p-1.5 rounded-full hover:bg-gray-100 active:scale-95 transition-all"
+            >
+              <CalendarDays className="w-5 h-5 text-text-muted" />
+            </button>
+          )}
+
           {/* Indicateur discret Google Calendar - cliquable vers profil */}
           <Link
             href="/profil"
