@@ -386,21 +386,25 @@ body {
   animation: check-bounce 0.3s ease-out;
 }
 
-/* Animation pour AgendaPanel — déroulé du haut vers le bas */
+/* Animation pour AgendaPanel — déroulé / enroulé */
 @keyframes unroll-down {
-  from {
-    transform: scaleY(0);
-    opacity: 0;
-  }
-  to {
-    transform: scaleY(1);
-    opacity: 1;
-  }
+  from { transform: scaleY(0); opacity: 0; }
+  to   { transform: scaleY(1); opacity: 1; }
 }
 
-.animate-slide-down-header {
+@keyframes unroll-up {
+  from { transform: scaleY(1); opacity: 1; }
+  to   { transform: scaleY(0); opacity: 0; }
+}
+
+.animate-unroll-down {
   transform-origin: top center;
-  animation: unroll-down 300ms cubic-bezier(0.34, 1.2, 0.64, 1) forwards;
+  animation: unroll-down 280ms ease-out forwards;
+}
+
+.animate-unroll-up {
+  transform-origin: top center;
+  animation: unroll-up 220ms ease-in forwards;
 }
 
 /* Staggered animation delay pour les listes */

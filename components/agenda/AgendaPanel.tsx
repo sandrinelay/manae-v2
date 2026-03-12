@@ -1,7 +1,7 @@
 'use client'
 
-import { useEffect, useRef } from 'react'
-import { X, AlertCircle, CalendarOff } from 'lucide-react'
+import { useEffect, useRef, useState } from 'react'
+import { AlertCircle, CalendarOff } from 'lucide-react'
 import { AgendaEvent } from './AgendaEvent'
 import type { AgendaDay } from '@/hooks/useAgenda'
 
@@ -23,6 +23,25 @@ export function AgendaPanel({
   onClose,
 }: AgendaPanelProps) {
   const panelRef = useRef<HTMLDivElement>(null)
+  // isVisible gère le montage/démontage, isClosing joue l'animation inverse
+  const [isVisible, setIsVisible] = useState(false)
+  const [isClosing, setIsClosing] = useState(false)
+
+  // Ouverture : monter puis animer
+  useEffect(() => {
+    if (isOpen) {
+      setIsClosing(false)
+      setIsVisible(true)
+    } else if (isVisible) {
+      // Fermeture : animer puis démonter
+      setIsClosing(true)
+      const timer = setTimeout(() => {
+        setIsVisible(false)
+        setIsClosing(false)
+      }, 220)
+      return () => clearTimeout(timer)
+    }
+  }, [isOpen]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Fermeture swipe vers le haut
   useEffect(() => {
@@ -33,7 +52,7 @@ export function AgendaPanel({
     const handleTouchStart = (e: TouchEvent) => { startY = e.touches[0].clientY }
     const handleTouchEnd = (e: TouchEvent) => {
       const deltaY = e.changedTouches[0].clientY - startY
-      if (deltaY < -60) onClose() // swipe vers le haut
+      if (deltaY < -60) onClose()
     }
 
     panel.addEventListener('touchstart', handleTouchStart)
@@ -46,17 +65,18 @@ export function AgendaPanel({
 
   // Bloquer le scroll du body quand ouvert
   useEffect(() => {
-    document.body.style.overflow = isOpen ? 'hidden' : ''
+    document.body.style.overflow = isVisible ? 'hidden' : ''
     return () => { document.body.style.overflow = '' }
-  }, [isOpen])
+  }, [isVisible])
 
-  if (!isOpen) return null
+  if (!isVisible) return null
 
   return (
     <>
-      {/* Backdrop */}
+      {/* Backdrop — fade in/out synchronisé */}
       <div
-        className="fixed inset-0 bg-black/40 z-40"
+        className="fixed inset-0 bg-black/40 z-40 transition-opacity duration-220"
+        style={{ opacity: isClosing ? 0 : 1 }}
         onClick={onClose}
         aria-hidden="true"
       />
@@ -66,7 +86,9 @@ export function AgendaPanel({
         ref={panelRef}
         role="dialog"
         aria-label="Agenda — 7 jours"
-        className="fixed inset-x-0 z-50 bg-white rounded-b-3xl shadow-2xl flex flex-col animate-slide-down-header"
+        className={`fixed inset-x-0 z-50 bg-white rounded-b-3xl shadow-2xl flex flex-col ${
+          isClosing ? 'animate-unroll-up' : 'animate-unroll-down'
+        }`}
         style={{ top: '60px', maxHeight: 'calc(70vh - 60px)' }}
       >
 
