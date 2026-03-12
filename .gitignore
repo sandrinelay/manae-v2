@@ -50,4 +50,4 @@ next-env.d.ts
 
 # security audit reports
 .security/
-certificates
+certificates.claude/worktrees/
