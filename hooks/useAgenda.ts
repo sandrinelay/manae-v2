@@ -173,7 +173,29 @@ export function useAgenda(): UseAgendaReturn {
     try {
       const gcalEvents = await getCalendarEvents(today, endDate)
       setIsGcalConnected(true)
-      setDays(mergeToDays(gcalEvents, manaeItems || []))
+
+      // Réconciliation : tâches planned dont l'événement GCal a disparu → repasser en active
+      const gcalEventIds = new Set(gcalEvents.map(e => e.id))
+      const orphanedItems = (manaeItems || []).filter(
+        item => item.google_event_id && !gcalEventIds.has(item.google_event_id)
+      )
+      if (orphanedItems.length > 0) {
+        await Promise.all(
+          orphanedItems.map(item =>
+            supabase
+              .from('items')
+              .update({ state: 'active', scheduled_at: null, google_event_id: null, updated_at: new Date().toISOString() })
+              .eq('id', item.id)
+          )
+        )
+        // Notifier Clarté de rafraîchir
+        window.dispatchEvent(new CustomEvent('clarte-data-changed'))
+        // Ne pas afficher les tâches orphelines dans l'agenda
+        const syncedItems = (manaeItems || []).filter(item => !orphanedItems.find(o => o.id === item.id))
+        setDays(mergeToDays(gcalEvents, syncedItems))
+      } else {
+        setDays(mergeToDays(gcalEvents, manaeItems || []))
+      }
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Erreur inconnue'
       if (message.includes('token') || message.includes('auth') || message.includes('401')) {
