@@ -7,8 +7,10 @@ import {
   ANALYZE_CONFIG
 } from '@/services/ai/analysis.service'
 import { getMemoryContext } from '@/services/ai/memory.service'
+import { getListBySlug } from '@/services/lists.service'
 import type { OpenAIAnalysisResponse } from '@/services/ai/analysis.service'
 import type { AIAnalyzedItem, ItemType, ItemState } from '@/types/items'
+import type { ListSlug } from '@/types/lists'
 import { isValidItemTypeState } from '@/types/items'
 
 export async function POST(request: NextRequest) {
@@ -124,8 +126,8 @@ export async function POST(request: NextRequest) {
     }
 
     // 8. Valider et transformer les items
-    const validatedItems: AIAnalyzedItem[] = aiResponse.items
-      .map(item => {
+    const validatedItems: AIAnalyzedItem[] = await Promise.all(
+      aiResponse.items.map(async item => {
         // Valider type/state
         const type = item.type as ItemType
         let state = item.state as ItemState
@@ -152,11 +154,25 @@ export async function POST(request: NextRequest) {
             }
           : null
 
+        // Résoudre list_slug → list_id pour les list_item
+        let listId: string | undefined = undefined
+        if (type === 'list_item' && item.list_slug) {
+          const list = await getListBySlug(
+            supabase,
+            user.id,
+            item.list_slug as ListSlug
+          )
+          if (list) {
+            listId = list.id
+          }
+        }
+
         return {
           content: item.content,
           type,
           state,
           context: item.context,
+          list_id: listId,
           ai_analysis: {
             type_suggestion: type,
             confidence: item.confidence || 0.8,
@@ -167,6 +183,7 @@ export async function POST(request: NextRequest) {
           metadata: item.reasoning ? { reasoning: item.reasoning } : {}
         }
       })
+    )
 
     return NextResponse.json({
       items: validatedItems,
