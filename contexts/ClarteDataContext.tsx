@@ -3,7 +3,9 @@
 import { createContext, useContext, useState, useEffect, useCallback, useRef, type ReactNode } from 'react'
 import { useAuth } from './AuthContext'
 import { createClient } from '@/lib/supabase/client'
+import { getListsWithCounts } from '@/services/lists.service'
 import type { Item } from '@/types/items'
+import type { List } from '@/types/lists'
 
 // ============================================
 // TYPES
@@ -13,7 +15,7 @@ interface ClarteData {
   tasks: Item[]
   notes: Item[]
   ideas: Item[]
-  shoppingItems: Item[]
+  listsWithCounts: Array<List & { activeCount: number }>
   counts: {
     tasks: number
     notes: number
@@ -110,7 +112,6 @@ export function ClarteDataProvider({ children }: { children: ReactNode }) {
       const tasksLimit = needsFullLoad ? 100 : 4
       const notesLimit = needsFullLoad ? 100 : 5
       const ideasLimit = needsFullLoad ? 100 : 4
-      const shoppingLimit = needsFullLoad ? 100 : 6
 
       const { data: tasks, count: tasksCount } = await supabase
         .from('items')
@@ -140,14 +141,8 @@ export function ClarteDataProvider({ children }: { children: ReactNode }) {
         .order('updated_at', { ascending: false })
         .limit(ideasLimit)
 
-      const { data: shoppingItems, count: shoppingCount } = await supabase
-        .from('items')
-        .select('*', { count: 'exact' })
-        .eq('user_id', user.id)
-        .eq('type', 'list_item')
-        .in('state', ['active', 'completed'])
-        .order('created_at', { ascending: true })
-        .limit(shoppingLimit)
+      const listsWithCounts = await getListsWithCounts(supabase, user.id)
+      const shoppingTotal = listsWithCounts.reduce((sum, l) => sum + l.activeCount, 0)
 
       if (needsFullLoad) {
         hasFullDataRef.current = true
@@ -157,12 +152,12 @@ export function ClarteDataProvider({ children }: { children: ReactNode }) {
         tasks: sortTasks(tasks || []),
         notes: notes || [],
         ideas: sortIdeas(ideas || []),
-        shoppingItems: shoppingItems || [],
+        listsWithCounts,
         counts: {
           tasks: tasksCount || 0,
           notes: notesCount || 0,
           ideas: ideasCount || 0,
-          shopping: shoppingCount || 0
+          shopping: shoppingTotal
         }
       })
     } catch (err) {
