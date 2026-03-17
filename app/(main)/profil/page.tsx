@@ -15,6 +15,8 @@ import { EditNameModal } from '@/components/profil/EditNameModal'
 import { EnergyMomentsModal } from '@/components/shared/EnergyMomentsModal'
 import { ConstraintsModal } from '@/components/shared/ConstraintsModal'
 import { createClient } from '@/lib/supabase/client'
+import { getAllLists, updateListEnabled } from '@/services/lists.service'
+import type { List } from '@/types/lists'
 
 function ProfilPageContent() {
   const router = useRouter()
@@ -39,6 +41,8 @@ function ProfilPageContent() {
   const [showEnergyModal, setShowEnergyModal] = useState(false)
   const [showConstraintsModal, setShowConstraintsModal] = useState(false)
 
+  const [lists, setLists] = useState<List[]>([])
+
   // Rafraîchir les données du profil au montage de la page
   useEffect(() => {
     if (user) {
@@ -58,6 +62,23 @@ function ProfilPageContent() {
       }, 100)
     }
   }, [connectCalendar])
+
+  useEffect(() => {
+    const load = async () => {
+      const supabase = createClient()
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) return
+      const allLists = await getAllLists(supabase, user.id)
+      setLists(allLists)
+    }
+    load()
+  }, [])
+
+  const handleToggleList = async (listId: string, currentEnabled: boolean) => {
+    const supabase = createClient()
+    await updateListEnabled(supabase, listId, !currentEnabled)
+    setLists(prev => prev.map(l => l.id === listId ? { ...l, enabled: !l.enabled } : l))
+  }
 
   // Callback après connexion Google Calendar réussie
   const handleCalendarConnectSuccess = useCallback(() => {
@@ -170,6 +191,38 @@ function ProfilPageContent() {
           </div>
 
           <MoreSection />
+
+          {/* Mes listes d'achats */}
+          {lists.length > 0 && (
+            <section className="mt-8">
+              <h2 className="typo-section-label mb-4">Mes listes d&apos;achats</h2>
+              <div className="space-y-2">
+                {lists.map(list => {
+                  const isAlimentaire = list.slug === 'alimentaire'
+                  return (
+                    <div
+                      key={list.id}
+                      className="flex items-center justify-between p-3 bg-white rounded-xl border border-border"
+                    >
+                      <span className="text-sm text-text-dark">{list.name}</span>
+                      <button
+                        onClick={() => !isAlimentaire && handleToggleList(list.id, list.enabled)}
+                        disabled={isAlimentaire}
+                        className={`relative w-10 h-6 rounded-full transition-colors ${
+                          list.enabled ? 'bg-primary' : 'bg-gray-200'
+                        } ${isAlimentaire ? 'cursor-default opacity-60' : 'cursor-pointer'}`}
+                        aria-label={`${list.enabled ? 'Désactiver' : 'Activer'} la liste ${list.name}`}
+                      >
+                        <span className={`absolute top-1 w-4 h-4 bg-white rounded-full shadow transition-transform ${
+                          list.enabled ? 'translate-x-5' : 'translate-x-1'
+                        }`} />
+                      </button>
+                    </div>
+                  )
+                })}
+              </div>
+            </section>
+          )}
 
           <LogoutButton onLogout={handleLogout} />
         </div>
