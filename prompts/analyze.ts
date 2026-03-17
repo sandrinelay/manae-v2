@@ -88,15 +88,33 @@ CATÉGORIES (OBLIGATOIRE pour list_item) :
 - baby : couches, lingettes, compotes bébé
 - other : piles, ampoules, et tout le reste
 
-"Acheter du lait" → { content: "Lait", type: "list_item", state: "active", context: "other", extracted_data: { category: "dairy" } }
-"6 œufs" → { content: "6 œufs", type: "list_item", state: "active", context: "other", extracted_data: { category: "dairy" } }
-"lait oeufs pain" → 3 items avec catégories (dairy, dairy, bakery)
-"2 briques de lait" → { content: "2 briques de lait", extracted_data: { category: "dairy" } }
+LISTE D'ACHATS (list_slug) — OBLIGATOIRE pour list_item :
+- "alimentaire" : nourriture, boissons, produits frais, hygiène personnelle (lait, pain, œufs, fromage, shampoing, savon, gel douche)
+- "maison" : entretien ménager, bricolage, jardinage (lessive, éponges, ampoules, piles, détergent, plantes, outils)
+- "enfants" : scolaire, vêtements enfants, jouets, activités (cahiers, crayons, cartable, baskets enfant, jouets)
+- "pro" : matériel bureau, logiciels, abonnements professionnels, fournitures de bureau (stylos, post-its, imprimante, abonnement Notion)
+- "en-ligne" : commandes internet, cas ambigus (tout ce qui ne rentre pas clairement dans les autres catégories)
+
+RÈGLES DE PRIORITÉ :
+- Alimentaire = ce qu'on mange ou boit UNIQUEMENT (lessive → maison, pas alimentaire)
+- "fournitures scolaires" → enfants (contexte enfant prime sur pro)
+- "stylos, post-its" sans mention école → pro
+- Ambigu → en-ligne (pas alimentaire)
+
+"Acheter du lait" → { content: "Lait", type: "list_item", list_slug: "alimentaire", state: "active", context: "other", extracted_data: { category: "dairy" } }
+"6 œufs" → { content: "6 œufs", type: "list_item", list_slug: "alimentaire", state: "active", context: "other", extracted_data: { category: "dairy" } }
+"lait oeufs pain" → 3 items avec catégories (dairy, dairy, bakery) et list_slug "alimentaire" pour chacun
+"2 briques de lait" → { content: "2 briques de lait", list_slug: "alimentaire", extracted_data: { category: "dairy" } }
+"Lessive et éponges" → [{ content: "Lessive", list_slug: "maison" }, { content: "Éponges", list_slug: "maison" }]
+"Cahiers et stylos pour l'école" → [{ content: "Cahiers", list_slug: "enfants" }, { content: "Stylos", list_slug: "enfants" }]
+"Commander une webcam" → [{ content: "Webcam", list_slug: "en-ligne" }]
+"Post-its et bloc-notes" → [{ content: "Post-its", list_slug: "pro" }, { content: "Bloc-notes", list_slug: "pro" }]
+"Shampoing et pain" → [{ content: "Shampoing", list_slug: "alimentaire" }, { content: "Pain", list_slug: "alimentaire" }]
 
 MIX COURSES + TÂCHE :
 "lait pain et appeler nounou" → 3 items :
-  - { content: "Lait", type: "list_item", extracted_data: { category: "dairy" } }
-  - { content: "Pain", type: "list_item", extracted_data: { category: "bakery" } }
+  - { content: "Lait", type: "list_item", list_slug: "alimentaire", extracted_data: { category: "dairy" } }
+  - { content: "Pain", type: "list_item", list_slug: "alimentaire", extracted_data: { category: "bakery" } }
   - { content: "Appeler nounou", type: "task", context: "family" }
 `
 
@@ -151,6 +169,7 @@ FORMAT JSON (strict) :
       - task/note/idea → CONTENU ORIGINAL (ne pas modifier, garder dates/heures)
       - list_item → PRODUIT SEULEMENT (nettoyer verbes et phrases)",
     "type": "task|note|idea|list_item",
+    "list_slug": "alimentaire|maison|enfants|pro|en-ligne (OBLIGATOIRE si type=list_item, absent sinon)",
     "state": "active|captured",
     "context": "personal|family|work|health|admin|home",
     "confidence": 0.0-1.0,

@@ -45,6 +45,7 @@ export interface TemporalConstraintAPI {
 export interface AnalyzedItemAPI {
   content: string
   type: ItemType
+  list_slug?: string // présent seulement pour list_item
   state: ItemState
   context?: ItemContext
   confidence: number
