@@ -68,30 +68,44 @@ async function reconcilePlannedTasks(): Promise<void> {
 
     // 3. Fetch tous les événements GCal sur cette fenêtre
     const gcalEvents = await getCalendarEvents(rangeStart, rangeEnd)
-    const gcalEventIds = new Set(gcalEvents.map(e => e.id))
+    const gcalEventMap = new Map(gcalEvents.map(e => [e.id, e]))
 
-    // 4. Identifier les tâches orphelines (google_event_id absent de GCal)
+    // 4. Tâches futures uniquement
     const futurePlanned = plannedItems.filter(i => new Date(i.scheduled_at!) >= today)
-    const orphaned = futurePlanned.filter(i => !gcalEventIds.has(i.google_event_id!))
 
-    if (orphaned.length === 0) return
+    // 5. Orphelines (événement GCal supprimé) → repasser en active
+    const orphaned = futurePlanned.filter(i => !gcalEventMap.has(i.google_event_id!))
 
-    // 5. Repasser les orphelines en active
-    await Promise.all(
-      orphaned.map(item =>
-        supabase
-          .from('items')
-          .update({
-            state: 'active',
-            scheduled_at: null,
-            google_event_id: null,
-            updated_at: new Date().toISOString()
-          })
+    // 6. Horaires modifiés dans GCal → mettre à jour scheduled_at
+    const timeChanged = futurePlanned
+      .filter(i => gcalEventMap.has(i.google_event_id!))
+      .filter(i => {
+        const gcalStart = gcalEventMap.get(i.google_event_id!)!.start.dateTime
+        if (!gcalStart || !i.scheduled_at) return false
+        return new Date(gcalStart).getTime() !== new Date(i.scheduled_at).getTime()
+      })
+
+    if (orphaned.length === 0 && timeChanged.length === 0) return
+
+    if (orphaned.length > 0) {
+      await Promise.all(orphaned.map(item =>
+        supabase.from('items')
+          .update({ state: 'active', scheduled_at: null, google_event_id: null, updated_at: new Date().toISOString() })
           .eq('id', item.id)
-      )
-    )
+      ))
+      console.log(`[gcal-sync] ${orphaned.length} tâche(s) orpheline(s) repassées en active`)
+    }
 
-    console.log(`[gcal-sync] ${orphaned.length} tâche(s) orpheline(s) repassées en active`)
+    if (timeChanged.length > 0) {
+      await Promise.all(timeChanged.map(item => {
+        const gcalStart = gcalEventMap.get(item.google_event_id!)!.start.dateTime!
+        return supabase.from('items')
+          .update({ scheduled_at: new Date(gcalStart).toISOString(), updated_at: new Date().toISOString() })
+          .eq('id', item.id)
+      }))
+      console.log(`[gcal-sync] ${timeChanged.length} horaire(s) resynchronisé(s) depuis GCal`)
+    }
+
     window.dispatchEvent(new CustomEvent('clarte-data-changed'))
   } catch (err) {
     // Silencieux : la sync est best-effort

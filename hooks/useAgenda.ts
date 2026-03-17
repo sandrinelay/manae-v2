@@ -177,28 +177,50 @@ export function useAgenda(): UseAgendaReturn {
       const gcalEvents = await getCalendarEvents(today, endDate)
       setIsGcalConnected(true)
 
-      // Réconciliation : tâches planned dont l'événement GCal a disparu → repasser en active
-      const gcalEventIds = new Set(gcalEvents.map(e => e.id))
-      const orphanedItems = (manaeItems || []).filter(
-        item => item.google_event_id && !gcalEventIds.has(item.google_event_id)
-      )
+      // Réconciliation bidirectionnelle GCal ↔ Manae
+      const gcalEventMap = new Map(gcalEvents.map(e => [e.id, e]))
+      const linkedItems = (manaeItems || []).filter(item => item.google_event_id)
+
+      // 1. Tâches orphelines (événement GCal supprimé) → repasser en active
+      const orphanedItems = linkedItems.filter(item => !gcalEventMap.has(item.google_event_id!))
+
+      // 2. Tâches dont l'horaire a changé dans GCal → mettre à jour scheduled_at
+      const timeChangedItems = linkedItems
+        .filter(item => gcalEventMap.has(item.google_event_id!))
+        .filter(item => {
+          const gcalStart = gcalEventMap.get(item.google_event_id!)!.start.dateTime
+          if (!gcalStart || !item.scheduled_at) return false
+          return new Date(gcalStart).getTime() !== new Date(item.scheduled_at).getTime()
+        })
+
+      const needsSync = orphanedItems.length > 0 || timeChangedItems.length > 0
+
       if (orphanedItems.length > 0) {
-        await Promise.all(
-          orphanedItems.map(item =>
-            supabase
-              .from('items')
-              .update({ state: 'active', scheduled_at: null, google_event_id: null, updated_at: new Date().toISOString() })
-              .eq('id', item.id)
-          )
-        )
-        // Notifier Clarté de rafraîchir
-        window.dispatchEvent(new CustomEvent('clarte-data-changed'))
-        // Ne pas afficher les tâches orphelines dans l'agenda
-        const syncedItems = (manaeItems || []).filter(item => !orphanedItems.find(o => o.id === item.id))
-        setDays(mergeToDays(gcalEvents, syncedItems))
-      } else {
-        setDays(mergeToDays(gcalEvents, manaeItems || []))
+        await Promise.all(orphanedItems.map(item =>
+          supabase.from('items')
+            .update({ state: 'active', scheduled_at: null, google_event_id: null, updated_at: new Date().toISOString() })
+            .eq('id', item.id)
+        ))
       }
+
+      if (timeChangedItems.length > 0) {
+        await Promise.all(timeChangedItems.map(item => {
+          const gcalStart = gcalEventMap.get(item.google_event_id!)!.start.dateTime!
+          return supabase.from('items')
+            .update({ scheduled_at: new Date(gcalStart).toISOString(), updated_at: new Date().toISOString() })
+            .eq('id', item.id)
+        }))
+      }
+
+      if (needsSync) {
+        window.dispatchEvent(new CustomEvent('clarte-data-changed'))
+      }
+
+      // Reconstruire la liste locale avec les orphelins exclus
+      const activeItems = (manaeItems || []).filter(
+        item => !orphanedItems.find(o => o.id === item.id)
+      )
+      setDays(mergeToDays(gcalEvents, activeItems))
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Erreur inconnue'
       if (message.includes('token') || message.includes('auth') || message.includes('401')) {
