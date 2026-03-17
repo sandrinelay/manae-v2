@@ -28,10 +28,10 @@ import {
   deleteItem,
   archiveItem,
   activateItem,
-  updateItemContent,
-  updateItemState
+  updateItemContent
 } from '@/services/items.service'
 import type { Item, ItemContext } from '@/types/items'
+import type { ListSlug } from '@/types/lists'
 import type { FilterType } from '@/config/filters'
 import type { ContextFilterType } from '@/components/ui/ContextFilterTabs'
 
@@ -60,6 +60,7 @@ function ClartePageContent() {
   const [taskToPlan, setTaskToPlan] = useState<Item | null>(null)
   const [showShoppingPlanModal, setShowShoppingPlanModal] = useState(false)
   const [shoppingItemCount, setShoppingItemCount] = useState(0)
+  const [initialShoppingTab, setInitialShoppingTab] = useState<ListSlug | undefined>(undefined)
 
   // Fonction de filtrage par recherche
   const filterBySearch = useCallback((items: Item[]) => {
@@ -74,7 +75,6 @@ function ClartePageContent() {
   const filteredTasks = useMemo(() => filterBySearch(data?.tasks || []), [data?.tasks, filterBySearch])
   const filteredNotes = useMemo(() => filterBySearch(data?.notes || []), [data?.notes, filterBySearch])
   const filteredIdeas = useMemo(() => filterBySearch(data?.ideas || []), [data?.ideas, filterBySearch])
-  const filteredShopping = useMemo(() => filterBySearch(data?.shoppingItems || []), [data?.shoppingItems, filterBySearch])
 
   // Compteurs (reflètent la recherche si active)
   const displayCounts = useMemo(() => {
@@ -83,9 +83,9 @@ function ClartePageContent() {
       tasks: filteredTasks.length,
       notes: filteredNotes.length,
       ideas: filteredIdeas.length,
-      shopping: filteredShopping.length
+      shopping: data?.counts?.shopping ?? 0
     }
-  }, [searchQuery, data?.counts, filteredTasks.length, filteredNotes.length, filteredIdeas.length, filteredShopping.length])
+  }, [searchQuery, data?.counts, filteredTasks.length, filteredNotes.length, filteredIdeas.length])
 
   // Gérer le retour après connexion Google Calendar
   const hasResumedPlanning = useRef(false)
@@ -242,17 +242,10 @@ function ClartePageContent() {
     }
   }, [refetch])
 
-  const handleToggleShoppingItem = useCallback(async (id: string) => {
-    try {
-      const item = data?.shoppingItems.find(i => i.id === id)
-      if (!item) return
-      const newState = item.state === 'completed' ? 'active' : 'completed'
-      await updateItemState(id, newState)
-      await refetch()
-    } catch (error) {
-      console.error('Erreur toggle shopping:', error)
-    }
-  }, [data, refetch])
+  const handleOpenList = useCallback((slug: ListSlug) => {
+    setInitialShoppingTab(slug)
+    setActiveFilter('shopping')
+  }, [])
 
   const handleSearch = useCallback((query: string) => {
     setSearchQuery(query)
@@ -358,7 +351,7 @@ function ClartePageContent() {
   const shouldShowTasks = showTasks && (!isSearching || filteredTasks.length > 0)
   const shouldShowNotes = showNotes && (!isSearching || notesByContext.length > 0)
   const shouldShowIdeas = showIdeas && (!isSearching || ideasByContext.length > 0)
-  const shouldShowShopping = showShopping && (!isSearching || filteredShopping.length > 0)
+  const shouldShowShopping = showShopping && (!isSearching || (data?.counts?.shopping ?? 0) > 0)
 
   // Vérifier si aucun résultat pendant une recherche
   const noResults = isSearching && !shouldShowTasks && !shouldShowNotes && !shouldShowIdeas && !shouldShowShopping
@@ -437,7 +430,8 @@ function ClartePageContent() {
                 {shouldShowShopping && (
                   activeFilter === 'shopping' && !isSearching ? (
                     <ShoppingFullView
-                      items={filteredShopping}
+                      lists={data?.listsWithCounts ?? []}
+                      initialTab={initialShoppingTab}
                       onRefresh={refetch}
                       initialShowPlanModal={showShoppingPlanModal}
                       onPlanModalClosed={() => setShowShoppingPlanModal(false)}
@@ -446,10 +440,9 @@ function ClartePageContent() {
                     />
                   ) : (
                     <ShoppingBlock
-                      items={filteredShopping}
-                      totalCount={filteredShopping.length}
-                      onToggleItem={handleToggleShoppingItem}
-                      onShowFullView={() => setActiveFilter('shopping')}
+                      listsWithCounts={data?.listsWithCounts ?? []}
+                      onViewAll={() => setActiveFilter('shopping')}
+                      onOpenList={handleOpenList}
                     />
                   )
                 )}
