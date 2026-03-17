@@ -60,6 +60,7 @@ function ClartePageContent() {
   const [taskToPlan, setTaskToPlan] = useState<Item | null>(null)
   const [showShoppingPlanModal, setShowShoppingPlanModal] = useState(false)
   const [shoppingItemCount, setShoppingItemCount] = useState(0)
+  const [shoppingListName, setShoppingListName] = useState('Achats')
   const [initialShoppingTab, setInitialShoppingTab] = useState<ListSlug | undefined>(undefined)
 
   // Fonction de filtrage par recherche
@@ -255,8 +256,9 @@ function ClartePageContent() {
     setSearchQuery(null)
   }, [])
 
-  const handleShowShoppingPlanModal = useCallback((itemCount: number) => {
+  const handleShowShoppingPlanModal = useCallback((itemCount: number, listName?: string) => {
     setShoppingItemCount(itemCount)
+    setShoppingListName(listName ?? 'Achats')
     setShowShoppingPlanModal(true)
   }, [])
 
@@ -512,6 +514,7 @@ function ClartePageContent() {
 
       {showShoppingPlanModal && (
         <PlanShoppingModal
+          listName={shoppingListName}
           itemCount={shoppingItemCount}
           onClose={() => setShowShoppingPlanModal(false)}
           onSuccess={refetch}

@@ -41,7 +41,7 @@ interface ShoppingFullViewProps {
   onRefresh: () => Promise<void>
   initialShowPlanModal?: boolean
   onPlanModalClosed?: () => void
-  onShowPlanModal?: (itemCount: number) => void
+  onShowPlanModal?: (itemCount: number, listName?: string) => void
   externalPlanModalControl?: boolean
 }
 
@@ -246,7 +246,7 @@ export function ShoppingFullView({
           variant="plan"
           onClick={() => {
             if (externalPlanModalControl && onShowPlanModal) {
-              onShowPlanModal(activeItems.length)
+              onShowPlanModal(activeItems.length, activeList?.name)
             } else {
               setShowPlanModal(true)
             }
