@@ -2,6 +2,7 @@
 
 import { useState, useRef, useEffect } from 'react'
 import { Item } from '@/types/items'
+import type { List } from '@/types/lists'
 import {
   SHOPPING_CATEGORY_CONFIG,
   SHOPPING_CATEGORIES,
@@ -19,20 +20,27 @@ import { ActionButton } from '@/components/ui/ActionButton'
 
 interface ShoppingItemModalProps {
   item: Item
+  availableLists: List[]
+  currentListId: string | null
   onClose: () => void
   onEdit: (id: string, content: string, category: ShoppingCategory) => void
   onDelete: (id: string) => void
   onToggle: (id: string) => void
+  onMove: (id: string, targetListId: string) => void
 }
 
 export function ShoppingItemModal({
   item,
+  availableLists,
+  currentListId,
   onClose,
   onEdit,
   onDelete,
-  onToggle
+  onToggle,
+  onMove
 }: ShoppingItemModalProps) {
   const [isEditMode, setIsEditMode] = useState(false)
+  const [showMoveSelector, setShowMoveSelector] = useState(false)
   const [editContent, setEditContent] = useState(item.content)
   const [editCategory, setEditCategory] = useState<ShoppingCategory>(
     (item.shopping_category as ShoppingCategory) || 'other'
@@ -43,6 +51,7 @@ export function ShoppingItemModal({
   const category = (item.shopping_category || 'other') as ShoppingCategory
   const categoryConfig = SHOPPING_CATEGORY_CONFIG[category]
   const CategoryIcon = categoryConfig.icon
+  const otherLists = availableLists.filter(l => l.id !== currentListId)
 
   // Focus input en mode édition
   useEffect(() => {
@@ -214,6 +223,16 @@ export function ShoppingItemModal({
                 className="flex-1"
               />
 
+              {/* Déplacer */}
+              {otherLists.length > 0 && (
+                <ActionButton
+                  label="Déplacer"
+                  variant="secondary"
+                  onClick={() => setShowMoveSelector(!showMoveSelector)}
+                  className="flex-1"
+                />
+              )}
+
               {/* Supprimer */}
               <IconButton
                 icon={<TrashIcon className="w-5 h-5" />}
@@ -225,6 +244,24 @@ export function ShoppingItemModal({
             </>
           )}
         </div>
+
+        {/* Sélecteur de déplacement */}
+        {showMoveSelector && !isEditMode && otherLists.length > 0 && (
+          <div className="px-4 pb-4 border-t border-border pt-3">
+            <p className="text-xs text-text-muted mb-2">Déplacer vers :</p>
+            <div className="flex flex-wrap gap-2">
+              {otherLists.map(list => (
+                <button
+                  key={list.id}
+                  onClick={() => { onMove(item.id, list.id); onClose() }}
+                  className="px-3 py-1.5 bg-gray-100 hover:bg-gray-200 rounded-full text-sm text-text-dark transition-colors"
+                >
+                  {list.name}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
     </>
   )
