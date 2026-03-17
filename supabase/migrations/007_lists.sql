@@ -64,15 +64,18 @@ $$;
 -- Migration items.list_id : shopping_lists → lists
 -- ============================================
 
--- 1. Supprimer l'ancienne FK
+-- 1. Vider les anciens list_id (ils pointent vers shopping_lists, pas vers lists)
+UPDATE items SET list_id = NULL WHERE list_id IS NOT NULL;
+
+-- 2. Supprimer l'ancienne FK
 ALTER TABLE items DROP CONSTRAINT IF EXISTS items_list_id_fkey;
 
--- 2. Ajouter la nouvelle FK vers lists
+-- 3. Ajouter la nouvelle FK vers lists
 ALTER TABLE items
   ADD CONSTRAINT items_list_id_fkey
   FOREIGN KEY (list_id) REFERENCES lists(id) ON DELETE SET NULL;
 
--- 3. Migrer les list_item existants vers liste "alimentaire"
+-- 4. Ré-assigner les list_item vers la liste "alimentaire"
 UPDATE items
 SET list_id = l.id
 FROM lists l
@@ -80,5 +83,5 @@ WHERE items.type = 'list_item'
   AND l.user_id = items.user_id
   AND l.slug = 'alimentaire';
 
--- 4. Supprimer l'ancienne table
+-- 5. Supprimer l'ancienne table
 DROP TABLE IF EXISTS shopping_lists CASCADE;
