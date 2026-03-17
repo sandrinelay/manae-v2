@@ -1,17 +1,16 @@
 'use client'
 
 import { useState, useCallback, useMemo, useEffect, useRef } from 'react'
+import { createClient } from '@/lib/supabase/client'
 import {
-  fetchAllShoppingItems,
   toggleShoppingItem,
   updateShoppingItem,
   deleteShoppingItem,
   addShoppingItem,
-  fetchActiveShoppingList,
   clearCompletedShoppingItems,
   updateShoppingItemCategory
 } from '@/services/shopping.service'
-import { TabBar } from '@/components/clarte/tabs/TabBar'
+import { getItemsByList, moveItemToList } from '@/services/lists.service'
 import { ShoppingItemRow } from '@/components/clarte/cards/ShoppingItemRow'
 import { ShoppingItemModal } from '@/components/clarte/modals/ShoppingItemModal'
 import { PlanShoppingModal } from '@/components/clarte/modals/PlanShoppingModal'
@@ -30,16 +29,15 @@ import {
   SHOPPING_CATEGORY_CONFIG
 } from '@/config/shopping-categories'
 import type { Item } from '@/types/items'
+import type { List, ListSlug } from '@/types/lists'
 
-type TabId = 'active' | 'completed'
-
-const TABS = [
-  { id: 'active' as TabId, label: 'À acheter' },
-  { id: 'completed' as TabId, label: 'Achetés' }
-]
+interface ListWithCount extends List {
+  activeCount: number
+}
 
 interface ShoppingFullViewProps {
-  items: Item[]
+  lists: ListWithCount[]
+  initialTab?: ListSlug
   onRefresh: () => Promise<void>
   initialShowPlanModal?: boolean
   onPlanModalClosed?: () => void
@@ -51,12 +49,10 @@ interface ShoppingFullViewProps {
 function groupByCategory(items: Item[]): Map<ShoppingCategory, Item[]> {
   const grouped = new Map<ShoppingCategory, Item[]>()
 
-  // Initialiser toutes les catégories dans l'ordre
   for (const category of SHOPPING_CATEGORY_ORDER) {
     grouped.set(category, [])
   }
 
-  // Répartir les items
   for (const item of items) {
     const category = (item.shopping_category || 'other') as ShoppingCategory
     const categoryItems = grouped.get(category) || []
@@ -68,23 +64,28 @@ function groupByCategory(items: Item[]): Map<ShoppingCategory, Item[]> {
 }
 
 export function ShoppingFullView({
-  items: initialItems,
+  lists,
+  initialTab,
   onRefresh,
   initialShowPlanModal = false,
   onPlanModalClosed,
   onShowPlanModal,
   externalPlanModalControl = false
 }: ShoppingFullViewProps) {
-  const [activeTab, setActiveTab] = useState<TabId>('active')
+  const [activeTab, setActiveTab] = useState<ListSlug>(
+    (initialTab as ListSlug) || (lists[0]?.slug as ListSlug) || 'alimentaire'
+  )
+  const [items, setItems] = useState<Item[]>([])
+  const [isLoadingItems, setIsLoadingItems] = useState(true)
   const [selectedItem, setSelectedItem] = useState<Item | null>(null)
-  const [allItems, setAllItems] = useState<Item[]>(initialItems)
   const [newItemContent, setNewItemContent] = useState('')
   const [isAddingItem, setIsAddingItem] = useState(false)
-  const [listId, setListId] = useState<string | null>(null)
   const [showPlanModal, setShowPlanModal] = useState(initialShowPlanModal)
   const [isClearingCompleted, setIsClearingCompleted] = useState(false)
   const [itemToChangeCategory, setItemToChangeCategory] = useState<Item | null>(null)
   const inputRef = useRef<HTMLInputElement>(null)
+
+  const activeList = lists.find(l => l.slug === activeTab) ?? null
 
   // Ouvrir la modale si le prop change (retour après connexion Google)
   useEffect(() => {
@@ -93,73 +94,58 @@ export function ShoppingFullView({
     }
   }, [initialShowPlanModal])
 
-  // Fetch liste active pour avoir le list_id
-  useEffect(() => {
-    async function fetchList() {
-      try {
-        const list = await fetchActiveShoppingList()
-        if (list) {
-          setListId(list.id)
-        }
-      } catch (error) {
-        console.error('Erreur fetch liste:', error)
-      }
-    }
-    fetchList()
-  }, [])
-
-  // Fetch tous les articles
-  const fetchItems = useCallback(async () => {
+  // Charger les articles de la liste active
+  const loadItems = useCallback(async () => {
+    if (!activeList) return
+    setIsLoadingItems(true)
     try {
-      const data = await fetchAllShoppingItems()
-      setAllItems(data)
+      const supabase = createClient()
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) return
+      const data = await getItemsByList(supabase, user.id, activeList.id)
+      setItems(data)
     } catch (error) {
-      console.error('Erreur fetch items:', error)
+      console.error('Erreur chargement articles:', error)
+    } finally {
+      setIsLoadingItems(false)
     }
-  }, [])
+  }, [activeList])
 
-  // Charger tous les articles au montage
   useEffect(() => {
-    fetchItems()
-  }, [fetchItems])
+    loadItems()
+  }, [loadItems])
 
-  // Refresh
+  // Refresh complet (données parent + items locaux)
   const handleRefresh = useCallback(async () => {
     await onRefresh()
-    await fetchItems()
-  }, [onRefresh, fetchItems])
+    await loadItems()
+  }, [onRefresh, loadItems])
 
-  // Filtrer les articles selon l'onglet
+  // Articles filtrés par état
   const activeItems = useMemo(() =>
-    allItems.filter(item => item.state === 'active'),
-    [allItems]
+    items.filter(item => item.state === 'active'),
+    [items]
   )
 
   const completedItems = useMemo(() =>
-    allItems.filter(item => item.state === 'completed'),
-    [allItems]
+    items.filter(item => item.state === 'completed'),
+    [items]
   )
 
-  // Articles groupés par catégorie (pour l'onglet actif)
+  // Articles actifs groupés par catégorie (pour la liste Alimentaire)
   const groupedActiveItems = useMemo(() =>
     groupByCategory(activeItems),
     [activeItems]
   )
 
-  // Compteurs pour les onglets
-  const tabsWithCounts = useMemo(() => TABS.map(tab => ({
-    ...tab,
-    count: tab.id === 'active' ? activeItems.length : completedItems.length
-  })), [activeItems.length, completedItems.length])
-
   // Handlers
   const handleTapItem = useCallback((id: string) => {
-    const item = allItems.find(i => i.id === id)
+    const item = items.find(i => i.id === id)
     if (item) setSelectedItem(item)
-  }, [allItems])
+  }, [items])
 
   const handleToggle = useCallback(async (id: string) => {
-    const item = allItems.find(i => i.id === id)
+    const item = items.find(i => i.id === id)
     if (!item) return
 
     try {
@@ -168,7 +154,7 @@ export function ShoppingFullView({
     } catch (error) {
       console.error('Erreur toggle:', error)
     }
-  }, [allItems, handleRefresh])
+  }, [items, handleRefresh])
 
   const handleEdit = useCallback(async (id: string, content: string, category: ShoppingCategory) => {
     try {
@@ -191,12 +177,12 @@ export function ShoppingFullView({
   }, [handleRefresh])
 
   const handleAddItem = useCallback(async () => {
-    if (!newItemContent.trim() || !listId) return
+    if (!newItemContent.trim() || !activeList) return
 
     try {
       setIsAddingItem(true)
       const cleanedContent = cleanShoppingItemContent(newItemContent)
-      await addShoppingItem(listId, cleanedContent)
+      await addShoppingItem(activeList.id, cleanedContent)
       setNewItemContent('')
       await handleRefresh()
       inputRef.current?.focus()
@@ -205,9 +191,8 @@ export function ShoppingFullView({
     } finally {
       setIsAddingItem(false)
     }
-  }, [newItemContent, listId, handleRefresh])
+  }, [newItemContent, activeList, handleRefresh])
 
-  // Vider les articles achetés
   const handleClearCompleted = useCallback(async () => {
     if (completedItems.length === 0) return
 
@@ -222,15 +207,13 @@ export function ShoppingFullView({
     }
   }, [completedItems.length, handleRefresh])
 
-  // Changer la catégorie d'un article (long press)
   const handleLongPress = useCallback((id: string) => {
-    const item = allItems.find(i => i.id === id)
+    const item = items.find(i => i.id === id)
     if (item) {
       setItemToChangeCategory(item)
     }
-  }, [allItems])
+  }, [items])
 
-  // Mettre à jour la catégorie
   const handleCategoryChange = useCallback(async (category: ShoppingCategory) => {
     if (!itemToChangeCategory) return
 
@@ -243,15 +226,22 @@ export function ShoppingFullView({
     }
   }, [itemToChangeCategory, handleRefresh])
 
-  // Articles à afficher selon l'onglet actif
-  const displayedItems = activeTab === 'active' ? activeItems : completedItems
+  const handleMoveItem = useCallback(async (itemId: string, targetListId: string) => {
+    try {
+      const supabase = createClient()
+      await moveItemToList(supabase, itemId, targetListId)
+      await handleRefresh()
+    } catch (error) {
+      console.error('Erreur déplacement:', error)
+    }
+  }, [handleRefresh])
 
   return (
     <div className="w-full">
-      {/* Bouton principal */}
+      {/* Bouton principal planification */}
       <div className="w-full mb-4">
         <ActionButton
-          label="Faire les courses"
+          label="Faire les achats"
           icon={<CalendarIcon className="w-5 h-5" />}
           variant="plan"
           onClick={() => {
@@ -279,13 +269,13 @@ export function ShoppingFullView({
                 handleAddItem()
               }
             }}
-            placeholder="Ajouter un article..."
+            placeholder={`Ajouter dans ${activeList?.name ?? 'la liste'}...`}
             className="input-field flex-1"
-            disabled={isAddingItem || !listId}
+            disabled={isAddingItem || !activeList}
           />
           <button
             onClick={handleAddItem}
-            disabled={!newItemContent.trim() || isAddingItem || !listId}
+            disabled={!newItemContent.trim() || isAddingItem || !activeList}
             className="px-4 py-3 rounded-xl bg-secondary text-white font-medium disabled:opacity-50 disabled:cursor-not-allowed hover:bg-secondary/90 transition-colors flex items-center gap-2"
           >
             <PlusIcon className="w-5 h-5" />
@@ -294,31 +284,49 @@ export function ShoppingFullView({
         </div>
       </div>
 
-      {/* Onglets */}
-      <TabBar
-        tabs={tabsWithCounts}
-        activeTab={activeTab}
-        onTabChange={(id) => setActiveTab(id as TabId)}
-        className="border-b border-gray-100 pb-2"
-      />
+      {/* Onglets par liste */}
+      <div className="flex gap-2 overflow-x-auto pb-2 px-4 shrink-0 scrollbar-none border-b border-border mb-4">
+        {lists.map(list => {
+          const count = list.activeCount
+          return (
+            <button
+              key={list.slug}
+              onClick={() => setActiveTab(list.slug as ListSlug)}
+              className={`shrink-0 px-3 py-1.5 rounded-full text-sm font-medium transition-colors whitespace-nowrap ${
+                activeTab === list.slug
+                  ? 'bg-primary text-white'
+                  : 'bg-gray-100 text-text-muted hover:bg-gray-200'
+              }`}
+            >
+              {list.name}{count > 0 ? ` ${count}` : ''}
+            </button>
+          )
+        })}
+      </div>
 
       {/* Contenu */}
-      <div className="w-full mt-4">
-        {displayedItems.length === 0 ? (
-          <EmptyState {...(activeTab === 'active' ? EMPTY_STATE_CONFIG.shopping : EMPTY_STATE_CONFIG.shoppingDone)} />
-        ) : activeTab === 'active' ? (
-          // Vue groupée par catégorie pour les articles actifs
+      <div className="w-full">
+        {isLoadingItems ? (
+          // Skeleton de chargement
+          <div className="space-y-3">
+            {[1, 2, 3].map(i => (
+              <div key={i} className="h-12 bg-gray-100 rounded-xl animate-pulse" />
+            ))}
+          </div>
+        ) : activeItems.length === 0 && completedItems.length === 0 ? (
+          <EmptyState {...EMPTY_STATE_CONFIG.shopping} />
+        ) : activeTab === 'alimentaire' ? (
+          // Vue groupée par catégorie pour la liste Alimentaire
           <div className="space-y-4">
             {SHOPPING_CATEGORY_ORDER.map(category => {
-              const items = groupedActiveItems.get(category) || []
-              if (items.length === 0) return null
+              const categoryItems = groupedActiveItems.get(category) || []
+              if (categoryItems.length === 0) return null
 
               const config = SHOPPING_CATEGORY_CONFIG[category]
               const Icon = config.icon
 
               return (
                 <div key={category}>
-                  {/* Header de catégorie */}
                   <div className="flex items-center gap-2 mb-2 px-1">
                     <div className={`w-6 h-6 rounded-lg flex items-center justify-center ${config.bgClass}`}>
                       <Icon className={`w-3.5 h-3.5 ${config.colorClass}`} />
@@ -327,13 +335,12 @@ export function ShoppingFullView({
                       {config.label}
                     </span>
                     <span className="text-xs text-text-muted">
-                      ({items.length})
+                      ({categoryItems.length})
                     </span>
                   </div>
 
-                  {/* Items de la catégorie */}
                   <div className="space-y-2">
-                    {items.map((item, idx) => (
+                    {categoryItems.map((item, idx) => (
                       <ShoppingItemRow
                         key={item.id}
                         item={item}
@@ -347,49 +354,89 @@ export function ShoppingFullView({
                 </div>
               )
             })}
+
+            {/* Articles achetés */}
+            {completedItems.length > 0 && (
+              <div className="space-y-2 pt-2 border-t border-gray-100">
+                <p className="text-xs text-text-muted px-1">Achetés ({completedItems.length})</p>
+                {completedItems.map((item, idx) => (
+                  <ShoppingItemRow
+                    key={item.id}
+                    item={item}
+                    index={idx}
+                    onToggle={handleToggle}
+                    onTap={handleTapItem}
+                  />
+                ))}
+                <button
+                  onClick={handleClearCompleted}
+                  disabled={isClearingCompleted}
+                  className="w-full mt-2 flex items-center justify-center gap-2 px-4 py-3 rounded-xl border-2 border-dashed border-red-200 text-red-500 font-medium hover:bg-red-50 hover:border-red-300 transition-colors disabled:opacity-50"
+                >
+                  <TrashIcon className="w-5 h-5" />
+                  <span>Vider les achetés</span>
+                </button>
+              </div>
+            )}
           </div>
         ) : (
-          // Liste simple pour les articles achetés + bouton vider
+          // Liste plate pour les autres onglets
           <div className="space-y-2">
-            {displayedItems.map((item, idx) => (
+            {activeItems.map((item, idx) => (
               <ShoppingItemRow
                 key={item.id}
                 item={item}
                 index={idx}
                 onToggle={handleToggle}
                 onTap={handleTapItem}
+                onLongPress={handleLongPress}
               />
             ))}
 
-            {/* Bouton vider la liste - en bas de l'onglet Achetés */}
             {completedItems.length > 0 && (
-              <button
-                onClick={handleClearCompleted}
-                disabled={isClearingCompleted}
-                className="w-full mt-4 flex items-center justify-center gap-2 px-4 py-3 rounded-xl border-2 border-dashed border-red-200 text-red-500 font-medium hover:bg-red-50 hover:border-red-300 transition-colors disabled:opacity-50"
-              >
-                <TrashIcon className="w-5 h-5" />
-                <span>Vider la liste</span>
-              </button>
+              <div className="space-y-2 pt-2 border-t border-gray-100">
+                <p className="text-xs text-text-muted px-1">Achetés ({completedItems.length})</p>
+                {completedItems.map((item, idx) => (
+                  <ShoppingItemRow
+                    key={item.id}
+                    item={item}
+                    index={idx}
+                    onToggle={handleToggle}
+                    onTap={handleTapItem}
+                  />
+                ))}
+                <button
+                  onClick={handleClearCompleted}
+                  disabled={isClearingCompleted}
+                  className="w-full mt-2 flex items-center justify-center gap-2 px-4 py-3 rounded-xl border-2 border-dashed border-red-200 text-red-500 font-medium hover:bg-red-50 hover:border-red-300 transition-colors disabled:opacity-50"
+                >
+                  <TrashIcon className="w-5 h-5" />
+                  <span>Vider les achetés</span>
+                </button>
+              </div>
             )}
           </div>
         )}
       </div>
 
-      {/* Modal de détail */}
+      {/* Modal de détail article */}
       {selectedItem && (
         <ShoppingItemModal
           item={selectedItem}
+          availableLists={lists}
+          currentListId={activeList?.id ?? null}
           onClose={() => setSelectedItem(null)}
           onEdit={handleEdit}
           onDelete={handleDelete}
           onToggle={handleToggle}
+          onMove={handleMoveItem}
         />
       )}
 
       {/* Modal de planification (seulement si pas de contrôle externe) */}
       {!externalPlanModalControl && showPlanModal && (
         <PlanShoppingModal
+          listName={activeList?.name ?? 'Achats'}
           itemCount={activeItems.length}
           onClose={() => {
             setShowPlanModal(false)
