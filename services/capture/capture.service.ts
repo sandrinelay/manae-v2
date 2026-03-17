@@ -231,26 +231,20 @@ export async function saveItem(input: SaveItemInput): Promise<string> {
 async function getOrCreateDefaultShoppingList(userId: string): Promise<string> {
   const supabase = createClient()
 
-  // Chercher une liste active
-  const { data: existingList } = await supabase
-    .from('shopping_lists')
+  // Retourner la liste "alimentaire" de l'utilisateur
+  const { data: list } = await supabase
+    .from('lists')
     .select('id')
     .eq('user_id', userId)
-    .eq('status', 'active')
+    .eq('slug', 'alimentaire')
     .single()
 
-  if (existingList) {
-    return existingList.id
-  }
+  if (list) return list.id
 
-  // Créer une nouvelle liste
+  // Fallback : créer la liste alimentaire si absente (ne devrait pas arriver)
   const { data: newList, error } = await supabase
-    .from('shopping_lists')
-    .insert({
-      user_id: userId,
-      name: 'Courses',
-      status: 'active'
-    })
+    .from('lists')
+    .insert({ user_id: userId, name: 'Alimentaire', slug: 'alimentaire', position: 1, enabled: true })
     .select('id')
     .single()
 
