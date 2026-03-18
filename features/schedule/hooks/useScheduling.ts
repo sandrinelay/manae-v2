@@ -32,6 +32,8 @@ export interface UseSchedulingParams {
   skipItemUpdate?: boolean
   /** ID de l'événement Google Calendar existant (pour déplacer une tâche déjà planifiée) */
   currentGoogleEventId?: string | null
+  /** Contexte de la tâche à planifier (ex: 'work', 'family', 'personal') */
+  taskContext?: string
 }
 
 // Info sur le filtrage service
@@ -68,7 +70,7 @@ export interface UseSchedulingReturn {
 // ============================================
 
 export function useScheduling(params: UseSchedulingParams): UseSchedulingReturn {
-  const { itemId, taskContent, mood, temporalConstraint, skipItemUpdate = false, currentGoogleEventId } = params
+  const { itemId, taskContent, mood, temporalConstraint, skipItemUpdate = false, currentGoogleEventId, taskContext } = params
 
   // ============================================
   // ANALYSE DE LA TÂCHE (une seule fois)
@@ -211,7 +213,8 @@ export function useScheduling(params: UseSchedulingParams): UseSchedulingReturn 
         // On vérifie le texte (pas juste la contrainte AI) pour éviter les heures hallucinées.
         temporalConstraint: (targetDate && !(temporalConstraint?.type === 'fixed_date' && temporalConstraint.date?.includes('T') && /\b([0-1]?\d|2[0-3])[h:]\d{0,2}\b/i.test(taskContent))) ? null : temporalConstraint,
         taskContent,
-        ignoreServiceConstraints: forceIgnoreService
+        ignoreServiceConstraints: forceIgnoreService,
+        taskContext
       })
 
       // Stocker les infos sur le filtrage service
