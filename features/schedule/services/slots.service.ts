@@ -718,6 +718,7 @@ export interface FindSlotsParams {
   temporalConstraint?: TemporalConstraint | null
   taskContent?: string  // Pour détecter les contraintes de service
   ignoreServiceConstraints?: boolean  // Pour forcer l'affichage sans filtrage service
+  taskContext?: string  // Contexte de la tâche à planifier (ItemContext | undefined)
 }
 
 // Résultat enrichi avec métadonnées
@@ -752,7 +753,8 @@ export async function findAvailableSlots(params: FindSlotsParams): Promise<FindS
     dayBounds = DEFAULT_DAY_BOUNDS,
     temporalConstraint = null,
     taskContent = '',
-    ignoreServiceConstraints = false
+    ignoreServiceConstraints = false,
+    taskContext = undefined
   } = params
 
   // Détecter les contraintes de service depuis le contenu de la tâche
@@ -781,9 +783,20 @@ export async function findAvailableSlots(params: FindSlotsParams): Promise<FindS
     // 1. Récupérer les contraintes du jour (work, school, etc.)
     // Ces contraintes représentent les moments où l'utilisateur est OCCUPÉ
     // SAUF si une contrainte temporelle explicite est définie
-    const dayConstraints = hasExplicitTimeConstraint
+    const rawDayConstraints = hasExplicitTimeConstraint
       ? [] // Ignorer les indispos utilisateur si contrainte temporelle explicite
       : getConstraintsForDay(constraints, currentDate)
+
+    // Filtrage contextuel :
+    // - contrainte 'any' → bloque toujours (comportement actuel)
+    // - contrainte dédiée au même contexte que la tâche → ne bloque pas (c'est le bon moment)
+    // - contrainte dédiée à un autre contexte → bloque
+    const dayConstraints = taskContext
+      ? rawDayConstraints.filter(c =>
+          !c.context || c.context === 'any' || c.context !== taskContext
+        )
+      : rawDayConstraints
+
     const constraintBlocks = constraintsToBlocks(dayConstraints)
 
     // 2. Récupérer les événements du jour (HARD) - événements Google Calendar
