@@ -175,7 +175,8 @@ export function CaptureModal({
     itemId: savedItemId || '',
     taskContent: content,
     mood: schedulingMood,
-    temporalConstraint
+    temporalConstraint,
+    taskContext: captureResult.suggestedContext || undefined
   })
 
   // Charger les créneaux quand on passe à l'étape schedule
