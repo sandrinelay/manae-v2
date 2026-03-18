@@ -93,6 +93,45 @@ function getConstraintsForDay(constraints: Constraint[], date: Date): Constraint
 }
 
 /**
+ * Filtre les créneaux pour ne garder que ceux dans les fenêtres des contraintes
+ * dédiées au contexte de la tâche.
+ * Ex : tâche 'work' + contrainte 'Travail' lun-ven 9h-18h → uniquement des créneaux en semaine 9h-18h.
+ * Si aucune contrainte ne correspond au contexte, aucun filtrage n'est appliqué.
+ */
+function filterSlotsByContextWindows(
+  slots: TimeSlot[],
+  constraints: Constraint[],
+  taskContext: string
+): TimeSlot[] {
+  const contextConstraints = constraints.filter(c => c.context === taskContext)
+  if (contextConstraints.length === 0) return slots
+
+  return slots.filter(slot => {
+    return contextConstraints.some(constraint => {
+      const slotDate = new Date(slot.date + 'T00:00:00')
+      const dayName = getDayName(slotDate)
+      if (!constraint.days.includes(dayName)) return false
+
+      const slotStart = timeToMinutes(slot.startTime)
+      const slotEnd = timeToMinutes(slot.endTime)
+      const constraintStart = timeToMinutes(constraint.start_time)
+      const constraintEnd = timeToMinutes(constraint.end_time)
+
+      if (slotStart < constraintStart || slotEnd > constraintEnd) return false
+
+      // Exclure les créneaux sur la pause déjeuner si activée
+      if (constraint.allow_lunch_break) {
+        const lunchStart = timeToMinutes('12:00')
+        const lunchEnd = timeToMinutes('14:00')
+        if (slotStart < lunchEnd && slotEnd > lunchStart) return false
+      }
+
+      return true
+    })
+  })
+}
+
+/**
  * Convertit les contraintes en blocs BUSY
  * Si allow_lunch_break est true, crée 2 blocs (avant et après 12h-14h)
  */
@@ -877,10 +916,17 @@ export async function findAvailableSlots(params: FindSlotsParams): Promise<FindS
     return false
   })
 
-  // 7. Appliquer le filtrage HARD des contraintes temporelles
-  console.log('[slots.service] Avant filtrage temporel:', futureSlots.length, 'créneaux')
+  // 7. Filtrer par fenêtre de contexte : si la tâche a un contexte et qu'il existe des
+  // contraintes dédiées à ce contexte, limiter les créneaux à ces fenêtres horaires.
+  // Ex: tâche 'work' → uniquement les créneaux pendant les heures de travail définies.
+  const contextFilteredSlots = taskContext
+    ? filterSlotsByContextWindows(futureSlots, constraints, taskContext)
+    : futureSlots
+
+  // 8. Appliquer le filtrage HARD des contraintes temporelles
+  console.log('[slots.service] Avant filtrage temporel:', contextFilteredSlots.length, 'créneaux')
   console.log('[slots.service] temporalConstraint:', JSON.stringify(temporalConstraint, null, 2))
-  let filteredSlots = filterSlotsByTemporalConstraint(futureSlots, temporalConstraint)
+  let filteredSlots = filterSlotsByTemporalConstraint(contextFilteredSlots, temporalConstraint)
   console.log('[slots.service] Après filtrage temporel:', filteredSlots.length, 'créneaux')
 
   // 8. Appliquer le filtrage HARD des contraintes de service (sauf si ignoré)
