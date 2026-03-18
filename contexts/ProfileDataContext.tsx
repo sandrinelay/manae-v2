@@ -80,6 +80,7 @@ export function ProfileDataProvider({ children }: { children: ReactNode }) {
         id: c.id,
         name: c.name,
         category: c.category as Constraint['category'],
+        context: (c.context || 'any') as Constraint['context'],
         days: c.days,
         start_time: c.start_time,
         end_time: c.end_time,
@@ -125,6 +126,7 @@ export function ProfileDataProvider({ children }: { children: ReactNode }) {
     const constraintsForDb = newConstraints.map(c => ({
       name: c.name,
       category: c.category,
+      context: c.context || 'any',
       days: c.days,
       start_time: c.start_time,
       end_time: c.end_time,

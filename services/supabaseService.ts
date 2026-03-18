@@ -1,4 +1,8 @@
 import { createClient } from '@/lib/supabase/client'
+import type { Constraint } from '@/types'
+
+// Re-export pour rétrocompatibilité
+export type { Constraint }
 
 // Types basés sur le schéma de la base de données
 
@@ -13,17 +17,6 @@ export interface UserProfile {
     updated_at: string
 }
 
-export interface Constraint {
-    id: string
-    user_id: string
-    name: string
-    category: 'work' | 'school' | 'home' | 'sport' | 'social' | 'other'
-    days: string[]
-    start_time: string
-    end_time: string
-    allow_lunch_break: boolean | null
-    created_at: string
-}
 
 // Helper pour obtenir le client Supabase
 function getSupabase() {

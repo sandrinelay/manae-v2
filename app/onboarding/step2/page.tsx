@@ -23,6 +23,7 @@ export default function OnboardingStep3() {
         id: generateUUID(),
         name: 'Travail',
         category: 'work',
+        context: 'work',
         days: ['monday', 'tuesday', 'wednesday', 'thursday', 'friday'],
         start_time: '09:00',
         end_time: '18:00',
@@ -42,6 +43,7 @@ export default function OnboardingStep3() {
                         id: c.id,
                         name: c.name,
                         category: c.category as Constraint['category'],
+                        context: (c.context || 'any') as Constraint['context'],
                         days: c.days,
                         start_time: c.start_time,
                         end_time: c.end_time,
@@ -156,6 +158,7 @@ export default function OnboardingStep3() {
             const constraintsForDb = constraints.map(c => ({
                 name: c.name,
                 category: c.category,
+                context: c.context || 'any',
                 days: c.days,
                 start_time: c.start_time,
                 end_time: c.end_time,

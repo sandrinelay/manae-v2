@@ -4,6 +4,7 @@
 
 export * from './items'
 export * from './shopping-lists'
+import type { ItemContext } from './items'
 
 // ============================================
 // ONBOARDING & CONSTRAINTS (existants)
@@ -26,6 +27,7 @@ export interface Constraint {
     user_id?: string;
     name: string;
     category: 'work' | 'school' | 'home' | 'sport' | 'social' | 'other';
+    context: ItemContext | 'any';  // 'any' = bloque toutes les tâches
     days: string[];
     start_time: string;
     end_time: string;
