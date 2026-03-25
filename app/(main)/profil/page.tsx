@@ -16,9 +16,12 @@ import { LogoutButton } from '@/components/profil/LogoutButton'
 import { EditNameModal } from '@/components/profil/EditNameModal'
 import { EnergyMomentsModal } from '@/components/shared/EnergyMomentsModal'
 import { ConstraintsModal } from '@/components/shared/ConstraintsModal'
+import { ExceptionsModal } from '@/components/shared/ExceptionsModal'
+import { OrganisationSection } from '@/components/profil/OrganisationSection'
 import { createClient } from '@/lib/supabase/client'
 import { getAllLists, updateListEnabled } from '@/services/lists.service'
 import type { List } from '@/types/lists'
+import type { Constraint } from '@/types'
 
 function ProfilPageContent() {
   const router = useRouter()
@@ -27,12 +30,15 @@ function ProfilPageContent() {
   const {
     profile,
     constraints,
+    exceptions,
     isLoading,
     error,
     refetch,
     updateName,
     updateEnergyMoments,
-    updateConstraints
+    updateConstraints,
+    addException,
+    deleteException
   } = useProfileData()
 
   const connectCalendar = searchParams.get('connectCalendar') === 'true'
@@ -43,6 +49,21 @@ function ProfilPageContent() {
   const [showEnergyModal, setShowEnergyModal] = useState(false)
   const [showConstraintsModal, setShowConstraintsModal] = useState(false)
   const [showShoppingListsModal, setShowShoppingListsModal] = useState(false)
+  const [showExceptionsModal, setShowExceptionsModal] = useState(false)
+  const [constraintsInitialForm, setConstraintsInitialForm] = useState<Partial<Omit<Constraint, 'id'>> | undefined>()
+
+  const handleQuickSetupWorkHours = useCallback(() => {
+    setConstraintsInitialForm({
+      name: 'Heures de travail',
+      category: 'work',
+      context: 'work',
+      days: ['monday', 'tuesday', 'wednesday', 'thursday', 'friday'],
+      start_time: '09:00',
+      end_time: '18:00',
+      allow_lunch_break: true
+    })
+    setShowConstraintsModal(true)
+  }, [])
 
   const [lists, setLists] = useState<List[]>([])
 
@@ -193,6 +214,14 @@ function ProfilPageContent() {
             onShowEnergyModal={() => setShowEnergyModal(true)}
           />
 
+          <OrganisationSection
+            constraints={constraints}
+            exceptions={exceptions}
+            onShowConstraintsModal={() => setShowConstraintsModal(true)}
+            onShowExceptionsModal={() => setShowExceptionsModal(true)}
+            onQuickSetupWorkHours={handleQuickSetupWorkHours}
+          />
+
           <div ref={connectionsSectionRef}>
             <ConnectionsSection onConnectSuccess={handleCalendarConnectSuccess} />
           </div>
@@ -236,8 +265,18 @@ function ProfilPageContent() {
     {showConstraintsModal && (
       <ConstraintsModal
         constraints={constraints}
-        onClose={() => setShowConstraintsModal(false)}
+        onClose={() => { setShowConstraintsModal(false); setConstraintsInitialForm(undefined) }}
         onSave={updateConstraints}
+        initialFormData={constraintsInitialForm}
+      />
+    )}
+
+    {showExceptionsModal && (
+      <ExceptionsModal
+        exceptions={exceptions}
+        onClose={() => setShowExceptionsModal(false)}
+        onAdd={addException}
+        onDelete={deleteException}
       />
     )}
   </>
