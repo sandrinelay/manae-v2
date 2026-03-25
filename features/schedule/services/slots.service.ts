@@ -1,7 +1,7 @@
 // features/schedule/services/slots.service.ts
 
 import type { GoogleCalendarEvent, TimeSlot, CognitiveLoad } from '../types/scheduling.types'
-import type { Constraint } from '@/types'
+import type { Constraint, ScheduleException } from '@/types'
 import type { TemporalConstraint, TemporalUrgency } from '@/types/items'
 import { detectServiceConstraints, type ServiceConstraints } from '../utils/text-analysis'
 
@@ -758,6 +758,7 @@ export interface FindSlotsParams {
   taskContent?: string  // Pour détecter les contraintes de service
   ignoreServiceConstraints?: boolean  // Pour forcer l'affichage sans filtrage service
   taskContext?: string  // Contexte de la tâche à planifier (ItemContext | undefined)
+  exceptions?: ScheduleException[]
 }
 
 // Résultat enrichi avec métadonnées
@@ -769,6 +770,17 @@ export interface FindSlotsResult {
     filteredCount: number  // Nombre de créneaux filtrés par le service
     reason: string  // Message explicatif
   }
+}
+
+/**
+ * Retourne l'exception active pour une date donnée, si elle existe
+ */
+function getActiveException(
+  exceptions: ScheduleException[],
+  date: Date
+): ScheduleException | null {
+  const dateStr = formatDate(date)
+  return exceptions.find(ex => ex.start_date <= dateStr && ex.end_date >= dateStr) ?? null
 }
 
 /**
@@ -793,7 +805,8 @@ export async function findAvailableSlots(params: FindSlotsParams): Promise<FindS
     temporalConstraint = null,
     taskContent = '',
     ignoreServiceConstraints = false,
-    taskContext = undefined
+    taskContext = undefined,
+    exceptions = []
   } = params
 
   // Détecter les contraintes de service depuis le contenu de la tâche
@@ -818,6 +831,18 @@ export async function findAvailableSlots(params: FindSlotsParams): Promise<FindS
   // Parcourir chaque jour de la période
   while (currentDate <= endDate) {
     const dateStr = formatDate(currentDate)
+
+    // Vérifier si ce jour est couvert par une exception
+    const activeException = getActiveException(exceptions, currentDate)
+
+    if (activeException?.type === 'blocked') {
+      currentDate.setDate(currentDate.getDate() + 1)
+      continue
+    }
+
+    const effectiveDayBounds: DayBounds = activeException?.type === 'modified' && activeException.modified_start_time && activeException.modified_end_time
+      ? { start: activeException.modified_start_time, end: activeException.modified_end_time }
+      : dayBounds
 
     // 1. Récupérer les contraintes du jour (work, school, etc.)
     // Ces contraintes représentent les moments où l'utilisateur est OCCUPÉ
@@ -852,7 +877,7 @@ export async function findAvailableSlots(params: FindSlotsParams): Promise<FindS
     }
 
     // 4. Calculer les créneaux libres
-    const freeBlocks = findFreeBlocks(allBusyBlocks, dayBounds)
+    const freeBlocks = findFreeBlocks(allBusyBlocks, effectiveDayBounds)
 
     // 5. Découper en créneaux de la durée demandée
     for (const free of freeBlocks) {

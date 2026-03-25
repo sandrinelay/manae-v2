@@ -3,6 +3,8 @@
 
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import { getOrCreateUserProfile, getConstraints } from '@/services/supabaseService'
+import { scheduleExceptionsService } from '@/services/schedule-exceptions.service'
+import { createClient } from '@/lib/supabase/client'
 import { getCalendarEvents, createCalendarEvent, deleteCalendarEvent } from '@/features/schedule/services/calendar.service'
 import { findAvailableSlots, selectTop3Diversified } from '@/features/schedule/services/slots.service'
 import { estimateTaskDuration } from '@/features/schedule/services/ai-duration.service'
@@ -165,8 +167,16 @@ export function useScheduling(params: UseSchedulingParams): UseSchedulingReturn 
       const profile = await getOrCreateUserProfile()
       const energyMoments = profile.energy_moments || []
 
-      // 2. Récupérer les contraintes horaires
-      const constraints = await getConstraints()
+      // 2. Récupérer les contraintes horaires ET les exceptions ponctuelles
+      const supabase = createClient()
+      const { data: { user: currentUser } } = await supabase.auth.getUser()
+
+      const [constraints, exceptions] = await Promise.all([
+        getConstraints(),
+        currentUser
+          ? scheduleExceptionsService.getExceptions(supabase, currentUser.id)
+          : Promise.resolve([])
+      ])
 
       // 3. Calculer la plage de recherche (7 jours par défaut, jusqu'à 90 si contrainte temporelle)
       const { startDate, endDate, daysRange, targetDate, isExactDay, isStartOfPeriod, isWeekend, isDeadline, timeRange } = calculateSearchRange(taskContent, temporalConstraint)
@@ -214,7 +224,8 @@ export function useScheduling(params: UseSchedulingParams): UseSchedulingReturn 
         temporalConstraint: (targetDate && !(temporalConstraint?.type === 'fixed_date' && temporalConstraint.date?.includes('T') && /\b([0-1]?\d|2[0-3])[h:]\d{0,2}\b/i.test(taskContent))) ? null : temporalConstraint,
         taskContent,
         ignoreServiceConstraints: forceIgnoreService,
-        taskContext
+        taskContext,
+        exceptions
       })
 
       // Stocker les infos sur le filtrage service
