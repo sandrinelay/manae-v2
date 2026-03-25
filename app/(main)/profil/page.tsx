@@ -10,6 +10,8 @@ import { PersonalInfoSection } from '@/components/profil/PersonalInfoSection'
 import { PreferencesSection } from '@/components/profil/PreferencesSection'
 import { ConnectionsSection } from '@/components/profil/ConnectionsSection'
 import { MoreSection } from '@/components/profil/MoreSection'
+import { ShoppingListsSection } from '@/components/profil/ShoppingListsSection'
+import { ShoppingListsModal } from '@/components/profil/ShoppingListsModal'
 import { LogoutButton } from '@/components/profil/LogoutButton'
 import { EditNameModal } from '@/components/profil/EditNameModal'
 import { EnergyMomentsModal } from '@/components/shared/EnergyMomentsModal'
@@ -40,6 +42,7 @@ function ProfilPageContent() {
   const [showEditNameModal, setShowEditNameModal] = useState(false)
   const [showEnergyModal, setShowEnergyModal] = useState(false)
   const [showConstraintsModal, setShowConstraintsModal] = useState(false)
+  const [showShoppingListsModal, setShowShoppingListsModal] = useState(false)
 
   const [lists, setLists] = useState<List[]>([])
 
@@ -176,14 +179,18 @@ function ProfilPageContent() {
             onShowEditModal={() => setShowEditNameModal(true)}
           />
 
+          <ShoppingListsSection
+            lists={lists}
+            onToggle={handleToggleList}
+            externalModalControl={true}
+            onShowModal={() => setShowShoppingListsModal(true)}
+          />
+
           <PreferencesSection
             energyMoments={profile?.energyMoments || []}
-            constraints={constraints}
             onSaveEnergyMoments={updateEnergyMoments}
-            onSaveConstraints={updateConstraints}
             externalModalControl={true}
             onShowEnergyModal={() => setShowEnergyModal(true)}
-            onShowConstraintsModal={() => setShowConstraintsModal(true)}
           />
 
           <div ref={connectionsSectionRef}>
@@ -191,38 +198,6 @@ function ProfilPageContent() {
           </div>
 
           <MoreSection />
-
-          {/* Mes listes d'achats */}
-          {lists.length > 0 && (
-            <section className="mt-8">
-              <h2 className="typo-section-label mb-4">Mes listes d&apos;achats</h2>
-              <div className="space-y-2">
-                {lists.map(list => {
-                  const isAlimentaire = list.slug === 'alimentaire'
-                  return (
-                    <div
-                      key={list.id}
-                      className="flex items-center justify-between p-3 bg-white rounded-xl border border-border"
-                    >
-                      <span className="text-sm text-text-dark">{list.name}</span>
-                      <button
-                        onClick={() => !isAlimentaire && handleToggleList(list.id, list.enabled)}
-                        disabled={isAlimentaire}
-                        className={`relative w-10 h-6 rounded-full transition-colors ${
-                          list.enabled ? 'bg-primary' : 'bg-gray-200'
-                        } ${isAlimentaire ? 'cursor-default opacity-60' : 'cursor-pointer'}`}
-                        aria-label={`${list.enabled ? 'Désactiver' : 'Activer'} la liste ${list.name}`}
-                      >
-                        <span className={`absolute top-1 w-4 h-4 bg-white rounded-full shadow transition-transform ${
-                          list.enabled ? 'translate-x-5' : 'translate-x-1'
-                        }`} />
-                      </button>
-                    </div>
-                  )
-                })}
-              </div>
-            </section>
-          )}
 
           <LogoutButton onLogout={handleLogout} />
         </div>
@@ -247,6 +222,14 @@ function ProfilPageContent() {
         selectedMoments={profile?.energyMoments || []}
         onClose={() => setShowEnergyModal(false)}
         onSave={updateEnergyMoments}
+      />
+    )}
+
+    {showShoppingListsModal && (
+      <ShoppingListsModal
+        lists={lists}
+        onToggle={handleToggleList}
+        onClose={() => setShowShoppingListsModal(false)}
       />
     )}
 
