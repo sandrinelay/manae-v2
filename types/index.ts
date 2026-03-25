@@ -80,6 +80,32 @@ export interface SuggestedSlot {
   duration: number
 }
 
+// ============================================
+// CONNEXIONS ENTRE ITEMS
+// ============================================
+
+/**
+ * Suggestion de connexion thématique générée par l'IA (1 par jour max)
+ */
+export interface DailySuggestion {
+  id: string
+  user_id: string
+  item_id_1: string
+  item_id_2: string
+  reason: string
+  suggested_date: string  // "YYYY-MM-DD"
+  dismissed: boolean
+  created_at: string
+}
+
+/**
+ * Représentation légère d'un item pour l'appel IA de détection
+ */
+export interface ItemForConnection {
+  id: string
+  content: string
+}
+
 export interface AIProjectDevelopment {
   refined_text: string
   steps: string[]
