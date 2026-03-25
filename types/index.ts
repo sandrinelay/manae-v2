@@ -35,6 +35,20 @@ export interface Constraint {
     created_at?: string;
 }
 
+export type ScheduleExceptionType = 'blocked' | 'modified'
+
+export interface ScheduleException {
+  id: string
+  user_id?: string
+  label: string
+  type: ScheduleExceptionType
+  start_date: string  // "YYYY-MM-DD"
+  end_date: string    // "YYYY-MM-DD"
+  modified_start_time?: string | null  // "HH:mm" — uniquement si type === 'modified'
+  modified_end_time?: string | null    // "HH:mm"
+  created_at?: string
+}
+
 export const CATEGORY_CONFIG = {
     work: { label: 'Travail' },
     school: { label: 'École' },
