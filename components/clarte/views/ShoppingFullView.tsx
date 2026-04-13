@@ -19,9 +19,11 @@ import { EmptyState, EMPTY_STATE_CONFIG } from '@/components/clarte/EmptyState'
 import {
   PlusIcon,
   CalendarIcon,
-  TrashIcon
-} from '@/components/ui/icons'
+  TrashIcon,
+  XIcon
+} from '@/components/ui/icons/index'
 import { ActionButton } from '@/components/ui/ActionButton'
+import { IconButton } from '@/components/ui/IconButton'
 import {
   type ShoppingCategory,
   cleanShoppingItemContent,
@@ -83,9 +85,35 @@ export function ShoppingFullView({
   const [showPlanModal, setShowPlanModal] = useState(initialShowPlanModal)
   const [isClearingCompleted, setIsClearingCompleted] = useState(false)
   const [itemToChangeCategory, setItemToChangeCategory] = useState<Item | null>(null)
+
+  // État du mode sélection multiple
+  const [isSelectionMode, setIsSelectionMode] = useState(false)
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
+  const [showMoveSelector, setShowMoveSelector] = useState(false)
+
+  // IDs des items en cours de sortie (animation avant suppression/déplacement)
+  const [exitingIds, setExitingIds] = useState<Set<string>>(new Set())
+
   const inputRef = useRef<HTMLInputElement>(null)
 
   const activeList = lists.find(l => l.slug === activeTab) ?? null
+  const otherLists = lists.filter(l => l.slug !== activeTab)
+
+  // Défini tôt pour être disponible dans les useEffect suivants
+  const exitSelectionMode = useCallback(() => {
+    setIsSelectionMode(false)
+    setSelectedIds(new Set())
+    setShowMoveSelector(false)
+    setExitingIds(new Set())
+  }, [])
+
+  // Lance l'animation de sortie sur un ensemble d'IDs, puis exécute l'action
+  const withExitAnimation = useCallback(async (ids: Set<string>, action: () => Promise<void>) => {
+    setExitingIds(ids)
+    await new Promise(resolve => setTimeout(resolve, 280))
+    setExitingIds(new Set())
+    await action()
+  }, [])
 
   // Ouvrir la modale si le prop change (retour après connexion Google)
   useEffect(() => {
@@ -93,6 +121,11 @@ export function ShoppingFullView({
       setShowPlanModal(true)
     }
   }, [initialShowPlanModal])
+
+  // Quitter le mode sélection quand on change d'onglet
+  useEffect(() => {
+    exitSelectionMode()
+  }, [activeTab, exitSelectionMode])
 
   // Charger les articles de la liste active
   const loadItems = useCallback(async () => {
@@ -138,21 +171,37 @@ export function ShoppingFullView({
     [activeItems]
   )
 
-  // Handlers
+  // --- Handlers mode normal ---
+
   const handleTapItem = useCallback((id: string) => {
+    if (isSelectionMode) {
+      setSelectedIds(prev => {
+        const next = new Set(prev)
+        if (next.has(id)) next.delete(id)
+        else next.add(id)
+        return next
+      })
+      return
+    }
     const item = items.find(i => i.id === id)
     if (item) setSelectedItem(item)
-  }, [items])
+  }, [items, isSelectionMode])
 
   const handleToggle = useCallback(async (id: string) => {
     const item = items.find(i => i.id === id)
     if (!item) return
+
+    // Mise à jour optimiste : le rond se remplit immédiatement
+    const newState = item.state === 'completed' ? 'active' : 'completed'
+    setItems(prev => prev.map(i => i.id === id ? { ...i, state: newState } : i))
 
     try {
       await toggleShoppingItem(id, item.state)
       await handleRefresh()
     } catch (error) {
       console.error('Erreur toggle:', error)
+      // Revenir à l'état précédent en cas d'erreur
+      setItems(prev => prev.map(i => i.id === id ? { ...i, state: item.state } : i))
     }
   }, [items, handleRefresh])
 
@@ -179,17 +228,23 @@ export function ShoppingFullView({
   const handleAddItem = useCallback(async () => {
     if (!newItemContent.trim() || !activeList) return
 
+    const segments = newItemContent
+      .split(',')
+      .map(s => cleanShoppingItemContent(s))
+      .filter(s => s.length > 0)
+
+    if (segments.length === 0) return
+
     try {
       setIsAddingItem(true)
-      const cleanedContent = cleanShoppingItemContent(newItemContent)
-      await addShoppingItem(activeList.id, cleanedContent)
+      await Promise.all(segments.map(content => addShoppingItem(activeList.id, content)))
       setNewItemContent('')
       await handleRefresh()
-      inputRef.current?.focus()
     } catch (error) {
       console.error('Erreur ajout:', error)
     } finally {
       setIsAddingItem(false)
+      setTimeout(() => inputRef.current?.focus(), 0)
     }
   }, [newItemContent, activeList, handleRefresh])
 
@@ -207,12 +262,10 @@ export function ShoppingFullView({
     }
   }, [completedItems.length, handleRefresh])
 
-  const handleLongPress = useCallback((id: string) => {
-    const item = items.find(i => i.id === id)
-    if (item) {
-      setItemToChangeCategory(item)
-    }
-  }, [items])
+  const enterSelectionMode = useCallback(() => {
+    setIsSelectionMode(true)
+    setSelectedIds(new Set())
+  }, [])
 
   const handleCategoryChange = useCallback(async (category: ShoppingCategory) => {
     if (!itemToChangeCategory) return
@@ -236,78 +289,242 @@ export function ShoppingFullView({
     }
   }, [handleRefresh])
 
+  // --- Handlers mode sélection multiple ---
+
+  const handleSelectItem = useCallback((id: string) => {
+    setSelectedIds(prev => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+  }, [])
+
+  const handleSelectAll = useCallback(() => {
+    const allIds = new Set(activeItems.map(i => i.id))
+    setSelectedIds(allIds)
+  }, [activeItems])
+
+  const handleDeleteSelected = useCallback(async () => {
+    if (selectedIds.size === 0) return
+
+    await withExitAnimation(selectedIds, async () => {
+      try {
+        await Promise.all(Array.from(selectedIds).map(id => deleteShoppingItem(id)))
+        exitSelectionMode()
+        await handleRefresh()
+      } catch (error) {
+        console.error('Erreur suppression multiple:', error)
+      }
+    })
+  }, [selectedIds, exitSelectionMode, handleRefresh, withExitAnimation])
+
+  const handleToggleSelected = useCallback(async () => {
+    if (selectedIds.size === 0) return
+
+    await withExitAnimation(selectedIds, async () => {
+      try {
+        await Promise.all(
+          Array.from(selectedIds).map(id => {
+            const item = items.find(i => i.id === id)
+            if (!item) return Promise.resolve()
+            return toggleShoppingItem(id, item.state)
+          })
+        )
+        exitSelectionMode()
+        await handleRefresh()
+      } catch (error) {
+        console.error('Erreur toggle multiple:', error)
+      }
+    })
+  }, [selectedIds, items, exitSelectionMode, handleRefresh, withExitAnimation])
+
+  const handleMoveSelected = useCallback(async (targetListId: string) => {
+    if (selectedIds.size === 0) return
+
+    await withExitAnimation(selectedIds, async () => {
+      try {
+        const supabase = createClient()
+        await Promise.all(Array.from(selectedIds).map(id => moveItemToList(supabase, id, targetListId)))
+        exitSelectionMode()
+        await handleRefresh()
+      } catch (error) {
+        console.error('Erreur déplacement multiple:', error)
+      }
+    })
+  }, [selectedIds, exitSelectionMode, handleRefresh, withExitAnimation])
+
+  // Rendu d'un article avec les props de sélection
+  const renderItem = (item: Item, idx: number) => (
+    <ShoppingItemRow
+      key={item.id}
+      item={item}
+      index={idx}
+      onToggle={handleToggle}
+      onTap={handleTapItem}
+      isSelectionMode={isSelectionMode}
+      isSelected={selectedIds.has(item.id)}
+      onSelect={handleSelectItem}
+      isExiting={exitingIds.has(item.id)}
+    />
+  )
+
   return (
     <div className="w-full">
-      {/* Bouton principal planification */}
-      <div className="w-full mb-4">
-        <ActionButton
-          label="Faire les achats"
-          icon={<CalendarIcon className="w-5 h-5" />}
-          variant="plan"
-          onClick={() => {
-            if (externalPlanModalControl && onShowPlanModal) {
-              onShowPlanModal(activeItems.length, activeList?.name)
-            } else {
-              setShowPlanModal(true)
-            }
-          }}
-          disabled={activeItems.length === 0}
-          fullWidth
-        />
-      </div>
-
-      {/* Input d'ajout rapide */}
-      <div className="mb-4">
-        <div className="flex gap-2">
-          <input
-            ref={inputRef}
-            type="text"
-            value={newItemContent}
-            onChange={(e) => setNewItemContent(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter' && newItemContent.trim()) {
-                handleAddItem()
+      {/* Bouton principal planification — masqué en mode sélection */}
+      {!isSelectionMode && (
+        <div className="w-full mb-4">
+          <ActionButton
+            label="Faire les achats"
+            icon={<CalendarIcon className="w-5 h-5" />}
+            variant="plan"
+            onClick={() => {
+              if (externalPlanModalControl && onShowPlanModal) {
+                onShowPlanModal(activeItems.length, activeList?.name)
+              } else {
+                setShowPlanModal(true)
               }
             }}
-            placeholder={`Ajouter dans ${activeList?.name ?? 'la liste'}...`}
-            className="input-field flex-1"
-            disabled={isAddingItem || !activeList}
+            disabled={activeItems.length === 0}
+            fullWidth
           />
-          <button
-            onClick={handleAddItem}
-            disabled={!newItemContent.trim() || isAddingItem || !activeList}
-            className="px-4 py-3 rounded-xl bg-secondary text-white font-medium disabled:opacity-50 disabled:cursor-not-allowed hover:bg-secondary/90 transition-colors flex items-center gap-2"
-          >
-            <PlusIcon className="w-5 h-5" />
-            <span className="hidden sm:inline">Ajouter</span>
-          </button>
         </div>
-      </div>
+      )}
 
-      {/* Onglets par liste */}
-      <div className="flex gap-2 overflow-x-auto pb-2 px-4 shrink-0 scrollbar-none border-b border-border mb-4">
-        {lists.map(list => {
-          const count = list.activeCount
-          return (
+      {/* Input d'ajout rapide — masqué en mode sélection */}
+      {!isSelectionMode && (
+        <div className="mb-4">
+          <div className="flex gap-2">
+            <input
+              ref={inputRef}
+              type="text"
+              value={newItemContent}
+              onChange={(e) => setNewItemContent(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && newItemContent.trim()) {
+                  handleAddItem()
+                }
+              }}
+              placeholder={`Ajouter dans ${activeList?.name ?? 'la liste'}...`}
+              className="input-field flex-1"
+              disabled={isAddingItem || !activeList}
+            />
             <button
-              key={list.slug}
-              onClick={() => setActiveTab(list.slug as ListSlug)}
-              className={`shrink-0 px-3 py-1.5 rounded-full text-sm font-medium transition-colors whitespace-nowrap ${
-                activeTab === list.slug
-                  ? 'bg-primary text-white'
-                  : 'bg-gray-100 text-text-muted hover:bg-gray-200'
-              }`}
+              onClick={handleAddItem}
+              disabled={!newItemContent.trim() || isAddingItem || !activeList}
+              className="px-4 py-3 rounded-xl bg-secondary text-white font-medium disabled:opacity-50 disabled:cursor-not-allowed hover:bg-secondary/90 transition-colors flex items-center gap-2"
             >
-              {list.name}{count > 0 ? ` ${count}` : ''}
+              <PlusIcon className="w-5 h-5" />
+              <span className="hidden sm:inline">Ajouter</span>
             </button>
-          )
-        })}
-      </div>
+          </div>
+        </div>
+      )}
+
+      {/* Onglets + lien Sélectionner (mode normal) ou barre d'actions (mode sélection) */}
+      {isSelectionMode ? (
+        /* Barre d'actions — en haut, toujours visible */
+        <div className="bg-white border border-[var(--color-border)] rounded-2xl p-3 space-y-2 mb-4 animate-scale-in">
+          <div className="flex items-center justify-between">
+            <span className="text-sm font-medium text-[var(--color-text-dark)]">
+              {selectedIds.size} sélectionné{selectedIds.size > 1 ? 's' : ''}
+            </span>
+            <div className="flex items-center gap-3">
+              <button
+                onClick={handleSelectAll}
+                className="text-sm text-[var(--color-primary)] font-medium hover:opacity-75 transition-opacity"
+              >
+                Tout sélectionner
+              </button>
+              <IconButton
+                icon={<XIcon className="w-5 h-5" />}
+                label="Annuler la sélection"
+                variant="default"
+                size="sm"
+                onClick={exitSelectionMode}
+              />
+            </div>
+          </div>
+
+          <div className="flex gap-2">
+            <ActionButton
+              label="Achetés"
+              variant="done"
+              onClick={handleToggleSelected}
+              disabled={selectedIds.size === 0}
+              className="flex-1"
+            />
+            {otherLists.length > 0 && (
+              <ActionButton
+                label="Déplacer"
+                variant="secondary"
+                onClick={() => setShowMoveSelector(prev => !prev)}
+                disabled={selectedIds.size === 0}
+                className="flex-1"
+              />
+            )}
+            <ActionButton
+              label="Supprimer"
+              variant="delete"
+              onClick={handleDeleteSelected}
+              disabled={selectedIds.size === 0}
+              className="flex-1"
+            />
+          </div>
+
+          {showMoveSelector && otherLists.length > 0 && (
+            <div className="flex flex-wrap gap-2 pt-2 border-t border-gray-100">
+              <p className="w-full text-xs text-[var(--color-text-muted)]">Déplacer vers :</p>
+              {otherLists.map(list => (
+                <button
+                  key={list.id}
+                  onClick={() => handleMoveSelected(list.id)}
+                  className="px-3 py-1.5 bg-gray-100 hover:bg-gray-200 rounded-full text-sm text-[var(--color-text-dark)] transition-colors"
+                >
+                  {list.name}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      ) : (
+        /* Onglets + lien Sélectionner */
+        <div className="mb-4">
+          <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-none border-b border-[var(--color-border)]">
+            {lists.map(list => {
+              const count = list.activeCount
+              return (
+                <button
+                  key={list.slug}
+                  onClick={() => setActiveTab(list.slug as ListSlug)}
+                  className={`shrink-0 px-3 py-1.5 rounded-full text-sm font-medium transition-colors whitespace-nowrap ${
+                    activeTab === list.slug
+                      ? 'bg-[var(--color-primary)] text-white'
+                      : 'bg-gray-100 text-[var(--color-text-muted)] hover:bg-gray-200'
+                  }`}
+                >
+                  {list.name}{count > 0 ? ` ${count}` : ''}
+                </button>
+              )
+            })}
+          </div>
+          {activeItems.length > 0 && (
+            <div className="flex justify-end mt-2 animate-fade-in">
+              <button
+                onClick={enterSelectionMode}
+                className="text-sm text-[var(--color-text-muted)] hover:text-[var(--color-text-dark)] transition-colors"
+              >
+                Sélectionner
+              </button>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Contenu */}
-      <div className="w-full">
-        {isLoadingItems ? (
-          // Skeleton de chargement
+      <div className="w-full pb-4">
+        {isLoadingItems && items.length === 0 ? (
+          // Skeleton uniquement au premier chargement (pas sur les refresh)
           <div className="space-y-3">
             {[1, 2, 3].map(i => (
               <div key={i} className="h-12 bg-gray-100 rounded-xl animate-pulse" />
@@ -334,31 +551,22 @@ export function ShoppingFullView({
                     <span className={`text-sm font-medium ${config.colorClass}`}>
                       {config.label}
                     </span>
-                    <span className="text-xs text-text-muted">
+                    <span className="text-xs text-[var(--color-text-muted)]">
                       ({categoryItems.length})
                     </span>
                   </div>
 
                   <div className="space-y-2">
-                    {categoryItems.map((item, idx) => (
-                      <ShoppingItemRow
-                        key={item.id}
-                        item={item}
-                        index={idx}
-                        onToggle={handleToggle}
-                        onTap={handleTapItem}
-                        onLongPress={handleLongPress}
-                      />
-                    ))}
+                    {categoryItems.map((item, idx) => renderItem(item, idx))}
                   </div>
                 </div>
               )
             })}
 
-            {/* Articles achetés */}
-            {completedItems.length > 0 && (
+            {/* Articles achetés — masqués en mode sélection pour simplifier */}
+            {!isSelectionMode && completedItems.length > 0 && (
               <div className="space-y-2 pt-2 border-t border-gray-100">
-                <p className="text-xs text-text-muted px-1">Achetés ({completedItems.length})</p>
+                <p className="text-xs text-[var(--color-text-muted)] px-1">Achetés ({completedItems.length})</p>
                 {completedItems.map((item, idx) => (
                   <ShoppingItemRow
                     key={item.id}
@@ -382,20 +590,12 @@ export function ShoppingFullView({
         ) : (
           // Liste plate pour les autres onglets
           <div className="space-y-2">
-            {activeItems.map((item, idx) => (
-              <ShoppingItemRow
-                key={item.id}
-                item={item}
-                index={idx}
-                onToggle={handleToggle}
-                onTap={handleTapItem}
-                onLongPress={handleLongPress}
-              />
-            ))}
+            {activeItems.map((item, idx) => renderItem(item, idx))}
 
-            {completedItems.length > 0 && (
+            {/* Articles achetés — masqués en mode sélection pour simplifier */}
+            {!isSelectionMode && completedItems.length > 0 && (
               <div className="space-y-2 pt-2 border-t border-gray-100">
-                <p className="text-xs text-text-muted px-1">Achetés ({completedItems.length})</p>
+                <p className="text-xs text-[var(--color-text-muted)] px-1">Achetés ({completedItems.length})</p>
                 {completedItems.map((item, idx) => (
                   <ShoppingItemRow
                     key={item.id}
@@ -418,6 +618,7 @@ export function ShoppingFullView({
           </div>
         )}
       </div>
+
 
       {/* Modal de détail article */}
       {selectedItem && (

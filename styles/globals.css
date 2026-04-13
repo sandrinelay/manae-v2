@@ -407,6 +407,28 @@ body {
   animation: unroll-up 220ms ease-in forwards;
 }
 
+/* Sortie douce des items (suppression, déplacement) */
+@keyframes fade-out-up {
+  from {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+    max-height: 80px;
+    margin-bottom: 0;
+  }
+  to {
+    opacity: 0;
+    transform: translateY(-8px) scale(0.97);
+    max-height: 0;
+    margin-bottom: -8px;
+  }
+}
+
+.animate-fade-out-up {
+  animation: fade-out-up 280ms ease-in forwards;
+  overflow: hidden;
+  pointer-events: none;
+}
+
 /* Staggered animation delay pour les listes */
 .stagger-1 { animation-delay: 0.03s; }
 .stagger-2 { animation-delay: 0.06s; }

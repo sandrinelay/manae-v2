@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useRef, useEffect } from 'react'
+import { createPortal } from 'react-dom'
 import { Item } from '@/types/items'
 import type { List } from '@/types/lists'
 import {
@@ -47,6 +48,9 @@ export function ShoppingItemModal({
   )
   const inputRef = useRef<HTMLInputElement>(null)
 
+  const [mounted, setMounted] = useState(false)
+  useEffect(() => { setMounted(true) }, [])
+
   const isCompleted = item.state === 'completed'
   const category = (item.shopping_category || 'other') as ShoppingCategory
   const categoryConfig = SHOPPING_CATEGORY_CONFIG[category]
@@ -89,7 +93,9 @@ export function ShoppingItemModal({
   const hasChanges = editContent !== item.content ||
     editCategory !== ((item.shopping_category as ShoppingCategory) || 'other')
 
-  return (
+  if (!mounted) return null
+
+  return createPortal(
     <>
       {/* Backdrop */}
       <div
@@ -97,8 +103,13 @@ export function ShoppingItemModal({
         onClick={isEditMode ? undefined : onClose}
       />
 
+      {/* Centrage viewport — indépendant du DOM parent */}
+      <div className="fixed inset-0 z-50 flex items-center justify-center px-4 pointer-events-none">
       {/* Modal */}
-      <div className="fixed inset-x-4 top-1/2 -translate-y-1/2 z-50 bg-white rounded-2xl shadow-2xl max-w-lg mx-auto animate-scale-in">
+      <div
+        className="w-full bg-white rounded-2xl shadow-2xl max-w-lg animate-scale-in pointer-events-auto"
+        onClick={(e) => e.stopPropagation()}
+      >
         {/* Header */}
         <div className="flex items-center justify-between p-4 border-b border-border">
           <div className="flex items-center gap-2 text-primary">
@@ -214,15 +225,6 @@ export function ShoppingItemModal({
                 className="flex-1"
               />
 
-              {/* Modifier */}
-              <ActionButton
-                label="Modifier"
-                icon={<EditIcon className="w-5 h-5" />}
-                variant="secondary"
-                onClick={() => setIsEditMode(true)}
-                className="flex-1"
-              />
-
               {/* Déplacer */}
               {otherLists.length > 0 && (
                 <ActionButton
@@ -233,6 +235,16 @@ export function ShoppingItemModal({
                 />
               )}
 
+              {/* Modifier */}
+              <IconButton
+                icon={<EditIcon className="w-5 h-5" />}
+                label="Modifier"
+                variant="default"
+                size="md"
+                onClick={() => setIsEditMode(true)}
+                className="shrink-0"
+              />
+
               {/* Supprimer */}
               <IconButton
                 icon={<TrashIcon className="w-5 h-5" />}
@@ -240,6 +252,7 @@ export function ShoppingItemModal({
                 variant="danger"
                 size="md"
                 onClick={handleDelete}
+                className="shrink-0"
               />
             </>
           )}
@@ -263,6 +276,8 @@ export function ShoppingItemModal({
           </div>
         )}
       </div>
-    </>
+      </div>
+    </>,
+    document.body
   )
 }
