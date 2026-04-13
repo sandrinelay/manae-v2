@@ -15,16 +15,20 @@ interface ConstraintsModalProps {
   constraints: Constraint[]
   onClose: () => void
   onSave: (constraints: Constraint[]) => Promise<void>
+  initialFormData?: Partial<Omit<Constraint, 'id'>>
 }
 
 export function ConstraintsModal({
   constraints: initialConstraints,
   onClose,
-  onSave
+  onSave,
+  initialFormData
 }: ConstraintsModalProps) {
   const [constraints, setConstraints] = useState<Constraint[]>(initialConstraints)
-  const [showForm, setShowForm] = useState(false)
-  const [editingConstraint, setEditingConstraint] = useState<Constraint | undefined>()
+  const [showForm, setShowForm] = useState(!!initialFormData)
+  const [editingConstraint, setEditingConstraint] = useState<Constraint | undefined>(
+    initialFormData ? (initialFormData as Constraint) : undefined
+  )
   const [pendingConstraint, setPendingConstraint] = useState<Omit<Constraint, 'id'> | null>(null)
   const [conflictInfo, setConflictInfo] = useState<{ constraint: Constraint; days: string[] } | null>(null)
   const [deleteTarget, setDeleteTarget] = useState<{ id: string; name: string } | null>(null)

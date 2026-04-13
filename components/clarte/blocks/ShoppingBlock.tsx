@@ -1,37 +1,31 @@
 'use client'
 
-import { useState } from 'react'
-import { Item } from '@/types/items'
-import { ShoppingItemChip } from '../cards/ShoppingItemChip'
+import { ChevronRight } from 'lucide-react'
 import { EmptyState, EMPTY_STATE_CONFIG } from '../EmptyState'
+import type { List, ListSlug } from '@/types/lists'
 
-// Configuration
-const INITIAL_VISIBLE_COUNT = 8
-
-interface ShoppingBlockProps {
-  items: Item[]
-  totalCount: number
-  onToggleItem: (id: string) => void
-  onShowFullView?: () => void
+interface ListWithCount extends List {
+  activeCount: number
 }
 
-export function ShoppingBlock({ items, totalCount, onToggleItem, onShowFullView }: ShoppingBlockProps) {
-  const [isExpanded, setIsExpanded] = useState(false)
+interface ShoppingBlockProps {
+  listsWithCounts: ListWithCount[]
+  onViewAll?: () => void
+  onOpenList?: (slug: ListSlug) => void
+}
 
-  // Nombre d'items visibles
-  const visibleItems = isExpanded ? items : items.slice(0, INITIAL_VISIBLE_COUNT)
-  const hiddenCount = items.length - INITIAL_VISIBLE_COUNT
-  const hasMoreItems = hiddenCount > 0
+export function ShoppingBlock({ listsWithCounts, onViewAll, onOpenList }: ShoppingBlockProps) {
+  const nonEmptyLists = listsWithCounts.filter(l => l.activeCount > 0)
+  const totalCount = listsWithCounts.reduce((sum, l) => sum + l.activeCount, 0)
 
   return (
     <section>
-      {/* Header cliquable */}
       <button
-        onClick={onShowFullView}
+        onClick={onViewAll}
         className="w-full flex items-center justify-between mb-3 group"
       >
         <h2 className="typo-section-label group-hover:text-primary/80 transition-colors">
-          Courses
+          Achats
         </h2>
         <div className="flex items-center gap-2">
           {totalCount > 0 && (
@@ -45,35 +39,26 @@ export function ShoppingBlock({ items, totalCount, onToggleItem, onShowFullView 
         </div>
       </button>
 
-      {/* État vide */}
-      {items.length === 0 ? (
+      {totalCount === 0 ? (
         <EmptyState {...EMPTY_STATE_CONFIG.shopping} />
       ) : (
-        <>
-          {/* Grille d'articles */}
-          <div className="flex flex-wrap gap-2">
-            {visibleItems.map(item => (
-              <ShoppingItemChip
-                key={item.id}
-                item={item}
-                onToggle={onToggleItem}
-              />
-            ))}
-          </div>
-
-          {/* Bouton dépliant */}
-          {hasMoreItems && (
+        <div className="space-y-1">
+          {nonEmptyLists.map(list => (
             <button
-              onClick={() => setIsExpanded(!isExpanded)}
-              className="w-full mt-4 py-3 text-sm font-medium text-text-muted hover:text-text-dark transition-colors border-t border-gray-100"
+              key={list.id}
+              onClick={() => onOpenList?.(list.slug as ListSlug)}
+              className="w-full flex items-center justify-between py-1.5 text-left hover:bg-gray-50 rounded-lg px-1 transition-colors"
             >
-              {isExpanded
-                ? '− Réduire'
-                : `+ Voir les ${hiddenCount} autre${hiddenCount > 1 ? 's' : ''} article${hiddenCount > 1 ? 's' : ''}`
-              }
+              <span className="text-sm text-text-dark">{list.name}</span>
+              <div className="flex items-center gap-1">
+                <span className="text-sm text-text-muted">
+                  {list.activeCount} article{list.activeCount > 1 ? 's' : ''}
+                </span>
+                <ChevronRight className="w-4 h-4 text-text-muted" />
+              </div>
             </button>
-          )}
-        </>
+          ))}
+        </div>
       )}
     </section>
   )

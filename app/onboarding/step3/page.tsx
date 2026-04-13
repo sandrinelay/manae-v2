@@ -70,7 +70,7 @@ function OnboardingStep4Content() {
                 // Retour vers /capture avec flag pour restaurer le contexte de planification
                 router.push('/capture?resumePlanning=true');
             } else {
-                router.push('/capture');
+                router.push('/onboarding/step4');
             }
         } catch (err) {
             console.error('Auth error:', err);
@@ -95,7 +95,7 @@ function OnboardingStep4Content() {
         } catch (error) {
             console.error('Error updating profile:', error);
         }
-        router.push('/capture');
+        router.push('/onboarding/step4');
     };
 
     return (

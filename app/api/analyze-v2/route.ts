@@ -6,8 +6,11 @@ import {
   analyzeWithRules,
   ANALYZE_CONFIG
 } from '@/services/ai/analysis.service'
+import { getMemoryContext } from '@/services/ai/memory.service'
+import { getListBySlug } from '@/services/lists.service'
 import type { OpenAIAnalysisResponse } from '@/services/ai/analysis.service'
 import type { AIAnalyzedItem, ItemType, ItemState } from '@/types/items'
+import type { ListSlug } from '@/types/lists'
 import { isValidItemTypeState } from '@/types/items'
 
 export async function POST(request: NextRequest) {
@@ -22,7 +25,7 @@ export async function POST(request: NextRequest) {
 
     // 2. Récupérer le texte à analyser
     const body = await request.json()
-    const { rawText } = body
+    const { rawText, source } = body as { rawText: string; source?: 'voice' | 'text' }
 
     if (!rawText || typeof rawText !== 'string' || rawText.trim().length === 0) {
       return NextResponse.json(
@@ -53,7 +56,15 @@ export async function POST(request: NextRequest) {
       ? `Historique récent : ${pastItems.map(i => `"${i.content}" → ${i.type}/${i.context}`).join(', ')}`
       : ''
 
-    // 5. Appel OpenAI
+    // 5. Récupérer le contexte mémoire utilisateur (corrections passées)
+    let memoryContext = ''
+    try {
+      memoryContext = await getMemoryContext(supabase, user.id)
+    } catch {
+      // Silencieux : la mémoire est une amélioration, pas une dépendance critique
+    }
+
+    // 6. Appel OpenAI
     const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
 
     let completion
@@ -66,7 +77,7 @@ export async function POST(request: NextRequest) {
           model: ANALYZE_CONFIG.model,
           messages: [
             { role: 'system', content: ANALYZE_CONFIG.system },
-            { role: 'user', content: buildAnalysisPrompt(rawText, historyContext) }
+            { role: 'user', content: buildAnalysisPrompt(rawText, historyContext, source, memoryContext) }
           ],
           temperature: ANALYZE_CONFIG.temperature,
           max_tokens: ANALYZE_CONFIG.maxTokens
@@ -87,7 +98,7 @@ export async function POST(request: NextRequest) {
       throw new Error('Failed to get completion after retries')
     }
 
-    // 6. Parser la réponse
+    // 7. Parser la réponse
     const content = completion.choices[0].message.content || ''
     const cleanContent = content
       .replace(/```json\n?/g, '')
@@ -101,6 +112,7 @@ export async function POST(request: NextRequest) {
       console.log('[analyze-v2] AI response items:', JSON.stringify(aiResponse.items?.map(i => ({
         content: i.content,
         type: i.type,
+        context: i.context,
         temporal_constraint: i.temporal_constraint
       })), null, 2))
     } catch {
@@ -113,9 +125,9 @@ export async function POST(request: NextRequest) {
       })
     }
 
-    // 7. Valider et transformer les items
-    const validatedItems: AIAnalyzedItem[] = aiResponse.items
-      .map(item => {
+    // 8. Valider et transformer les items
+    const validatedItems: AIAnalyzedItem[] = await Promise.all(
+      aiResponse.items.map(async item => {
         // Valider type/state
         const type = item.type as ItemType
         let state = item.state as ItemState
@@ -142,11 +154,25 @@ export async function POST(request: NextRequest) {
             }
           : null
 
+        // Résoudre list_slug → list_id pour les list_item
+        let listId: string | undefined = undefined
+        if (type === 'list_item' && item.list_slug) {
+          const list = await getListBySlug(
+            supabase,
+            user.id,
+            item.list_slug as ListSlug
+          )
+          if (list) {
+            listId = list.id
+          }
+        }
+
         return {
           content: item.content,
           type,
           state,
           context: item.context,
+          list_id: listId,
           ai_analysis: {
             type_suggestion: type,
             confidence: item.confidence || 0.8,
@@ -157,6 +183,7 @@ export async function POST(request: NextRequest) {
           metadata: item.reasoning ? { reasoning: item.reasoning } : {}
         }
       })
+    )
 
     return NextResponse.json({
       items: validatedItems,

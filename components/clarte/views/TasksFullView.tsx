@@ -80,6 +80,15 @@ export function TasksFullView({
     loadTasks()
   }, [fetchAllTasks])
 
+  // Synchroniser les tâches actives depuis le prop parent quand il change
+  // (cas externalModalControl=true : le parent refetch mais allTasks est un état local)
+  useEffect(() => {
+    setAllTasks(prev => {
+      const nonActiveTasks = prev.filter(t => t.state === 'completed' || t.state === 'archived')
+      return [...initialTasks, ...nonActiveTasks]
+    })
+  }, [initialTasks])
+
   // Gérer la mise à jour de initialTaskToPlan depuis le parent
   useEffect(() => {
     if (initialTaskToPlan) {

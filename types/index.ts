@@ -4,6 +4,7 @@
 
 export * from './items'
 export * from './shopping-lists'
+import type { ItemContext } from './items'
 
 // ============================================
 // ONBOARDING & CONSTRAINTS (existants)
@@ -26,11 +27,26 @@ export interface Constraint {
     user_id?: string;
     name: string;
     category: 'work' | 'school' | 'home' | 'sport' | 'social' | 'other';
+    context: ItemContext | 'any';  // 'any' = bloque toutes les tâches
     days: string[];
     start_time: string;
     end_time: string;
     allow_lunch_break: boolean | null;
     created_at?: string;
+}
+
+export type ScheduleExceptionType = 'blocked' | 'modified'
+
+export interface ScheduleException {
+  id: string
+  user_id?: string
+  label: string
+  type: ScheduleExceptionType
+  start_date: string  // "YYYY-MM-DD"
+  end_date: string    // "YYYY-MM-DD"
+  modified_start_time?: string | null  // "HH:mm" — uniquement si type === 'modified'
+  modified_end_time?: string | null    // "HH:mm"
+  created_at?: string
 }
 
 export const CATEGORY_CONFIG = {
@@ -62,6 +78,32 @@ export interface SuggestedSlot {
   start: string
   end: string
   duration: number
+}
+
+// ============================================
+// CONNEXIONS ENTRE ITEMS
+// ============================================
+
+/**
+ * Suggestion de connexion thématique générée par l'IA (1 par jour max)
+ */
+export interface DailySuggestion {
+  id: string
+  user_id: string
+  item_id_1: string
+  item_id_2: string
+  reason: string
+  suggested_date: string  // "YYYY-MM-DD"
+  dismissed: boolean
+  created_at: string
+}
+
+/**
+ * Représentation légère d'un item pour l'appel IA de détection
+ */
+export interface ItemForConnection {
+  id: string
+  content: string
 }
 
 export interface AIProjectDevelopment {

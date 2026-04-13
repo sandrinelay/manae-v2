@@ -1,7 +1,7 @@
 // features/schedule/services/slots.service.ts
 
 import type { GoogleCalendarEvent, TimeSlot, CognitiveLoad } from '../types/scheduling.types'
-import type { Constraint } from '@/types'
+import type { Constraint, ScheduleException } from '@/types'
 import type { TemporalConstraint, TemporalUrgency } from '@/types/items'
 import { detectServiceConstraints, type ServiceConstraints } from '../utils/text-analysis'
 
@@ -90,6 +90,45 @@ function getDayName(date: Date): string {
 function getConstraintsForDay(constraints: Constraint[], date: Date): Constraint[] {
   const dayName = getDayName(date)
   return constraints.filter(c => c.days.includes(dayName))
+}
+
+/**
+ * Filtre les créneaux pour ne garder que ceux dans les fenêtres des contraintes
+ * dédiées au contexte de la tâche.
+ * Ex : tâche 'work' + contrainte 'Travail' lun-ven 9h-18h → uniquement des créneaux en semaine 9h-18h.
+ * Si aucune contrainte ne correspond au contexte, aucun filtrage n'est appliqué.
+ */
+function filterSlotsByContextWindows(
+  slots: TimeSlot[],
+  constraints: Constraint[],
+  taskContext: string
+): TimeSlot[] {
+  const contextConstraints = constraints.filter(c => c.context === taskContext)
+  if (contextConstraints.length === 0) return slots
+
+  return slots.filter(slot => {
+    return contextConstraints.some(constraint => {
+      const slotDate = new Date(slot.date + 'T00:00:00')
+      const dayName = getDayName(slotDate)
+      if (!constraint.days.includes(dayName)) return false
+
+      const slotStart = timeToMinutes(slot.startTime)
+      const slotEnd = timeToMinutes(slot.endTime)
+      const constraintStart = timeToMinutes(constraint.start_time)
+      const constraintEnd = timeToMinutes(constraint.end_time)
+
+      if (slotStart < constraintStart || slotEnd > constraintEnd) return false
+
+      // Exclure les créneaux sur la pause déjeuner si activée
+      if (constraint.allow_lunch_break) {
+        const lunchStart = timeToMinutes('12:00')
+        const lunchEnd = timeToMinutes('14:00')
+        if (slotStart < lunchEnd && slotEnd > lunchStart) return false
+      }
+
+      return true
+    })
+  })
 }
 
 /**
@@ -718,6 +757,8 @@ export interface FindSlotsParams {
   temporalConstraint?: TemporalConstraint | null
   taskContent?: string  // Pour détecter les contraintes de service
   ignoreServiceConstraints?: boolean  // Pour forcer l'affichage sans filtrage service
+  taskContext?: string  // Contexte de la tâche à planifier (ItemContext | undefined)
+  exceptions?: ScheduleException[]
 }
 
 // Résultat enrichi avec métadonnées
@@ -729,6 +770,17 @@ export interface FindSlotsResult {
     filteredCount: number  // Nombre de créneaux filtrés par le service
     reason: string  // Message explicatif
   }
+}
+
+/**
+ * Retourne l'exception active pour une date donnée, si elle existe
+ */
+function getActiveException(
+  exceptions: ScheduleException[],
+  date: Date
+): ScheduleException | null {
+  const dateStr = formatDate(date)
+  return exceptions.find(ex => ex.start_date <= dateStr && ex.end_date >= dateStr) ?? null
 }
 
 /**
@@ -752,7 +804,9 @@ export async function findAvailableSlots(params: FindSlotsParams): Promise<FindS
     dayBounds = DEFAULT_DAY_BOUNDS,
     temporalConstraint = null,
     taskContent = '',
-    ignoreServiceConstraints = false
+    ignoreServiceConstraints = false,
+    taskContext = undefined,
+    exceptions = []
   } = params
 
   // Détecter les contraintes de service depuis le contenu de la tâche
@@ -778,13 +832,52 @@ export async function findAvailableSlots(params: FindSlotsParams): Promise<FindS
   while (currentDate <= endDate) {
     const dateStr = formatDate(currentDate)
 
+    // Vérifier si ce jour est couvert par une exception
+    const activeException = getActiveException(exceptions, currentDate)
+
+    if (activeException?.type === 'blocked') {
+      currentDate.setDate(currentDate.getDate() + 1)
+      continue
+    }
+
+    const isModifiedDay = activeException?.type === 'modified' &&
+      !!activeException.modified_start_time && !!activeException.modified_end_time
+
+    // Pour les tâches work sur un jour modifié : restreindre la fenêtre aux heures modifiées
+    // Pour les autres tâches : garder la fenêtre par défaut (les heures modifiées bloqueront via contrainte)
+    const effectiveDayBounds: DayBounds = (isModifiedDay && taskContext === 'work')
+      ? { start: activeException!.modified_start_time!, end: activeException!.modified_end_time! }
+      : dayBounds
+
     // 1. Récupérer les contraintes du jour (work, school, etc.)
     // Ces contraintes représentent les moments où l'utilisateur est OCCUPÉ
     // SAUF si une contrainte temporelle explicite est définie
-    const dayConstraints = hasExplicitTimeConstraint
+    const rawDayConstraints = hasExplicitTimeConstraint
       ? [] // Ignorer les indispos utilisateur si contrainte temporelle explicite
       : getConstraintsForDay(constraints, currentDate)
-    const constraintBlocks = constraintsToBlocks(dayConstraints)
+
+    // Filtrage contextuel :
+    // - contrainte 'any' → bloque toujours (comportement actuel)
+    // - contrainte dédiée au même contexte que la tâche → ne bloque pas (c'est le bon moment)
+    // - contrainte dédiée à un autre contexte → bloque
+    const dayConstraints = taskContext
+      ? rawDayConstraints.filter(c =>
+          !c.context || c.context === 'any' || c.context !== taskContext
+        )
+      : rawDayConstraints
+
+    // Sur un jour avec exception modifiée, pour les tâches non-work :
+    // remplacer les heures de la contrainte travail par les heures modifiées pour le blocage.
+    // Ex : séminaire 9h-13h au lieu de 9h-18h → créneaux perso disponibles dès 13h au lieu de 18h.
+    const constraintBlocksSource = (isModifiedDay && taskContext !== 'work')
+      ? dayConstraints.map(c =>
+          c.context === 'work'
+            ? { ...c, start_time: activeException!.modified_start_time!, end_time: activeException!.modified_end_time!, allow_lunch_break: false }
+            : c
+        )
+      : dayConstraints
+
+    const constraintBlocks = constraintsToBlocks(constraintBlocksSource)
 
     // 2. Récupérer les événements du jour (HARD) - événements Google Calendar
     // Les événements calendar sont TOUJOURS respectés (ce sont des vrais RDV)
@@ -800,7 +893,7 @@ export async function findAvailableSlots(params: FindSlotsParams): Promise<FindS
     }
 
     // 4. Calculer les créneaux libres
-    const freeBlocks = findFreeBlocks(allBusyBlocks, dayBounds)
+    const freeBlocks = findFreeBlocks(allBusyBlocks, effectiveDayBounds)
 
     // 5. Découper en créneaux de la durée demandée
     for (const free of freeBlocks) {
@@ -864,10 +957,17 @@ export async function findAvailableSlots(params: FindSlotsParams): Promise<FindS
     return false
   })
 
-  // 7. Appliquer le filtrage HARD des contraintes temporelles
-  console.log('[slots.service] Avant filtrage temporel:', futureSlots.length, 'créneaux')
+  // 7. Filtrer par fenêtre de contexte : si la tâche a un contexte et qu'il existe des
+  // contraintes dédiées à ce contexte, limiter les créneaux à ces fenêtres horaires.
+  // Ex: tâche 'work' → uniquement les créneaux pendant les heures de travail définies.
+  const contextFilteredSlots = taskContext
+    ? filterSlotsByContextWindows(futureSlots, constraints, taskContext)
+    : futureSlots
+
+  // 8. Appliquer le filtrage HARD des contraintes temporelles
+  console.log('[slots.service] Avant filtrage temporel:', contextFilteredSlots.length, 'créneaux')
   console.log('[slots.service] temporalConstraint:', JSON.stringify(temporalConstraint, null, 2))
-  let filteredSlots = filterSlotsByTemporalConstraint(futureSlots, temporalConstraint)
+  let filteredSlots = filterSlotsByTemporalConstraint(contextFilteredSlots, temporalConstraint)
   console.log('[slots.service] Après filtrage temporel:', filteredSlots.length, 'créneaux')
 
   // 8. Appliquer le filtrage HARD des contraintes de service (sauf si ignoré)
@@ -898,11 +998,21 @@ export async function findAvailableSlots(params: FindSlotsParams): Promise<FindS
     }
   }
 
-  // 9. Trier par score décroissant (sauf pour ASAP qui trie par date)
+  // 9. Trier les créneaux
   let sortedSlots: TimeSlot[]
   if (temporalConstraint?.type === 'asap') {
     // Pour ASAP, déjà trié par date dans filterSlotsByTemporalConstraint
     sortedSlots = filteredSlots
+  } else if (temporalConstraint?.type === 'fixed_date' && temporalConstraint.date?.includes('T')) {
+    // Pour un RDV à heure précise, trier par proximité à l'heure demandée
+    // (le créneau exact prime sur le scoring énergie/mood)
+    const targetDate = new Date(temporalConstraint.date)
+    const targetMinutes = targetDate.getHours() * 60 + targetDate.getMinutes()
+    sortedSlots = filteredSlots.sort((a, b) => {
+      const diffA = Math.abs(timeToMinutes(a.startTime) - targetMinutes)
+      const diffB = Math.abs(timeToMinutes(b.startTime) - targetMinutes)
+      return diffA - diffB
+    })
   } else {
     sortedSlots = filteredSlots.sort((a, b) => b.score - a.score)
   }

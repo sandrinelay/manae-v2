@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect } from 'react'
 import { Item, ItemContext } from '@/types/items'
-import { CONTEXT_CONFIG } from '@/config/contexts'
+import { CONTEXT_CONFIG, SELECTABLE_CONTEXTS } from '@/config/contexts'
 import { NoteIcon, XIcon, EditIcon, ArchiveIcon, TrashIcon } from '@/components/ui/icons'
 import { IconButton } from '@/components/ui/IconButton'
 import { ActionButton } from '@/components/ui/ActionButton'
@@ -65,7 +65,7 @@ export function NoteDetailModal({ note, onClose, onEdit, onArchive, onDelete }: 
   const hasChanges = editContent !== note.content || editContext !== (note.context || 'other')
 
   // Liste des contextes pour le sélecteur
-  const contexts: ItemContext[] = ['personal', 'family', 'work', 'health', 'other']
+  const contexts = SELECTABLE_CONTEXTS
 
   return (
     <>

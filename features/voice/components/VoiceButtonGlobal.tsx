@@ -2,7 +2,10 @@
 
 import { usePathname, useRouter } from 'next/navigation'
 import { useAuth } from '@/contexts/AuthContext'
-import { VoiceButton } from './VoiceButton'
+import { useVoiceCapture } from '../hooks/useVoiceCapture'
+import { RecordButton } from './RecordButton'
+import { RecordingFeedback } from './RecordingFeedback'
+import { VoiceCaptureOverlay } from './VoiceCaptureOverlay'
 
 const HIDDEN_ROUTES = ['/capture', '/login', '/signup', '/onboarding', '/set-password', '/forgot-password']
 
@@ -11,14 +14,48 @@ export function VoiceButtonGlobal() {
   const router = useRouter()
   const { user, isLoading } = useAuth()
 
-  // Ne pas afficher si non connecté, en chargement, ou sur une route masquée
+  const { state, transcript, recordingTime, startRecording, stopRecording, cancelRecording, setTranscript } = useVoiceCapture({
+    onTranscript: () => {},
+  })
+
   if (isLoading || !user) return null
   if (HIDDEN_ROUTES.some((route) => pathname.startsWith(route))) return null
 
-  const handleTranscript = (text: string) => {
-    localStorage.setItem('manae_voice_transcript', text)
-    router.push('/capture')
+  const handleEdit = () => {
+    if (!transcript) return
+    router.push(`/capture?voice=${encodeURIComponent(transcript)}`)
+    cancelRecording()
   }
 
-  return <VoiceButton variant="floating" onTranscript={handleTranscript} />
+  return (
+    <>
+      {/* Bouton flottant */}
+      <div className="fixed bottom-24 right-4 z-50 flex flex-col items-end gap-2">
+        {state === 'recording' && (
+          <RecordingFeedback
+            recordingTime={recordingTime}
+            onCancel={cancelRecording}
+          />
+        )}
+        <RecordButton
+          state={state}
+          onStart={startRecording}
+          onStop={stopRecording}
+          onCancel={cancelRecording}
+          size="lg"
+          className="shadow-lg"
+        />
+      </div>
+
+      {/* Overlay transcript */}
+      {state === 'preview' && transcript !== null && (
+        <VoiceCaptureOverlay
+          transcript={transcript}
+          onTranscriptChange={setTranscript}
+          onEdit={handleEdit}
+          onClose={cancelRecording}
+        />
+      )}
+    </>
+  )
 }

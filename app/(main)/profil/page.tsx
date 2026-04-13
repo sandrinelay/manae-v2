@@ -10,11 +10,18 @@ import { PersonalInfoSection } from '@/components/profil/PersonalInfoSection'
 import { PreferencesSection } from '@/components/profil/PreferencesSection'
 import { ConnectionsSection } from '@/components/profil/ConnectionsSection'
 import { MoreSection } from '@/components/profil/MoreSection'
+import { ShoppingListsSection } from '@/components/profil/ShoppingListsSection'
+import { ShoppingListsModal } from '@/components/profil/ShoppingListsModal'
 import { LogoutButton } from '@/components/profil/LogoutButton'
 import { EditNameModal } from '@/components/profil/EditNameModal'
 import { EnergyMomentsModal } from '@/components/shared/EnergyMomentsModal'
 import { ConstraintsModal } from '@/components/shared/ConstraintsModal'
+import { ExceptionsModal } from '@/components/shared/ExceptionsModal'
+import { OrganisationSection } from '@/components/profil/OrganisationSection'
 import { createClient } from '@/lib/supabase/client'
+import { getAllLists, updateListEnabled } from '@/services/lists.service'
+import type { List } from '@/types/lists'
+import type { Constraint } from '@/types'
 
 function ProfilPageContent() {
   const router = useRouter()
@@ -23,12 +30,15 @@ function ProfilPageContent() {
   const {
     profile,
     constraints,
+    exceptions,
     isLoading,
     error,
     refetch,
     updateName,
     updateEnergyMoments,
-    updateConstraints
+    updateConstraints,
+    addException,
+    deleteException
   } = useProfileData()
 
   const connectCalendar = searchParams.get('connectCalendar') === 'true'
@@ -38,6 +48,24 @@ function ProfilPageContent() {
   const [showEditNameModal, setShowEditNameModal] = useState(false)
   const [showEnergyModal, setShowEnergyModal] = useState(false)
   const [showConstraintsModal, setShowConstraintsModal] = useState(false)
+  const [showShoppingListsModal, setShowShoppingListsModal] = useState(false)
+  const [showExceptionsModal, setShowExceptionsModal] = useState(false)
+  const [constraintsInitialForm, setConstraintsInitialForm] = useState<Partial<Omit<Constraint, 'id'>> | undefined>()
+
+  const handleQuickSetupWorkHours = useCallback(() => {
+    setConstraintsInitialForm({
+      name: 'Heures de travail',
+      category: 'work',
+      context: 'work',
+      days: ['monday', 'tuesday', 'wednesday', 'thursday', 'friday'],
+      start_time: '09:00',
+      end_time: '18:00',
+      allow_lunch_break: true
+    })
+    setShowConstraintsModal(true)
+  }, [])
+
+  const [lists, setLists] = useState<List[]>([])
 
   // Rafraîchir les données du profil au montage de la page
   useEffect(() => {
@@ -58,6 +86,24 @@ function ProfilPageContent() {
       }, 100)
     }
   }, [connectCalendar])
+
+  useEffect(() => {
+    const load = async () => {
+      const supabase = createClient()
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) return
+      const allLists = await getAllLists(supabase, user.id)
+      setLists(allLists)
+    }
+    load()
+  }, [])
+
+  const handleToggleList = async (listId: string, currentEnabled: boolean) => {
+    const supabase = createClient()
+    await updateListEnabled(supabase, listId, !currentEnabled)
+    setLists(prev => prev.map(l => l.id === listId ? { ...l, enabled: !l.enabled } : l))
+    window.dispatchEvent(new Event('clarte-data-changed'))
+  }
 
   // Callback après connexion Google Calendar réussie
   const handleCalendarConnectSuccess = useCallback(() => {
@@ -155,14 +201,26 @@ function ProfilPageContent() {
             onShowEditModal={() => setShowEditNameModal(true)}
           />
 
+          <ShoppingListsSection
+            lists={lists}
+            onToggle={handleToggleList}
+            externalModalControl={true}
+            onShowModal={() => setShowShoppingListsModal(true)}
+          />
+
           <PreferencesSection
             energyMoments={profile?.energyMoments || []}
-            constraints={constraints}
             onSaveEnergyMoments={updateEnergyMoments}
-            onSaveConstraints={updateConstraints}
             externalModalControl={true}
             onShowEnergyModal={() => setShowEnergyModal(true)}
+          />
+
+          <OrganisationSection
+            constraints={constraints}
+            exceptions={exceptions}
             onShowConstraintsModal={() => setShowConstraintsModal(true)}
+            onShowExceptionsModal={() => setShowExceptionsModal(true)}
+            onQuickSetupWorkHours={handleQuickSetupWorkHours}
           />
 
           <div ref={connectionsSectionRef}>
@@ -197,11 +255,29 @@ function ProfilPageContent() {
       />
     )}
 
+    {showShoppingListsModal && (
+      <ShoppingListsModal
+        lists={lists}
+        onToggle={handleToggleList}
+        onClose={() => setShowShoppingListsModal(false)}
+      />
+    )}
+
     {showConstraintsModal && (
       <ConstraintsModal
         constraints={constraints}
-        onClose={() => setShowConstraintsModal(false)}
+        onClose={() => { setShowConstraintsModal(false); setConstraintsInitialForm(undefined) }}
         onSave={updateConstraints}
+        initialFormData={constraintsInitialForm}
+      />
+    )}
+
+    {showExceptionsModal && (
+      <ExceptionsModal
+        exceptions={exceptions}
+        onClose={() => setShowExceptionsModal(false)}
+        onAdd={addException}
+        onDelete={deleteException}
       />
     )}
   </>

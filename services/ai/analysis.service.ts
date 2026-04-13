@@ -28,11 +28,18 @@ export type OpenAIAnalysisResponse = AnalysisResponseAPI
 /**
  * Construit le prompt d'analyse (wrapper pour compatibilité)
  */
-export function buildAnalysisPrompt(rawText: string, historyContext?: string): string {
+export function buildAnalysisPrompt(
+  rawText: string,
+  historyContext?: string,
+  source?: 'voice' | 'text',
+  memoryContext?: string
+): string {
   return buildAnalyzePrompt({
     rawText,
     today: new Date(),
-    historyContext
+    historyContext,
+    source,
+    memoryContext
   })
 }
 

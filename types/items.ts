@@ -31,7 +31,7 @@ export type ItemState =
 /**
  * Context = Domaine de vie associé
  */
-export type ItemContext = 'personal' | 'family' | 'work' | 'health' | 'other'
+export type ItemContext = 'personal' | 'family' | 'work' | 'health' | 'other' | 'admin' | 'home'
 
 /**
  * Mood = Humeur au moment de la capture

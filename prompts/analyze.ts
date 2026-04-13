@@ -24,54 +24,61 @@ export const ANALYZE_CONFIG: PromptConfig = {
 const EXAMPLES = `
 EXEMPLES (entrée → sortie attendue) :
 
-1. TÂCHES (actions concrètes) - GARDER LE CONTENU ORIGINAL
+1. TÂCHES — GARDER LE CONTENU ORIGINAL
 ⚠️ Ne PAS nettoyer le contenu des tâches. Garder les infos temporelles dans le texte.
 
-TEMPORAL_CONSTRAINT - RÈGLES IMPORTANTES :
-- "[jour] [heure]" ou "à [heure]" → type: "fixed_date" (RDV précis à cette heure)
-- "[jour] avant [heure]" → type: "time_range" avec start_date=[jour]T08:00 et end_date=[jour]T[heure] (CE jour, avant l'heure)
-- "[jour] matin" → type: "time_range" avec start_date=[jour]T08:00 et end_date=[jour]T12:00 (CE jour, le matin)
-- "[jour] après-midi" → type: "time_range" avec start_date=[jour]T14:00 et end_date=[jour]T18:00 (CE jour, l'après-midi)
-- "avant [jour]" (sans heure) → type: "deadline" (n'importe quand avant ce jour)
+TEMPORAL_CONSTRAINT — RÈGLES :
+- "[jour] [heure]" ou "à [heure]" → type: "fixed_date"
+- "[jour] avant [heure]" → type: "time_range" avec start_date=[jour]T08:00 et end_date=[jour]T[heure]
+- "[jour] matin" → type: "time_range" start_date=[jour]T08:00 end_date=[jour]T12:00
+- "[jour] après-midi" → type: "time_range" start_date=[jour]T14:00 end_date=[jour]T18:00
+- "avant [jour]" (sans heure) → type: "deadline"
 - "urgent", "asap" ou "vite" → type: "asap"
-- "à partir de [jour]" → type: "start_date" (créneaux CE jour et après)
-- "[action] [jour]" (sans heure) → type: "fixed_date" (créneaux CE jour uniquement)
-⚠️ EXPRESSIONS SPÉCIALES (PRIORITAIRES) :
-- "fin du mois", "fin de mois", "à la fin du mois" → type: "deadline" avec date = FIN DU MOIS (voir ci-dessous)
-- "début du mois prochain", "début de mois" → type: "fixed_date" avec date = DÉBUT MOIS PROCHAIN (voir ci-dessous)
+- "à partir de [jour]" → type: "start_date"
+⚠️ PRIORITAIRES :
+- "fin du mois" → type: "deadline" date = FIN DU MOIS (voir dates de référence)
+- "début du mois prochain" → type: "fixed_date" date = DÉBUT MOIS PROCHAIN
 
+TÂCHES CLASSIQUES :
 "Appeler le dentiste" → { content: "Appeler le dentiste", type: "task", state: "active", context: "health" }
-"Appeler le dentiste demain" → { content: "Appeler le dentiste demain", type: "task", state: "active", context: "health", temporal_constraint: { type: "fixed_date", date: "[demain]" } }
 "Réunion mardi 14h" → { content: "Réunion mardi 14h", type: "task", state: "active", context: "work", temporal_constraint: { type: "fixed_date", date: "[mardi]T14:00:00" } }
-"Réunion mardi avant 14h" → { content: "Réunion mardi avant 14h", type: "task", state: "active", context: "work", temporal_constraint: { type: "time_range", start_date: "[mardi]T08:00:00", end_date: "[mardi]T14:00:00", raw_pattern: "mardi avant 14h" } }
-"Appeler comptable lundi matin" → { content: "Appeler comptable lundi matin", type: "task", state: "active", context: "work", temporal_constraint: { type: "time_range", start_date: "[lundi]T08:00:00", end_date: "[lundi]T12:00:00", raw_pattern: "lundi matin" } }
-"RDV banque jeudi après-midi" → { content: "RDV banque jeudi après-midi", type: "task", temporal_constraint: { type: "time_range", start_date: "[jeudi]T14:00:00", end_date: "[jeudi]T18:00:00", raw_pattern: "jeudi après-midi" } }
-"Finir rapport avant vendredi" → { content: "Finir rapport avant vendredi", type: "task", state: "active", temporal_constraint: { type: "deadline", date: "[vendredi]", urgency: "high" } }
-"Payer facture avant le 15" → { content: "Payer facture avant le 15", type: "task", temporal_constraint: { type: "deadline", date: "[15 du mois]", urgency: "medium" } }
+"Finir rapport avant vendredi" → { content: "Finir rapport avant vendredi", type: "task", state: "active", context: "work", temporal_constraint: { type: "deadline", date: "[vendredi]", urgency: "high" } }
 "Urgent rappeler client" → { content: "Urgent rappeler client", type: "task", state: "active", context: "work", temporal_constraint: { type: "asap", urgency: "critical" } }
-"Vite répondre au mail" → { content: "Vite répondre au mail", type: "task", state: "active", temporal_constraint: { type: "asap", urgency: "high" } }
-"Commencer régime lundi" → { content: "Commencer régime lundi", type: "task", state: "active", context: "health", temporal_constraint: { type: "fixed_date", date: "[lundi]" } }
-"Reprendre sport à partir de mardi" → { content: "Reprendre sport à partir de mardi", type: "task", state: "active", context: "health", temporal_constraint: { type: "start_date", start_date: "[mardi]T00:00:00" } }
-⚠️ "Appeler EDF fin du mois" → { content: "Appeler EDF fin du mois", type: "task", state: "active", context: "other", temporal_constraint: { type: "deadline", date: "UTILISER LA DATE FIN DU MOIS INDIQUÉE CI-DESSOUS", urgency: "low", raw_pattern: "fin du mois" } }
-⚠️ "Payer loyer début du mois prochain" → { content: "Payer loyer début du mois prochain", type: "task", state: "active", context: "other", temporal_constraint: { type: "fixed_date", date: "UTILISER LA DATE DÉBUT MOIS PROCHAIN INDIQUÉE CI-DESSOUS", raw_pattern: "début du mois prochain" } }
-"Appeler dentiste et pédiatre" → 2 items : { content: "Appeler le dentiste" } + { content: "Appeler le pédiatre" }
+"Appeler dentiste et pédiatre" → 2 items : { content: "Appeler le dentiste", context: "health" } + { content: "Appeler le pédiatre", context: "health" }
 
-2. NOTES (infos à retenir, pas d'action) - GARDER LE CONTENU ORIGINAL
+TÂCHES ADMIN (paperasse, banque, impôts) :
+"Envoyer la déclaration d'impôts avant le 15" → { content: "Envoyer la déclaration d'impôts avant le 15", type: "task", state: "active", context: "admin", temporal_constraint: { type: "deadline", date: "[15 du mois]", urgency: "high" } }
+"Appeler EDF fin du mois" → { content: "Appeler EDF fin du mois", type: "task", state: "active", context: "admin", temporal_constraint: { type: "deadline", date: "UTILISER LA DATE FIN DU MOIS INDIQUÉE CI-DESSOUS", urgency: "low" } }
+"Renouveler assurance voiture" → { content: "Renouveler assurance voiture", type: "task", state: "active", context: "admin" }
+
+TÂCHES HOME (maison, travaux) :
+"Appeler le plombier pour la fuite" → { content: "Appeler le plombier pour la fuite", type: "task", state: "active", context: "home" }
+"Acheter des ampoules pour le couloir" → { content: "Acheter des ampoules pour le couloir", type: "task", state: "active", context: "home" }
+
+2. SAISIES VOCALES — cas difficiles
+⚠️ Appliquer chain-of-thought : nettoyer hésitations → segmenter → classifier
+
+"euh je sais pas... enfin si, rappeler le médecin pour Tom" → 1 item : { content: "Rappeler le médecin pour Tom", type: "task", state: "active", context: "health" }
+"donc voilà faut que je pense à la déc... la déclaration d'impôts" → 1 item : { content: "Faire la déclaration d'impôts", type: "task", state: "active", context: "admin" }
+"courses et aussi répondre à Patrick pour le devis" → 2 items : { content: "Courses", type: "task", context: "personal" } + { content: "Répondre à Patrick pour le devis", type: "task", context: "work" }
+"faut que je pense à la décl d'impôts et acheter du pain" → 2 items : { content: "Faire la déclaration d'impôts", type: "task", context: "admin" } + { content: "Pain", type: "list_item", extracted_data: { category: "bakery" } }
+"appeler... enfin écrire à la mairie pour les travaux" → 1 item : { content: "Écrire à la mairie pour les travaux", type: "task", state: "active", context: "home" }
+
+3. NOTES (infos à retenir, pas d'action)
 "Léa adore les licornes" → { content: "Léa adore les licornes", type: "note", state: "active", context: "family" }
-"Code WiFi: abc123" → { content: "Code WiFi: abc123", type: "note", state: "active", context: "other" }
 "Emma allergique aux arachides" → { content: "Emma allergique aux arachides", type: "note", state: "active", context: "family" }
+"Code WiFi: abc123" → { content: "Code WiFi: abc123", type: "note", state: "active", context: "home" }
 
-3. IDÉES (projets futurs flous) - GARDER LE CONTENU ORIGINAL
+4. IDÉES (projets futurs flous)
 "Partir au Japon un jour" → { content: "Partir au Japon un jour", type: "idea", state: "captured", context: "personal" }
-"Refaire la cuisine" → { content: "Refaire la cuisine", type: "idea", state: "captured", context: "personal" }
-"Aller au ski en février 2027" → { content: "Aller au ski en février 2027", type: "idea", state: "captured", context: "personal" }
+"Refaire la cuisine" → { content: "Refaire la cuisine", type: "idea", state: "captured", context: "home" }
 
-4. COURSES (list_item) - NETTOYER le contenu + CATÉGORISER
+5. COURSES (list_item) — NETTOYER le contenu + CATÉGORISER
 
 CATÉGORIES (OBLIGATOIRE pour list_item) :
-- bakery : pain, farine, brioche, croissant, pain de mie
+- bakery : pain, farine, brioche, croissant
 - dairy : lait, œufs, fromage, beurre, yaourt, crème
-- meat : viande, poisson, jambon, poulet, saucisse, lardons, steaks
+- meat : viande, poisson, jambon, poulet, saucisse, lardons
 - produce : fruits, légumes, banane, pomme, salade, compotes
 - grocery : pâtes, riz, conserves, huile, sucre, sel, sauce
 - frozen : surgelés, glace
@@ -81,38 +88,34 @@ CATÉGORIES (OBLIGATOIRE pour list_item) :
 - baby : couches, lingettes, compotes bébé
 - other : piles, ampoules, et tout le reste
 
-⚠️ RÈGLE CRITIQUE - NETTOYAGE + CATÉGORIE OBLIGATOIRES :
-Pour list_item : content = NOM DU PRODUIT SEULEMENT + extracted_data.category OBLIGATOIRE
+LISTE D'ACHATS (list_slug) — OBLIGATOIRE pour list_item :
+- "alimentaire" : nourriture, boissons, produits frais, hygiène personnelle (lait, pain, œufs, fromage, shampoing, savon, gel douche)
+- "maison" : entretien ménager, bricolage, jardinage (lessive, éponges, ampoules, piles, détergent, plantes, outils)
+- "enfants" : scolaire, vêtements enfants, jouets, activités (cahiers, crayons, cartable, baskets enfant, jouets)
+- "pro" : matériel bureau, logiciels, abonnements professionnels, fournitures de bureau (stylos, post-its, imprimante, abonnement Notion)
+- "en-ligne" : commandes internet, cas ambigus (tout ce qui ne rentre pas clairement dans les autres catégories)
 
-EXEMPLES COMPLETS (format JSON attendu) :
-"Ajouter à la liste de course du dentifrice" → { content: "Dentifrice", type: "list_item", state: "active", context: "other", extracted_data: { category: "hygiene" } }
-"Acheter du lait" → { content: "Lait", type: "list_item", state: "active", context: "other", extracted_data: { category: "dairy" } }
-"6 œufs" → { content: "6 œufs", type: "list_item", state: "active", context: "other", extracted_data: { category: "dairy" } }
-"Pain" → { content: "Pain", type: "list_item", state: "active", context: "other", extracted_data: { category: "bakery" } }
-"Jambon" → { content: "Jambon", type: "list_item", state: "active", context: "other", extracted_data: { category: "meat" } }
-"Bananes" → { content: "Bananes", type: "list_item", state: "active", context: "other", extracted_data: { category: "produce" } }
-"Pâtes" → { content: "Pâtes", type: "list_item", state: "active", context: "other", extracted_data: { category: "grocery" } }
-"Piles" → { content: "Piles", type: "list_item", state: "active", context: "other", extracted_data: { category: "other" } }
+RÈGLES DE PRIORITÉ :
+- Alimentaire = ce qu'on mange ou boit UNIQUEMENT (lessive → maison, pas alimentaire)
+- "fournitures scolaires" → enfants (contexte enfant prime sur pro)
+- "stylos, post-its" sans mention école → pro
+- Ambigu → en-ligne (pas alimentaire)
 
-LISTE BRUTE (mots séparés) :
-"lait oeufs pain" → 3 items avec leurs catégories respectives (dairy, dairy, bakery)
-"bananes pommes compotes" → 3 items (produce, produce, produce)
-
-AVEC QUANTITÉS :
-"2 briques de lait" → { content: "2 briques de lait", extracted_data: { category: "dairy" } }
-"500g farine" → { content: "500g farine", extracted_data: { category: "bakery" } }
-
-PRODUITS COMPOSÉS (garder ensemble) :
-"yaourt au citron" → { content: "Yaourt au citron", extracted_data: { category: "dairy" } }
-"jus de pomme" → { content: "Jus de pomme", extracted_data: { category: "drinks" } }
-"huile d'olive" → { content: "Huile d'olive", extracted_data: { category: "grocery" } }
-"sauce tomate" → { content: "Sauce tomate", extracted_data: { category: "grocery" } }
+"Acheter du lait" → { content: "Lait", type: "list_item", list_slug: "alimentaire", state: "active", context: "other", extracted_data: { category: "dairy" } }
+"6 œufs" → { content: "6 œufs", type: "list_item", list_slug: "alimentaire", state: "active", context: "other", extracted_data: { category: "dairy" } }
+"lait oeufs pain" → 3 items avec catégories (dairy, dairy, bakery) et list_slug "alimentaire" pour chacun
+"2 briques de lait" → { content: "2 briques de lait", list_slug: "alimentaire", extracted_data: { category: "dairy" } }
+"Lessive et éponges" → [{ content: "Lessive", list_slug: "maison" }, { content: "Éponges", list_slug: "maison" }]
+"Cahiers et stylos pour l'école" → [{ content: "Cahiers", list_slug: "enfants" }, { content: "Stylos", list_slug: "enfants" }]
+"Commander une webcam" → [{ content: "Webcam", list_slug: "en-ligne" }]
+"Post-its et bloc-notes" → [{ content: "Post-its", list_slug: "pro" }, { content: "Bloc-notes", list_slug: "pro" }]
+"Shampoing et pain" → [{ content: "Shampoing", list_slug: "alimentaire" }, { content: "Pain", list_slug: "alimentaire" }]
 
 MIX COURSES + TÂCHE :
 "lait pain et appeler nounou" → 3 items :
-  - { content: "Lait", type: "list_item", extracted_data: { category: "dairy" } }
-  - { content: "Pain", type: "list_item", extracted_data: { category: "bakery" } }
-  - { content: "Appeler nounou", type: "task" }
+  - { content: "Lait", type: "list_item", list_slug: "alimentaire", extracted_data: { category: "dairy" } }
+  - { content: "Pain", type: "list_item", list_slug: "alimentaire", extracted_data: { category: "bakery" } }
+  - { content: "Appeler nounou", type: "task", context: "family" }
 `
 
 // ============================================
@@ -123,8 +126,14 @@ const RULES = `
 RÈGLES :
 1. TYPE : task (action), note (info), idea (projet flou), list_item (courses alimentaires/ménage)
 2. STATE : "active" si clair, "captured" si flou (ideas uniquement)
-3. CONTEXT : health (médical), family (enfants), work (pro), personal (perso), other
-4. DÉCOUPAGE : séparer si virgules/et avec entités différentes
+3. CONTEXT :
+   - health : médical, santé, sport, pédiatre, dentiste, médecin
+   - family : enfants, école, activités enfants, famille, nounou
+   - work : professionnel, boulot, collègues, clients, réunions
+   - personal : perso, loisirs, développement personnel, voyage, vacances
+   - admin : banque, impôts, paperasse, assurance, administration, mairie, déclarations
+   - home : maison, travaux, réparations, jardinage, plomberie, électricité, bricolage
+4. DÉCOUPAGE : séparer si virgules/et avec entités ou contextes différents
 5. COURSES : TOUJOURS nettoyer (supprimer "acheter du/de la/des", garder le produit)
 6. TEMPORAL : détecter dates, heures, urgences
 
@@ -156,12 +165,13 @@ const JSON_FORMAT = `
 FORMAT JSON (strict) :
 {
   "items": [{
-    "content": "⚠️ RÈGLE IMPORTANTE :
-      - task/note/idea → CONTENU ORIGINAL (ne pas modifier, garder dates/heures dans le texte)
+    "content": "⚠️ RÈGLE :
+      - task/note/idea → CONTENU ORIGINAL (ne pas modifier, garder dates/heures)
       - list_item → PRODUIT SEULEMENT (nettoyer verbes et phrases)",
     "type": "task|note|idea|list_item",
+    "list_slug": "alimentaire|maison|enfants|pro|en-ligne (OBLIGATOIRE si type=list_item, absent sinon)",
     "state": "active|captured",
-    "context": "personal|family|work|health|other",
+    "context": "personal|family|work|health|admin|home",
     "confidence": 0.0-1.0,
     "extracted_data": {
       "category": "pour list_item uniquement (bakery, dairy, meat, etc.)"
@@ -186,7 +196,7 @@ FORMAT JSON (strict) :
  * Construit le prompt d'analyse complet
  */
 export function buildAnalyzePrompt(context: AnalysisContext): string {
-  const { rawText, today, historyContext } = context
+  const { rawText, today, historyContext, source, memoryContext } = context
 
   // Calculer les dates de référence
   const todayStr = today.toISOString().split('T')[0]
@@ -210,8 +220,17 @@ export function buildAnalyzePrompt(context: AnalysisContext): string {
     weekDays.push(`${d.toLocaleDateString('fr-FR', { weekday: 'long' })} = ${d.toISOString().split('T')[0]}`)
   }
 
-  return `Analyse cette pensée et structure-la.
+  const sourceNote = source === 'voice'
+    ? `\n⚠️ SAISIE VOCALE : Ce texte a été dicté à voix haute. Tolère les fautes de syntaxe, phrases sans verbe, hésitations. Applique l'Étape 1 (Nettoyer) avec soin.\n`
+    : ''
 
+  // Section mémoire : injectée après les exemples pour prendre le dessus sur les règles par défaut
+  const memorySection = memoryContext
+    ? `\n⚠️ CORRECTIONS UTILISATEUR (PRIORITAIRES — ignorent les règles par défaut ci-dessus) :\n${memoryContext}\n`
+    : ''
+
+  return `Analyse cette pensée et structure-la.
+${sourceNote}
 PENSÉE : "${rawText}"
 
 DATES DE RÉFÉRENCE :
@@ -223,10 +242,9 @@ DATES DE RÉFÉRENCE :
 
 ⚠️ RÈGLE CRITIQUE : Si la pensée contient "fin du mois" ou "fin de mois", alors temporal_constraint.date = "${endOfMonthStr}"
 
-${historyContext ? `HISTORIQUE : ${historyContext}\n` : ''}
-${RULES}
+${historyContext ? `HISTORIQUE : ${historyContext}\n` : ''}${RULES}
 ${EXAMPLES}
-${JSON_FORMAT}`
+${memorySection}${JSON_FORMAT}`
 }
 
 // ============================================

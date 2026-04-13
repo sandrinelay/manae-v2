@@ -1,20 +1,14 @@
 'use client'
 
 import { useState } from 'react'
-import { ChevronRightIcon, ZapIcon, CalendarOffIcon } from '@/components/ui/icons'
+import { ChevronRightIcon, ZapIcon } from '@/components/ui/icons'
 import { EnergyMomentsModal } from '@/components/shared/EnergyMomentsModal'
-import { ConstraintsModal } from '@/components/shared/ConstraintsModal'
-import type { Constraint } from '@/types'
 
 interface PreferencesSectionProps {
   energyMoments: string[]
-  constraints: Constraint[]
   onSaveEnergyMoments: (moments: string[]) => Promise<void>
-  onSaveConstraints: (constraints: Constraint[]) => Promise<void>
-  // Props pour contrôle externe des modales (évite problème PullToRefresh + position:fixed)
   externalModalControl?: boolean
   onShowEnergyModal?: () => void
-  onShowConstraintsModal?: () => void
 }
 
 const ENERGY_LABELS: Record<string, string> = {
@@ -28,22 +22,14 @@ const ENERGY_LABELS: Record<string, string> = {
 
 export function PreferencesSection({
   energyMoments,
-  constraints,
   onSaveEnergyMoments,
-  onSaveConstraints,
   externalModalControl = false,
-  onShowEnergyModal,
-  onShowConstraintsModal
+  onShowEnergyModal
 }: PreferencesSectionProps) {
   const [showEnergyModal, setShowEnergyModal] = useState(false)
-  const [showConstraintsModal, setShowConstraintsModal] = useState(false)
 
   const energySummary = energyMoments.length > 0
     ? energyMoments.map(m => ENERGY_LABELS[m] || m).join(', ')
-    : 'Non configuré'
-
-  const constraintsSummary = constraints.length > 0
-    ? `${constraints.length} indisponibilité${constraints.length > 1 ? 's' : ''}`
     : 'Non configuré'
 
   return (
@@ -73,27 +59,6 @@ export function PreferencesSection({
           </div>
           <ChevronRightIcon className="w-5 h-5 text-text-muted" />
         </button>
-
-        {/* Indisponibilités */}
-        <button
-          onClick={() => {
-            if (externalModalControl && onShowConstraintsModal) {
-              onShowConstraintsModal()
-            } else {
-              setShowConstraintsModal(true)
-            }
-          }}
-          className="w-full flex items-center justify-between px-4 py-3 border-t border-gray-100 hover:bg-gray-50 transition-colors"
-        >
-          <div className="flex items-center gap-3">
-            <CalendarOffIcon className="w-5 h-5 text-red-400" />
-            <div className="text-left">
-              <p className="text-sm text-text-muted">Indisponibilités</p>
-              <p className="text-text-dark text-sm">{constraintsSummary}</p>
-            </div>
-          </div>
-          <ChevronRightIcon className="w-5 h-5 text-text-muted" />
-        </button>
       </section>
 
       {!externalModalControl && showEnergyModal && (
@@ -101,14 +66,6 @@ export function PreferencesSection({
           selectedMoments={energyMoments}
           onClose={() => setShowEnergyModal(false)}
           onSave={onSaveEnergyMoments}
-        />
-      )}
-
-      {!externalModalControl && showConstraintsModal && (
-        <ConstraintsModal
-          constraints={constraints}
-          onClose={() => setShowConstraintsModal(false)}
-          onSave={onSaveConstraints}
         />
       )}
     </>

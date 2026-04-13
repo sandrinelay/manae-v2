@@ -39,8 +39,14 @@ export function PullToRefresh({
     const container = containerRef.current
     if (!container) return
 
-    const target = e.target as Node
+    const target = e.target as HTMLElement
     if (!container.contains(target)) {
+      touchStartedInContainer.current = false
+      return
+    }
+
+    // Ne pas intercepter les touches sur les éléments interactifs (boutons, inputs…)
+    if (target.closest('button, input, textarea, select, a')) {
       touchStartedInContainer.current = false
       return
     }

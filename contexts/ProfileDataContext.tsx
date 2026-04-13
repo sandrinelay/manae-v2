@@ -3,7 +3,9 @@
 import { createContext, useContext, useState, useEffect, useCallback, type ReactNode } from 'react'
 import { useAuth } from './AuthContext'
 import { getOrCreateUserProfile, updateUserProfile, getConstraints, saveConstraints } from '@/services/supabaseService'
-import type { Constraint } from '@/types'
+import { scheduleExceptionsService } from '@/services/schedule-exceptions.service'
+import { createClient } from '@/lib/supabase/client'
+import type { Constraint, ScheduleException } from '@/types'
 
 // ============================================
 // TYPES
@@ -25,6 +27,9 @@ interface ProfileDataContextType {
   updateName: (firstName: string, lastName: string) => Promise<void>
   updateEnergyMoments: (moments: string[]) => Promise<void>
   updateConstraints: (constraints: Constraint[]) => Promise<void>
+  exceptions: ScheduleException[]
+  addException: (data: Omit<ScheduleException, 'id' | 'user_id' | 'created_at'>) => Promise<void>
+  deleteException: (id: string) => Promise<void>
 }
 
 // ============================================
@@ -42,6 +47,7 @@ export function ProfileDataProvider({ children }: { children: ReactNode }) {
 
   const [profile, setProfile] = useState<ProfileData | null>(null)
   const [constraints, setConstraints] = useState<Constraint[]>([])
+  const [exceptions, setExceptions] = useState<ScheduleException[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<Error | null>(null)
   const [hasFetched, setHasFetched] = useState(false)
@@ -64,10 +70,17 @@ export function ProfileDataProvider({ children }: { children: ReactNode }) {
       }
       setError(null)
 
-      const [userProfile, userConstraints] = await Promise.all([
+      const supabase = createClient()
+      const { data: { user: currentUser } } = await supabase.auth.getUser()
+
+      const [userProfile, userConstraints, userExceptions] = await Promise.all([
         getOrCreateUserProfile(),
-        getConstraints()
+        getConstraints(),
+        currentUser
+          ? scheduleExceptionsService.getExceptions(supabase, currentUser.id)
+          : Promise.resolve([])
       ])
+      setExceptions(userExceptions)
 
       setProfile({
         firstName: userProfile.first_name || '',
@@ -80,6 +93,7 @@ export function ProfileDataProvider({ children }: { children: ReactNode }) {
         id: c.id,
         name: c.name,
         category: c.category as Constraint['category'],
+        context: (c.context || 'any') as Constraint['context'],
         days: c.days,
         start_time: c.start_time,
         end_time: c.end_time,
@@ -121,10 +135,25 @@ export function ProfileDataProvider({ children }: { children: ReactNode }) {
     setProfile(prev => prev ? { ...prev, energyMoments: moments } : null)
   }, [])
 
+  const addException = useCallback(async (data: Omit<ScheduleException, 'id' | 'user_id' | 'created_at'>) => {
+    const supabase = createClient()
+    const { data: { user: currentUser } } = await supabase.auth.getUser()
+    if (!currentUser) throw new Error('Non authentifié')
+    const newException = await scheduleExceptionsService.createException(supabase, currentUser.id, data)
+    setExceptions(prev => [...prev, newException].sort((a, b) => a.start_date.localeCompare(b.start_date)))
+  }, [])
+
+  const deleteException = useCallback(async (id: string) => {
+    const supabase = createClient()
+    await scheduleExceptionsService.deleteException(supabase, id)
+    setExceptions(prev => prev.filter(e => e.id !== id))
+  }, [])
+
   const updateConstraints = useCallback(async (newConstraints: Constraint[]) => {
     const constraintsForDb = newConstraints.map(c => ({
       name: c.name,
       category: c.category,
+      context: c.context || 'any',
       days: c.days,
       start_time: c.start_time,
       end_time: c.end_time,
@@ -144,7 +173,10 @@ export function ProfileDataProvider({ children }: { children: ReactNode }) {
         refetch,
         updateName,
         updateEnergyMoments,
-        updateConstraints
+        updateConstraints,
+        exceptions,
+        addException,
+        deleteException
       }}
     >
       {children}

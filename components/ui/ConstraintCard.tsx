@@ -21,6 +21,15 @@ interface ConstraintCardProps {
     onDelete: (id: string) => void;
 }
 
+const CONTEXT_LABELS: Record<string, string> = {
+    work:     'Pro uniquement',
+    family:   'Famille uniquement',
+    personal: 'Personnel uniquement',
+    health:   'Santé uniquement',
+    admin:    'Admin uniquement',
+    home:     'Maison uniquement',
+}
+
 const CATEGORY_ICONS = {
     work: BriefcaseIcon,
     school: GraduationCapIcon,
@@ -83,6 +92,15 @@ export const ConstraintCard: React.FC<ConstraintCardProps> = ({
                 <div className="flex items-center gap-2 text-sm text-text-muted">
                     <CoffeeIcon className="w-4 h-4" />
                     <span>Pause déjeuner 12h-14h</span>
+                </div>
+            )}
+
+            {/* Contexte dédié — affiché seulement si différent de 'any' */}
+            {constraint.context && constraint.context !== 'any' && (
+                <div className="mt-1">
+                    <span className="text-xs font-medium text-primary">
+                        {CONTEXT_LABELS[constraint.context] ?? constraint.context}
+                    </span>
                 </div>
             )}
         </div>

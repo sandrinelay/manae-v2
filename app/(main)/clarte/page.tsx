@@ -23,15 +23,19 @@ import { IdeaDevelopModal } from '@/components/clarte/modals/IdeaDevelopModal'
 import { PlanShoppingModal } from '@/components/clarte/modals/PlanShoppingModal'
 import { useClarteData } from '@/contexts/ClarteDataContext'
 import { normalizeString } from '@/components/ui/SearchBar'
+import { ConnectionSuggestion } from '@/components/clarte/ConnectionSuggestion'
+import { connectionsService } from '@/services/connections.service'
+import { createClient } from '@/lib/supabase/client'
 import {
   completeItem,
   deleteItem,
   archiveItem,
   activateItem,
-  updateItemContent,
-  updateItemState
+  updateItemContent
 } from '@/services/items.service'
 import type { Item, ItemContext } from '@/types/items'
+import type { DailySuggestion } from '@/types'
+import type { ListSlug } from '@/types/lists'
 import type { FilterType } from '@/config/filters'
 import type { ContextFilterType } from '@/components/ui/ContextFilterTabs'
 
@@ -53,13 +57,25 @@ function ClartePageContent() {
       loadFullData()
     }
   }, [searchQuery, loadFullData])
+
+  // Charger la suggestion de connexion du jour
+  useEffect(() => {
+    if (!user) return
+    const supabase = createClient()
+    connectionsService.getTodaySuggestion(supabase, user.id)
+      .then(setTodaySuggestion)
+      .catch(err => console.warn('[clarte] Erreur chargement suggestion:', err))
+  }, [user])
   const [selectedNote, setSelectedNote] = useState<Item | null>(null)
   const [selectedTask, setSelectedTask] = useState<Item | null>(null)
   const [selectedIdea, setSelectedIdea] = useState<Item | null>(null)
   const [ideaToDevelop, setIdeaToDevelop] = useState<Item | null>(null)
   const [taskToPlan, setTaskToPlan] = useState<Item | null>(null)
+  const [todaySuggestion, setTodaySuggestion] = useState<DailySuggestion | null>(null)
   const [showShoppingPlanModal, setShowShoppingPlanModal] = useState(false)
   const [shoppingItemCount, setShoppingItemCount] = useState(0)
+  const [shoppingListName, setShoppingListName] = useState('Achats')
+  const [initialShoppingTab, setInitialShoppingTab] = useState<ListSlug | undefined>(undefined)
 
   // Fonction de filtrage par recherche
   const filterBySearch = useCallback((items: Item[]) => {
@@ -74,7 +90,6 @@ function ClartePageContent() {
   const filteredTasks = useMemo(() => filterBySearch(data?.tasks || []), [data?.tasks, filterBySearch])
   const filteredNotes = useMemo(() => filterBySearch(data?.notes || []), [data?.notes, filterBySearch])
   const filteredIdeas = useMemo(() => filterBySearch(data?.ideas || []), [data?.ideas, filterBySearch])
-  const filteredShopping = useMemo(() => filterBySearch(data?.shoppingItems || []), [data?.shoppingItems, filterBySearch])
 
   // Compteurs (reflètent la recherche si active)
   const displayCounts = useMemo(() => {
@@ -83,9 +98,9 @@ function ClartePageContent() {
       tasks: filteredTasks.length,
       notes: filteredNotes.length,
       ideas: filteredIdeas.length,
-      shopping: filteredShopping.length
+      shopping: data?.counts?.shopping ?? 0
     }
-  }, [searchQuery, data?.counts, filteredTasks.length, filteredNotes.length, filteredIdeas.length, filteredShopping.length])
+  }, [searchQuery, data?.counts, filteredTasks.length, filteredNotes.length, filteredIdeas.length])
 
   // Gérer le retour après connexion Google Calendar
   const hasResumedPlanning = useRef(false)
@@ -242,17 +257,10 @@ function ClartePageContent() {
     }
   }, [refetch])
 
-  const handleToggleShoppingItem = useCallback(async (id: string) => {
-    try {
-      const item = data?.shoppingItems.find(i => i.id === id)
-      if (!item) return
-      const newState = item.state === 'completed' ? 'active' : 'completed'
-      await updateItemState(id, newState)
-      await refetch()
-    } catch (error) {
-      console.error('Erreur toggle shopping:', error)
-    }
-  }, [data, refetch])
+  const handleOpenList = useCallback((slug: ListSlug) => {
+    setInitialShoppingTab(slug)
+    setActiveFilter('shopping')
+  }, [])
 
   const handleSearch = useCallback((query: string) => {
     setSearchQuery(query)
@@ -262,8 +270,33 @@ function ClartePageContent() {
     setSearchQuery(null)
   }, [])
 
-  const handleShowShoppingPlanModal = useCallback((itemCount: number) => {
+  const handleDismissSuggestion = useCallback(async (id: string) => {
+    try {
+      const supabase = createClient()
+      await connectionsService.dismissSuggestion(supabase, id)
+      setTodaySuggestion(null)
+    } catch (error) {
+      console.error('Erreur dismiss suggestion:', error)
+    }
+  }, [])
+
+  const handleSuggestionItemClick = useCallback((item: Item) => {
+    if (item.type === 'task') {
+      setSelectedTask(item)
+    } else if (item.type === 'note') {
+      setSelectedNote(item)
+    } else if (item.type === 'idea') {
+      if (item.state === 'project') {
+        router.push(`/projects/${item.id}`)
+      } else {
+        setSelectedIdea(item)
+      }
+    }
+  }, [router])
+
+  const handleShowShoppingPlanModal = useCallback((itemCount: number, listName?: string) => {
     setShoppingItemCount(itemCount)
+    setShoppingListName(listName ?? 'Achats')
     setShowShoppingPlanModal(true)
   }, [])
 
@@ -308,6 +341,12 @@ function ClartePageContent() {
     if (activeContext === 'all') return filteredIdeas
     return filteredIdeas.filter(item => item.context === activeContext)
   }, [filteredIdeas, activeContext])
+
+  // Tous les items (pour la résolution des IDs dans ConnectionSuggestion)
+  const allItems = useMemo(
+    () => [...(data?.tasks ?? []), ...(data?.notes ?? []), ...(data?.ideas ?? [])],
+    [data?.tasks, data?.notes, data?.ideas]
+  )
 
   const isLoading = authLoading || dataLoading
   // Ne pas afficher le spinner de chargement si un modal est ouvert
@@ -358,7 +397,7 @@ function ClartePageContent() {
   const shouldShowTasks = showTasks && (!isSearching || filteredTasks.length > 0)
   const shouldShowNotes = showNotes && (!isSearching || notesByContext.length > 0)
   const shouldShowIdeas = showIdeas && (!isSearching || ideasByContext.length > 0)
-  const shouldShowShopping = showShopping && (!isSearching || filteredShopping.length > 0)
+  const shouldShowShopping = showShopping && (!isSearching || (data?.counts?.shopping ?? 0) > 0)
 
   // Vérifier si aucun résultat pendant une recherche
   const noResults = isSearching && !shouldShowTasks && !shouldShowNotes && !shouldShowIdeas && !shouldShowShopping
@@ -381,6 +420,13 @@ function ClartePageContent() {
               <EmptySearchResult query={searchQuery!} />
             ) : (
               <div className="space-y-4 mt-4">
+                <ConnectionSuggestion
+                  suggestion={todaySuggestion}
+                  items={allItems}
+                  onDismiss={handleDismissSuggestion}
+                  onItemClick={handleSuggestionItemClick}
+                />
+
                 {shouldShowTasks && (
                   activeFilter === 'tasks' && !isSearching ? (
                     <TasksFullView
@@ -437,7 +483,8 @@ function ClartePageContent() {
                 {shouldShowShopping && (
                   activeFilter === 'shopping' && !isSearching ? (
                     <ShoppingFullView
-                      items={filteredShopping}
+                      lists={data?.listsWithCounts ?? []}
+                      initialTab={initialShoppingTab}
                       onRefresh={refetch}
                       initialShowPlanModal={showShoppingPlanModal}
                       onPlanModalClosed={() => setShowShoppingPlanModal(false)}
@@ -446,10 +493,9 @@ function ClartePageContent() {
                     />
                   ) : (
                     <ShoppingBlock
-                      items={filteredShopping}
-                      totalCount={filteredShopping.length}
-                      onToggleItem={handleToggleShoppingItem}
-                      onShowFullView={() => setActiveFilter('shopping')}
+                      listsWithCounts={data?.listsWithCounts ?? []}
+                      onViewAll={() => setActiveFilter('shopping')}
+                      onOpenList={handleOpenList}
                     />
                   )
                 )}
@@ -519,6 +565,7 @@ function ClartePageContent() {
 
       {showShoppingPlanModal && (
         <PlanShoppingModal
+          listName={shoppingListName}
           itemCount={shoppingItemCount}
           onClose={() => setShowShoppingPlanModal(false)}
           onSuccess={refetch}

@@ -12,9 +12,12 @@ import type { ItemType, ItemContext, Mood as ItemMood } from '@/types/items'
 import type { ActionType } from './CaptureModal'
 import { useAIQuota } from '@/contexts/AIQuotaContext'
 import { SpinnerIcon, SendIcon } from '@/components/ui/icons'
+import { X } from 'lucide-react'
 // import { ActionButton } from '@/components/ui/ActionButton' // Commenté pour la beta
 import { PullToRefresh } from '@/components/ui/PullToRefresh'
-import { VoiceButton } from '@/features/voice/components/VoiceButton'
+import { useVoiceCapture } from '@/features/voice/hooks/useVoiceCapture'
+import { RecordButton } from '@/features/voice/components/RecordButton'
+import { RecordingFeedback } from '@/features/voice/components/RecordingFeedback'
 
 // Conversion des moods UI vers les moods DB
 function convertMoodToItemMood(mood: Mood | null): ItemMood | undefined {
@@ -47,6 +50,22 @@ export function CaptureFlow({ userId, onSuccess }: CaptureFlowProps) {
   // }
 
   const [content, setContent] = useState('')
+  const contentSourceRef = useRef<'voice' | 'text'>('text')
+
+  const { state: voiceState, recordingTime, startRecording, stopRecording, cancelRecording, confirmTranscript } = useVoiceCapture({
+    onTranscript: (text) => {
+      contentSourceRef.current = 'voice'
+      setContent(text)
+    },
+  })
+
+  // Dès que la transcription est prête, l'injecter dans le textarea et revenir à idle
+  useEffect(() => {
+    if (voiceState === 'preview') {
+      confirmTranscript()
+    }
+  }, [voiceState, confirmTranscript])
+
   const [selectedMood, setSelectedMood] = useState<Mood | null>(null)
   const [isCapturing, setIsCapturing] = useState(false)
   const [captureResult, setCaptureResult] = useState<CaptureResult | null>(null)
@@ -57,6 +76,15 @@ export function CaptureFlow({ userId, onSuccess }: CaptureFlowProps) {
 
   // Restaurer le contexte de planification après connexion Google Calendar
   useEffect(() => {
+    // Transcript vocal passé depuis VoiceButtonGlobal ("Modifier dans Capture")
+    const voiceParam = searchParams.get('voice')
+    if (voiceParam) {
+      setContent(decodeURIComponent(voiceParam))
+      const url = new URL(window.location.href)
+      url.searchParams.delete('voice')
+      window.history.replaceState({}, '', url.pathname)
+    }
+
     const resumePlanning = searchParams.get('resumePlanning')
 
     if (resumePlanning === 'true' && !resumedPlanning) {
@@ -118,17 +146,6 @@ export function CaptureFlow({ userId, onSuccess }: CaptureFlowProps) {
     textareaRef.current?.focus()
   }, [])
 
-  // Récupérer un transcript vocal venant du bouton flottant (autres pages)
-  useEffect(() => {
-    const pendingTranscript = localStorage.getItem('manae_voice_transcript')
-    if (pendingTranscript) {
-      localStorage.removeItem('manae_voice_transcript')
-      setContent(pendingTranscript)
-      handleCapture(pendingTranscript)
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
-
   const handleCapture = async (overrideContent?: string) => {
     const textToCapture = overrideContent ?? content
 
@@ -141,7 +158,7 @@ export function CaptureFlow({ userId, onSuccess }: CaptureFlowProps) {
     setError(null)
 
     try {
-      const result = await captureThought(userId, textToCapture)
+      const result = await captureThought(userId, textToCapture, contentSourceRef.current)
 
       if (!result.success) {
         setError(result.error || 'Erreur lors de la capture')
@@ -192,7 +209,8 @@ export function CaptureFlow({ userId, onSuccess }: CaptureFlowProps) {
         state,
         mood: convertMoodToItemMood(selectedMood),
         context: context || pensée.context,
-        aiAnalysis: pensée.ai_analysis
+        aiAnalysis: pensée.ai_analysis,
+        listId: pensée.list_id
       })
 
       onSuccess?.()
@@ -214,20 +232,34 @@ export function CaptureFlow({ userId, onSuccess }: CaptureFlowProps) {
       if (action === 'develop') state = 'project'
 
       if (type === 'list_item') {
-        const items = extractMultipleItems(content)
-
-        if (items.length > 1) {
-          await saveMultipleListItems(userId, items, captureResult?.aiAnalysis)
-        } else {
+        if (captureResult?.aiUsed) {
+          // L'IA a déjà analysé et déterminé le contenu nettoyé + la liste → ne pas re-découper
           await saveItem({
             userId,
             type,
-            content: items[0] || content,
+            content: captureResult.suggestedContent || content,
             state,
             mood: convertMoodToItemMood(selectedMood),
             context: context || captureResult?.suggestedContext,
-            aiAnalysis: captureResult?.aiAnalysis
+            aiAnalysis: captureResult?.aiAnalysis,
+            listId: captureResult?.suggestedListId
           })
+        } else {
+          // Sans IA : tentative de découpage (virgules, "et", espaces)
+          const items = extractMultipleItems(content)
+          if (items.length > 1) {
+            await saveMultipleListItems(userId, items, captureResult?.aiAnalysis)
+          } else {
+            await saveItem({
+              userId,
+              type,
+              content: items[0] || content,
+              state,
+              mood: convertMoodToItemMood(selectedMood),
+              context: context || captureResult?.suggestedContext,
+              aiAnalysis: captureResult?.aiAnalysis
+            })
+          }
         }
 
         handleReset()
@@ -259,6 +291,7 @@ export function CaptureFlow({ userId, onSuccess }: CaptureFlowProps) {
     setContent('')
     setSelectedMood(null)
     setError(null)
+    contentSourceRef.current = 'text'
     setTimeout(() => textareaRef.current?.focus(), 100)
   }
 
@@ -271,7 +304,10 @@ export function CaptureFlow({ userId, onSuccess }: CaptureFlowProps) {
       <PullToRefresh onRefresh={handlePullRefresh} className="flex-1 pb-32 px-4 pt-4">
 
         {/* Card principale */}
-        <div className="bg-white rounded-3xl p-5 shadow-sm mb-6">
+        <div className={[
+          'rounded-3xl p-5 shadow-sm mb-6 transition-colors duration-200',
+          voiceState === 'recording' ? 'bg-black/5' : 'bg-white',
+        ].join(' ')}>
           {/* Titre */}
           <h1 className="text-xl font-bold text-text-dark mb-1">
             Qu&apos;as-tu en tête ?
@@ -281,24 +317,41 @@ export function CaptureFlow({ userId, onSuccess }: CaptureFlowProps) {
           </p>
 
           {/* Textarea */}
-          <textarea
-            ref={textareaRef}
-            value={content}
-            onChange={(e) => setContent(e.target.value)}
-            placeholder="Ex: Acheter du café, améliorer ma routine du matin, penser à envoyer le mail à Milo, réserver un créneau sport"
-            rows={4}
-            className="input-field p-4 rounded-2xl resize-none"
-            disabled={isCapturing}
-          />
+          <div className="relative">
+            <textarea
+              ref={textareaRef}
+              value={content}
+              onChange={(e) => { contentSourceRef.current = 'text'; setContent(e.target.value) }}
+              placeholder="Ex: Acheter du café, améliorer ma routine du matin, penser à envoyer le mail à Milo, réserver un créneau sport"
+              rows={4}
+              className="input-field p-4 rounded-2xl resize-none w-full"
+              disabled={isCapturing}
+            />
+            {content && !isCapturing && (
+              <button
+                onClick={() => { setContent(''); textareaRef.current?.focus() }}
+                aria-label="Effacer le texte"
+                className="absolute top-2 right-2 w-6 h-6 flex items-center justify-center rounded-full bg-[var(--color-border)] text-[var(--color-text-muted)] hover:bg-gray-300 transition-colors"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            )}
+          </div>
 
           {/* Bouton micro inline dans la card */}
-          <div className="flex justify-end mt-3">
-            <VoiceButton
-              variant="inline"
-              onTranscript={(text) => {
-                setContent(text)
-                handleCapture(text)
-              }}
+          <div className="flex items-center justify-end gap-3 mt-3">
+            {voiceState === 'recording' && (
+              <RecordingFeedback
+                recordingTime={recordingTime}
+                onCancel={cancelRecording}
+              />
+            )}
+            <RecordButton
+              state={voiceState}
+              onStart={startRecording}
+              onStop={stopRecording}
+              onCancel={cancelRecording}
+              size="lg"
             />
           </div>
         </div>

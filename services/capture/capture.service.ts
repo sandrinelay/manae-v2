@@ -2,7 +2,7 @@
 
 import { createClient } from '@/lib/supabase/client'
 import { checkAIQuota, trackAIUsage } from '@/services/quota'
-import type { ItemType, ItemState, AIAnalysis } from '@/types/items'
+import type { ItemType, ItemState, ItemContext, AIAnalysis } from '@/types/items'
 import { detectShoppingCategory } from '@/config/shopping-categories'
 
 // ============================================
@@ -14,7 +14,8 @@ export interface MultiThoughtItem {
   content: string
   type: ItemType
   state: ItemState
-  context?: 'personal' | 'family' | 'work' | 'health' | 'other'
+  context?: ItemContext
+  list_id?: string
   ai_analysis: AIAnalysis
 }
 
@@ -24,7 +25,9 @@ export interface CaptureResult {
   multiple?: boolean
   items?: MultiThoughtItem[]
   suggestedType?: ItemType
-  suggestedContext?: 'personal' | 'family' | 'work' | 'health' | 'other'
+  suggestedContext?: ItemContext
+  suggestedContent?: string
+  suggestedListId?: string
   aiAnalysis?: AIAnalysis
   creditsRemaining?: number | null
   quotaExceeded?: boolean
@@ -38,7 +41,7 @@ export interface SaveItemInput {
   state?: ItemState
   aiAnalysis?: AIAnalysis
   mood?: 'energetic' | 'neutral' | 'overwhelmed' | 'tired'
-  context?: 'personal' | 'family' | 'work' | 'health' | 'other'
+  context?: ItemContext
   listId?: string // Pour list_item
   shoppingCategory?: string // Catégorie pour list_item
 }
@@ -53,7 +56,8 @@ export interface SaveItemInput {
  */
 export async function captureThought(
   userId: string,
-  content: string
+  content: string,
+  source?: 'voice' | 'text'
 ): Promise<CaptureResult> {
   console.log('🔍 [captureThought] START - userId:', userId, 'content:', content.substring(0, 50))
 
@@ -71,7 +75,7 @@ export async function captureThought(
         const response = await fetch('/api/analyze-v2', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ rawText: content })
+          body: JSON.stringify({ rawText: content, source })
         })
 
         console.log('🔍 [captureThought] API response status:', response.status)
@@ -110,6 +114,8 @@ export async function captureThought(
             aiUsed: true,
             suggestedType: firstItem.type,
             suggestedContext: firstItem.context,
+            suggestedContent: firstItem.content,
+            suggestedListId: firstItem.list_id,
             aiAnalysis: firstItem.ai_analysis,
             creditsRemaining: quota.creditsRemaining ? quota.creditsRemaining - 1 : null
           }
@@ -230,26 +236,20 @@ export async function saveItem(input: SaveItemInput): Promise<string> {
 async function getOrCreateDefaultShoppingList(userId: string): Promise<string> {
   const supabase = createClient()
 
-  // Chercher une liste active
-  const { data: existingList } = await supabase
-    .from('shopping_lists')
+  // Retourner la liste "alimentaire" de l'utilisateur
+  const { data: list } = await supabase
+    .from('lists')
     .select('id')
     .eq('user_id', userId)
-    .eq('status', 'active')
+    .eq('slug', 'alimentaire')
     .single()
 
-  if (existingList) {
-    return existingList.id
-  }
+  if (list) return list.id
 
-  // Créer une nouvelle liste
+  // Fallback : créer la liste alimentaire si absente (ne devrait pas arriver)
   const { data: newList, error } = await supabase
-    .from('shopping_lists')
-    .insert({
-      user_id: userId,
-      name: 'Courses',
-      status: 'active'
-    })
+    .from('lists')
+    .insert({ user_id: userId, name: 'Alimentaire', slug: 'alimentaire', position: 1, enabled: true })
     .select('id')
     .single()
 

@@ -24,17 +24,16 @@ export async function fetchActiveShoppingList(): Promise<ShoppingList | null> {
   const userId = await getCurrentUserId()
   const supabase = getSupabase()
 
+  // Utilise la liste "alimentaire" de la nouvelle table lists
   const { data, error } = await supabase
-    .from('shopping_lists')
-    .select('*')
+    .from('lists')
+    .select('id, name, user_id, created_at')
     .eq('user_id', userId)
-    .eq('status', 'active')
-    .order('updated_at', { ascending: false })
-    .limit(1)
+    .eq('slug', 'alimentaire')
     .single()
 
   if (error) return null
-  return data as ShoppingList
+  return { ...data, status: 'active', updated_at: data.created_at } as unknown as ShoppingList
 }
 
 export async function fetchShoppingListItems(listId: string): Promise<Item[]> {

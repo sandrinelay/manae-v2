@@ -2,6 +2,7 @@
 
 import React, { useState } from 'react';
 import { Constraint, DAYS_OF_WEEK } from '@/types';
+import type { ItemContext } from '@/types';
 import { Input } from './Input';
 import { ActionButton } from './ActionButton';
 import {
@@ -19,6 +20,16 @@ interface ConstraintFormProps {
     onSave: (constraint: Omit<Constraint, 'id'>) => void;
     onCancel: () => void;
 }
+
+const CONTEXT_OPTIONS: Array<{ value: ItemContext | 'any'; label: string }> = [
+    { value: 'any',      label: 'Toutes les tâches' },
+    { value: 'work',     label: 'Pro' },
+    { value: 'family',   label: 'Famille' },
+    { value: 'personal', label: 'Personnel' },
+    { value: 'health',   label: 'Santé' },
+    { value: 'admin',    label: 'Admin' },
+    { value: 'home',     label: 'Maison' },
+]
 
 const CATEGORY_ICONS = {
     work: BriefcaseIcon,
@@ -50,6 +61,7 @@ export const ConstraintForm: React.FC<ConstraintFormProps> = ({
     const [formData, setFormData] = useState({
         name: constraint?.name || '',
         category: constraint?.category || 'other' as Constraint['category'],
+        context: (constraint?.context || 'any') as ItemContext | 'any',
         days: constraint?.days || [],
         start_time: constraint?.start_time || '09:00',
         end_time: constraint?.end_time || '18:00',
@@ -131,6 +143,31 @@ export const ConstraintForm: React.FC<ConstraintFormProps> = ({
                             💡 Tu peux cliquer pour changer
                         </p>
                     )}
+                </div>
+
+                {/* Contexte dédié */}
+                <div>
+                    <label className="text-xs font-medium text-text-muted uppercase tracking-wide mb-2 block">
+                        CETTE PLAGE EST DÉDIÉE À
+                    </label>
+                    <div className="flex gap-2 flex-wrap">
+                        {CONTEXT_OPTIONS.map(opt => (
+                            <button
+                                key={opt.value}
+                                type="button"
+                                onClick={() => setFormData(prev => ({ ...prev, context: opt.value }))}
+                                className={`
+                                    px-3 py-1.5 rounded-xl border-2 text-sm font-medium transition-all
+                                    ${formData.context === opt.value
+                                        ? 'border-primary bg-mint text-primary'
+                                        : 'border-border text-text-dark hover:border-primary'
+                                    }
+                                `}
+                            >
+                                {opt.label}
+                            </button>
+                        ))}
+                    </div>
                 </div>
 
                 {/* Jours */}

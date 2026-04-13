@@ -14,20 +14,21 @@ import {
 import { ActionButton } from '@/components/ui/ActionButton'
 
 interface PlanShoppingModalProps {
+  listName: string
   itemCount: number
   onClose: () => void
   onSuccess: () => void
 }
 
-export function PlanShoppingModal({ itemCount, onClose, onSuccess }: PlanShoppingModalProps) {
+export function PlanShoppingModal({ listName, itemCount, onClose, onSuccess }: PlanShoppingModalProps) {
   const { isConnected: isCalendarConnected } = useGoogleCalendarStatus()
   const [showSuccess, setShowSuccess] = useState(false)
 
   // Hook de planification - on utilise un contenu générique pour les courses
   // skipItemUpdate: true car il n'y a pas d'item à mettre à jour, juste un événement calendar
   const scheduling = useScheduling({
-    itemId: 'shopping-trip',
-    taskContent: `Faire les courses (${itemCount} articles)`,
+    itemId: `shopping-${listName.toLowerCase().replace(/\s/g, '-')}`,
+    taskContent: `Achats ${listName} (${itemCount} article${itemCount > 1 ? 's' : ''})`,
     mood: undefined,
     temporalConstraint: null,
     skipItemUpdate: true
@@ -62,11 +63,13 @@ export function PlanShoppingModal({ itemCount, onClose, onSuccess }: PlanShoppin
     onClose()
   }
 
+  const taskContent = `Achats ${listName} (${itemCount} article${itemCount > 1 ? 's' : ''})`
+
   // Connexion Google Calendar
   const handleConnectCalendar = () => {
     const planningContext = {
-      itemId: 'shopping-trip',
-      content: `Faire les courses (${itemCount} articles)`,
+      itemId: `shopping-${listName.toLowerCase().replace(/\s/g, '-')}`,
+      content: taskContent,
       returnTo: 'clarte-shopping'
     }
     localStorage.setItem('manae_pending_planning', JSON.stringify(planningContext))
@@ -78,7 +81,7 @@ export function PlanShoppingModal({ itemCount, onClose, onSuccess }: PlanShoppin
     const dateTimeString = `${scheduling.selectedSlot.date}T${scheduling.selectedSlot.startTime}:00`
     return (
       <SuccessModal
-        taskContent={`Faire les courses (${itemCount} articles)`}
+        taskContent={taskContent}
         scheduledDate={formatScheduledDate(dateTimeString)}
         onClose={handleSuccessClose}
       />
@@ -105,7 +108,7 @@ export function PlanShoppingModal({ itemCount, onClose, onSuccess }: PlanShoppin
         <div className="flex items-center justify-between p-4 border-b border-border flex-shrink-0 rounded-t-3xl">
           <div className="flex items-center gap-2 text-primary">
             <ShoppingIcon className="w-5 h-5" />
-            <span className="font-medium">Caler les courses</span>
+            <span className="font-medium">Caler les achats</span>
           </div>
           <button
             onClick={onClose}
@@ -126,7 +129,7 @@ export function PlanShoppingModal({ itemCount, onClose, onSuccess }: PlanShoppin
                   <ShoppingIcon className="w-5 h-5 text-primary" />
                 </div>
                 <div>
-                  <p className="font-medium text-text-dark">Faire les courses</p>
+                  <p className="font-medium text-text-dark">Achats {listName}</p>
                   <p className="text-sm text-text-muted">{itemCount} article{itemCount > 1 ? 's' : ''} à acheter</p>
                 </div>
               </div>
