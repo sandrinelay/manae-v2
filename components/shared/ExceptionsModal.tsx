@@ -31,8 +31,7 @@ export function ExceptionsModal({ exceptions, onClose, onAdd, onDelete }: Except
   return (
     <>
       <div className="fixed inset-0 bg-black/50 z-40" onClick={onClose} />
-      <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center sm:px-4 pointer-events-none">
-      <div className="w-full sm:max-w-lg bg-white rounded-t-2xl sm:rounded-2xl shadow-2xl max-h-[90dvh] overflow-y-auto pointer-events-auto">
+      <div className="fixed inset-x-0 bottom-0 sm:inset-x-4 sm:top-1/2 sm:-translate-y-1/2 z-50 bg-white rounded-t-2xl sm:rounded-2xl shadow-2xl sm:max-w-lg sm:mx-auto max-h-[90dvh] overflow-y-auto">
         <div className="flex items-center justify-between p-4 border-b border-[var(--color-border)] sticky top-0 bg-white rounded-t-2xl">
           <h2 className="text-lg font-semibold text-[var(--color-text-dark)]">Exceptions ponctuelles</h2>
           <button onClick={onClose} aria-label="Fermer" className="p-2 rounded-xl hover:bg-gray-100 transition-colors">
@@ -67,7 +66,6 @@ export function ExceptionsModal({ exceptions, onClose, onAdd, onDelete }: Except
             </>
           )}
         </div>
-      </div>
       </div>
     </>
   )

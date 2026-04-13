@@ -145,8 +145,7 @@ export function ConstraintsModal({
       />
 
       {/* Modal */}
-      <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center sm:px-4 pointer-events-none">
-      <div className="w-full sm:max-w-md bg-white rounded-t-2xl sm:rounded-2xl shadow-2xl max-h-[90dvh] overflow-hidden flex flex-col pointer-events-auto">
+      <div className="fixed inset-x-0 bottom-0 sm:inset-x-4 sm:top-1/2 sm:-translate-y-1/2 z-50 bg-white rounded-t-2xl sm:rounded-2xl shadow-2xl sm:max-w-md sm:mx-auto max-h-[90dvh] overflow-hidden flex flex-col">
         {/* Header */}
         <div className="flex items-center justify-between p-4 border-b border-gray-100 shrink-0">
           <div>
@@ -246,7 +245,6 @@ export function ConstraintsModal({
           onConfirm={handleConfirmDelete}
         />
       )}
-      </div>
     </>
   )
 }
