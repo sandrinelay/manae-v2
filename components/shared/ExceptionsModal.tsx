@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { XIcon, PlusIcon } from '@/components/ui/icons'
 import { ExceptionCard } from '@/components/ui/ExceptionCard'
 import { ExceptionForm } from '@/components/shared/ExceptionForm'
@@ -18,6 +18,13 @@ export function ExceptionsModal({ exceptions, onClose, onAdd, onDelete }: Except
   const [showForm, setShowForm] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
   const [saveError, setSaveError] = useState<string | null>(null)
+
+  // Verrouille le scroll du body sur iOS quand la modale est ouverte
+  useEffect(() => {
+    const prev = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    return () => { document.body.style.overflow = prev }
+  }, [])
 
   const handleAdd = async (data: Omit<ScheduleException, 'id' | 'user_id' | 'created_at'>) => {
     setIsSaving(true)

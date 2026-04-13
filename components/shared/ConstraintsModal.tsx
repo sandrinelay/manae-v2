@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { XIcon, PlusIcon } from '@/components/ui/icons'
 import { ConstraintCard } from '@/components/ui/ConstraintCard'
 import { ConstraintForm } from '@/components/ui/ConstraintForm'
@@ -33,6 +33,12 @@ export function ConstraintsModal({
   const [conflictInfo, setConflictInfo] = useState<{ constraint: Constraint; days: string[] } | null>(null)
   const [deleteTarget, setDeleteTarget] = useState<{ id: string; name: string } | null>(null)
   const [isSaving, setIsSaving] = useState(false)
+
+  useEffect(() => {
+    const prev = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    return () => { document.body.style.overflow = prev }
+  }, [])
 
   const handleAddConstraint = (data: Omit<Constraint, 'id'>) => {
     const conflict = detectConflict(data, constraints)
