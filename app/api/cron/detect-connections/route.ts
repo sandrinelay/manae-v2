@@ -53,10 +53,13 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Erreur récupération users' }, { status: 500 })
     }
 
-    const activeUsers = allUsers.users.filter(user => {
-      const lastSignIn = user.last_sign_in_at ? new Date(user.last_sign_in_at) : null
-      return lastSignIn && lastSignIn >= thresholdDate
-    })
+    // En dev : traiter tous les users (last_sign_in_at souvent null/ancien sur les comptes de test)
+    const activeUsers = process.env.NODE_ENV === 'production'
+      ? allUsers.users.filter(user => {
+          const lastSignIn = user.last_sign_in_at ? new Date(user.last_sign_in_at) : null
+          return lastSignIn && lastSignIn >= thresholdDate
+        })
+      : allUsers.users
 
     console.log(`[cron/detect-connections] ${activeUsers.length} users actifs à traiter`)
 

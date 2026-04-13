@@ -209,7 +209,8 @@ export function CaptureFlow({ userId, onSuccess }: CaptureFlowProps) {
         state,
         mood: convertMoodToItemMood(selectedMood),
         context: context || pensée.context,
-        aiAnalysis: pensée.ai_analysis
+        aiAnalysis: pensée.ai_analysis,
+        listId: pensée.list_id
       })
 
       onSuccess?.()
@@ -231,20 +232,34 @@ export function CaptureFlow({ userId, onSuccess }: CaptureFlowProps) {
       if (action === 'develop') state = 'project'
 
       if (type === 'list_item') {
-        const items = extractMultipleItems(content)
-
-        if (items.length > 1) {
-          await saveMultipleListItems(userId, items, captureResult?.aiAnalysis)
-        } else {
+        if (captureResult?.aiUsed) {
+          // L'IA a déjà analysé et déterminé le contenu nettoyé + la liste → ne pas re-découper
           await saveItem({
             userId,
             type,
-            content: items[0] || content,
+            content: captureResult.suggestedContent || content,
             state,
             mood: convertMoodToItemMood(selectedMood),
             context: context || captureResult?.suggestedContext,
-            aiAnalysis: captureResult?.aiAnalysis
+            aiAnalysis: captureResult?.aiAnalysis,
+            listId: captureResult?.suggestedListId
           })
+        } else {
+          // Sans IA : tentative de découpage (virgules, "et", espaces)
+          const items = extractMultipleItems(content)
+          if (items.length > 1) {
+            await saveMultipleListItems(userId, items, captureResult?.aiAnalysis)
+          } else {
+            await saveItem({
+              userId,
+              type,
+              content: items[0] || content,
+              state,
+              mood: convertMoodToItemMood(selectedMood),
+              context: context || captureResult?.suggestedContext,
+              aiAnalysis: captureResult?.aiAnalysis
+            })
+          }
         }
 
         handleReset()

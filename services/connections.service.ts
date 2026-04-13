@@ -195,7 +195,8 @@ async function getTodaySuggestion(
     .maybeSingle()
 
   if (error) {
-    console.error('[connections] Erreur récupération suggestion:', error)
+    // Erreur silencieuse si la table n'existe pas encore (migration non appliquée)
+    console.warn('[connections] Suggestion non disponible:', error?.message ?? error)
     return null
   }
 
