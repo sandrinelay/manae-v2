@@ -145,7 +145,8 @@ export function ConstraintsModal({
       />
 
       {/* Modal */}
-      <div className="fixed inset-x-4 top-1/2 -translate-y-1/2 z-50 bg-white rounded-2xl shadow-2xl max-w-md mx-auto overflow-hidden flex flex-col" style={{ maxHeight: 'calc(100vh - 200px)' }}>
+      <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center sm:px-4 pointer-events-none">
+      <div className="w-full sm:max-w-md bg-white rounded-t-2xl sm:rounded-2xl shadow-2xl max-h-[90dvh] overflow-hidden flex flex-col pointer-events-auto">
         {/* Header */}
         <div className="flex items-center justify-between p-4 border-b border-gray-100 shrink-0">
           <div>
@@ -245,6 +246,7 @@ export function ConstraintsModal({
           onConfirm={handleConfirmDelete}
         />
       )}
+      </div>
     </>
   )
 }
