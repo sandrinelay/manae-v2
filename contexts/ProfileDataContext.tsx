@@ -77,8 +77,11 @@ export function ProfileDataProvider({ children }: { children: ReactNode }) {
         getOrCreateUserProfile(),
         getConstraints(),
         currentUser
-          ? scheduleExceptionsService.getExceptions(supabase, currentUser.id)
-          : Promise.resolve([])
+          ? scheduleExceptionsService.getExceptions(supabase, currentUser.id).catch(err => {
+              console.warn('[profil] Exceptions non chargées:', err)
+              return [] as ScheduleException[]
+            })
+          : Promise.resolve([] as ScheduleException[])
       ])
       setExceptions(userExceptions)
 
