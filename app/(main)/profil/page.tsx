@@ -102,6 +102,7 @@ function ProfilPageContent() {
     const supabase = createClient()
     await updateListEnabled(supabase, listId, !currentEnabled)
     setLists(prev => prev.map(l => l.id === listId ? { ...l, enabled: !l.enabled } : l))
+    window.dispatchEvent(new Event('clarte-data-changed'))
   }
 
   // Callback après connexion Google Calendar réussie

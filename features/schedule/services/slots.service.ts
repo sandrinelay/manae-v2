@@ -840,8 +840,13 @@ export async function findAvailableSlots(params: FindSlotsParams): Promise<FindS
       continue
     }
 
-    const effectiveDayBounds: DayBounds = activeException?.type === 'modified' && activeException.modified_start_time && activeException.modified_end_time
-      ? { start: activeException.modified_start_time, end: activeException.modified_end_time }
+    const isModifiedDay = activeException?.type === 'modified' &&
+      !!activeException.modified_start_time && !!activeException.modified_end_time
+
+    // Pour les tâches work sur un jour modifié : restreindre la fenêtre aux heures modifiées
+    // Pour les autres tâches : garder la fenêtre par défaut (les heures modifiées bloqueront via contrainte)
+    const effectiveDayBounds: DayBounds = (isModifiedDay && taskContext === 'work')
+      ? { start: activeException!.modified_start_time!, end: activeException!.modified_end_time! }
       : dayBounds
 
     // 1. Récupérer les contraintes du jour (work, school, etc.)
@@ -861,7 +866,18 @@ export async function findAvailableSlots(params: FindSlotsParams): Promise<FindS
         )
       : rawDayConstraints
 
-    const constraintBlocks = constraintsToBlocks(dayConstraints)
+    // Sur un jour avec exception modifiée, pour les tâches non-work :
+    // remplacer les heures de la contrainte travail par les heures modifiées pour le blocage.
+    // Ex : séminaire 9h-13h au lieu de 9h-18h → créneaux perso disponibles dès 13h au lieu de 18h.
+    const constraintBlocksSource = (isModifiedDay && taskContext !== 'work')
+      ? dayConstraints.map(c =>
+          c.context === 'work'
+            ? { ...c, start_time: activeException!.modified_start_time!, end_time: activeException!.modified_end_time!, allow_lunch_break: false }
+            : c
+        )
+      : dayConstraints
+
+    const constraintBlocks = constraintsToBlocks(constraintBlocksSource)
 
     // 2. Récupérer les événements du jour (HARD) - événements Google Calendar
     // Les événements calendar sont TOUJOURS respectés (ce sont des vrais RDV)
