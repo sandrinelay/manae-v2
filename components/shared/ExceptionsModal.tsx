@@ -17,12 +17,17 @@ interface ExceptionsModalProps {
 export function ExceptionsModal({ exceptions, onClose, onAdd, onDelete }: ExceptionsModalProps) {
   const [showForm, setShowForm] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
+  const [saveError, setSaveError] = useState<string | null>(null)
 
   const handleAdd = async (data: Omit<ScheduleException, 'id' | 'user_id' | 'created_at'>) => {
     setIsSaving(true)
+    setSaveError(null)
     try {
       await onAdd(data)
       setShowForm(false)
+    } catch (err) {
+      console.error('[ExceptionsModal] Erreur sauvegarde:', err)
+      setSaveError('Erreur lors de l\'enregistrement. Réessaie.')
     } finally {
       setIsSaving(false)
     }
@@ -40,6 +45,9 @@ export function ExceptionsModal({ exceptions, onClose, onAdd, onDelete }: Except
         </div>
 
         <div className="p-4 space-y-3">
+          {saveError && (
+            <p className="text-sm text-red-500 text-center">{saveError}</p>
+          )}
           {showForm ? (
             <ExceptionForm onSave={handleAdd} onCancel={() => setShowForm(false)} />
           ) : (

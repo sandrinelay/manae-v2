@@ -139,12 +139,11 @@ export function ProfileDataProvider({ children }: { children: ReactNode }) {
   }, [])
 
   const addException = useCallback(async (data: Omit<ScheduleException, 'id' | 'user_id' | 'created_at'>) => {
+    if (!user) throw new Error('Non authentifié')
     const supabase = createClient()
-    const { data: { user: currentUser } } = await supabase.auth.getUser()
-    if (!currentUser) throw new Error('Non authentifié')
-    const newException = await scheduleExceptionsService.createException(supabase, currentUser.id, data)
+    const newException = await scheduleExceptionsService.createException(supabase, user.id, data)
     setExceptions(prev => [...prev, newException].sort((a, b) => a.start_date.localeCompare(b.start_date)))
-  }, [])
+  }, [user])
 
   const deleteException = useCallback(async (id: string) => {
     const supabase = createClient()
